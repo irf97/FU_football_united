@@ -6,10 +6,21 @@ alias Fu.Repo
 alias Fu.{Fields, Queues, Accounts}
 alias Fu.Accounts.Player
 
-Repo.delete_all(Fu.Queues.QueueMembership)
-Repo.delete_all(Fu.Queues.QueueSlot)
-Repo.delete_all(Fu.Queues.Queue)
-Repo.delete_all(Fu.Fields.Field)
+# Order matters (FKs). Idempotent: full reset of seedable data.
+for schema <- [
+      Fu.Groups.GroupMembership,
+      Fu.Groups.Group,
+      Fu.Friends.Friendship,
+      Fu.Queues.QueueMembership,
+      Fu.Queues.QueueSlot,
+      Fu.Queues.Queue,
+      Fu.Accounts.AvailabilityWindow,
+      Fu.Accounts.OtpCode,
+      Fu.Accounts.Player,
+      Fu.Fields.Field
+    ] do
+  Repo.delete_all(schema)
+end
 
 # --- Fields (3 partner pitches, spec §6 day 29) ---
 {:ok, f1} =

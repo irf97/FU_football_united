@@ -4,9 +4,9 @@ defmodule Fu.Queues do
   (spec §2.1, §2.2, §2.4, §2.11). Join/leave land in Phase 2.
   """
 
-  import Ecto.Query
+  import Ecto.Query, except: [join: 3, join: 4, join: 5]
   alias Fu.Repo
-  alias Fu.Queues.{Queue, QueueSlot}
+  alias Fu.Queues.{Queue, QueueSlot, QueueMembership}
   alias Fu.{Positions, Geo}
 
   @lock_seconds 3 * 3600
@@ -186,4 +186,181 @@ defmodule Fu.Queues do
 
   defp rated_ok?(_card, val) when val in [nil, false], do: true
   defp rated_ok?(card, _), do: card.rated
+
+  ## --- Real-time (spec §2.13 Surface 3 "fill status update in real-time", S32) ---
+
+  def topic(queue_id), do: "queue:#{queue_id}"
+
+  def subscribe(queue_id),
+    do: Phoenix.PubSub.subscribe(Fu.PubSub, topic(queue_id))
+
+  def subscribe_all, do: Phoenix.PubSub.subscribe(Fu.PubSub, "queues")
+
+  defp broadcast(queue_id, event) do
+    Phoenix.PubSub.broadcast(Fu.PubSub, topic(queue_id), {event, queue_id})
+    Phoenix.PubSub.broadcast(Fu.PubSub, "queues", {event, queue_id})
+    :ok
+  end
+
+  ## --- Join / leave (spec §2.4, S30/S31) ---
+
+  @doc """
+  Joins `player` to `queue`, picking a position from the player's prefs that
+  still has an open slot: primary → secondary → (fill mode) any open.
+
+  Enforces: not suspended, queue open/locked, not already in, quota free.
+  In the lock period the membership is flagged `joined_in_lock` and cannot be
+  left (spec §2.4 "late joiners must commit immediately").
+  """
+  def join(%Queue{} = queue, player, forced_position \\ nil) do
+    cond do
+      Fu.Accounts.suspended?(player) ->
+        {:error, :suspended}
+
+      queue.state not in ["open", "locked"] ->
+        {:error, :queue_closed}
+
+      already_member?(queue, player.id) ->
+        {:error, :already_joined}
+
+      true ->
+        case forced_position || pick_position(queue, player) do
+          nil ->
+            {:error, :no_slot}
+
+          pos ->
+            result =
+              %QueueMembership{}
+              |> QueueMembership.changeset(%{
+                queue_id: queue.id,
+                player_id: player.id,
+                declared_position: pos,
+                status: "queued",
+                joined_in_lock: locked?(queue)
+              })
+              |> Repo.insert()
+
+            with {:ok, m} <- result do
+              broadcast(queue.id, :queue_changed)
+              {:ok, m}
+            end
+        end
+    end
+  end
+
+  @doc "Leaves a queue. Allowed only in the open period (spec §2.4)."
+  def leave(%Queue{} = queue, player) do
+    cond do
+      locked?(queue) ->
+        {:error, :locked}
+
+      true ->
+        case Repo.get_by(QueueMembership, queue_id: queue.id, player_id: player.id, status: "queued") do
+          nil ->
+            {:error, :not_member}
+
+          m ->
+            {:ok, _} = m |> QueueMembership.changeset(%{status: "left"}) |> Repo.update()
+            broadcast(queue.id, :queue_changed)
+            :ok
+        end
+    end
+  end
+
+  @doc """
+  Atomic group join (spec §2.12): all members fit their positions or none
+  join. `members` is a list of `%{player: player, position: pos}` (position
+  optional — falls back to the player's prefs).
+  """
+  def join_group(%Queue{} = queue, members) do
+    Repo.transaction(fn ->
+      Enum.reduce_while(members, [], fn %{player: p} = entry, acc ->
+        case join(queue, p, entry[:position]) do
+          {:ok, m} -> {:cont, [m | acc]}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+      |> case do
+        {:error, reason} -> Repo.rollback(reason)
+        list -> list
+      end
+    end)
+  end
+
+  defp already_member?(queue, player_id) do
+    Repo.exists?(
+      from m in QueueMembership,
+        where: m.queue_id == ^queue.id and m.player_id == ^player_id and m.status == "queued"
+    )
+  end
+
+  @doc "Position the player would be slotted into, or nil (spec §2.2, §2.6)."
+  def pick_position(%Queue{} = queue, player) do
+    prefs =
+      [player.primary_position, player.secondary_position]
+      |> Enum.reject(&(&1 in [nil, ""]))
+
+    prefs = if player.fill_mode, do: prefs ++ Positions.positions(), else: prefs
+
+    Enum.find(Enum.uniq(prefs), &needs_position?(queue, &1))
+  end
+
+  ## --- Lifecycle / partial-fill resolution (spec §2.4, S33/S34/S35) ---
+
+  @doc """
+  T-3h partial-fill resolution (spec §2.4):
+
+    * all quotas met → `:confirmed`
+    * keeper present and `< 2` non-keeper slots empty → extend 30 min, once
+    * keeper missing or `> 2` slots empty → `:cancelled`
+  """
+  def resolve_partial_fill(%Queue{} = queue) do
+    fs = fill_status(queue)
+    empty = fn pos -> max(fs[pos].capacity - fs[pos].filled, 0) end
+
+    keeper_ok = empty.("GK") == 0
+    non_keeper_empty = empty.("DEF") + empty.("MID") + empty.("FWD")
+
+    cond do
+      Enum.all?(["GK", "DEF", "MID", "FWD"], &(empty.(&1) == 0)) ->
+        set_state(queue, "confirmed")
+
+      keeper_ok and non_keeper_empty < 2 and not queue.extended_once ->
+        {:ok, q} =
+          queue
+          |> Queue.changeset(%{extended_once: true})
+          |> Repo.update()
+
+        broadcast(q.id, :queue_changed)
+        {:extended, q}
+
+      true ->
+        set_state(queue, "cancelled")
+    end
+  end
+
+  defp set_state(%Queue{} = queue, state) do
+    {:ok, q} = queue |> Queue.changeset(%{state: state}) |> Repo.update()
+    broadcast(q.id, :queue_changed)
+    {String.to_atom(state), q}
+  end
+
+  @doc "Set of queue ids the player is currently queued in."
+  def joined_queue_ids(player) do
+    from(m in QueueMembership,
+      where: m.player_id == ^player.id and m.status == "queued",
+      select: m.queue_id
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc "Queues whose lock window has arrived but are still `open` (driver for the Resolver)."
+  def due_for_resolution do
+    cutoff = DateTime.add(DateTime.utc_now(), @lock_seconds, :second)
+
+    from(q in Queue, where: q.state == "open" and q.scheduled_at <= ^cutoff)
+    |> Repo.all()
+    |> Repo.preload([:slots, :memberships])
+  end
 end

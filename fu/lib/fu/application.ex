@@ -12,8 +12,7 @@ defmodule Fu.Application do
       Fu.Repo,
       {DNSCluster, query: Application.get_env(:fu, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Fu.PubSub},
-      # Start a worker by calling: Fu.Worker.start_link(arg)
-      # {Fu.Worker, arg},
+      Fu.Queues.Resolver,
       # Start to serve requests, typically the last entry
       FuWeb.Endpoint
     ]

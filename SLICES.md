@@ -51,20 +51,26 @@ Auth ‖ Contexts ‖ UI:
 > Verified: login→session→`/`,`/browse`,`/profile` all HTTP 200 with live
 > seeded data (fill pills, distances, lock countdown, rated badges).
 
-## Phase 2 — Days 15–28 · Join/leave + Auto-match
+## Phase 2 — Days 15–28 · Join/leave + Auto-match ✅ VERIFIED
 
-- [ ] S30 Join queue API (atomic, quota-enforced)
-- [ ] S31 Leave queue API (open period only)
-- [ ] S32 Real-time fill via PubSub/LiveView
-- [ ] S33 Queue state machine open→lock(T-3h)→match
-- [ ] S34 Lock-period enforcement (no-leave, spontaneous queuers)
-- [ ] S35 Partial-fill resolution job at T-3h (confirm/30m-ext/cancel)
-- [ ] S36 Auto-match: top-3 queue proposal from availability+pos
-- [ ] S37 Friendships schema + symmetric confirm
-- [ ] S38 Friend invite link + contact-match stub
-- [ ] S39 Group entity + leader + atomic group join
-- [ ] S40 Group fit check (collective quotas)
-- [ ] S41 Group UI: solo/with-friends + size expectation messaging
+- [x] S30 Join queue API (atomic, quota-enforced, pref-aware)
+- [x] S31 Leave queue API (open period only; locked → error)
+- [x] S32 Real-time fill via PubSub (`subscribe_all` + handle_info)
+- [x] S33 Queue state machine open→lock(T-3h)→confirmed/cancelled
+- [x] S34 Lock-period enforcement (no-leave, joined_in_lock flag)
+- [x] S35 Partial-fill `Resolver` GenServer (confirm/30m-ext/cancel)
+- [x] S36 `Fu.Matching` auto-match top-3 (availability+pos scored) [agent]
+- [x] S37 `Fu.Friends` friendships + symmetric auto-accept [agent]
+- [x] S38 Invite link + phone-contact-match stub [agent]
+- [x] S39 `Fu.Groups` group + leader + atomic group join [agent]
+- [x] S40 Group fit simulation (competing-slot aware) [agent]
+- [x] S41 Group UI on Home + join/leave + suggestions
+
+> Verified: `phase2_smoke.exs` exercises join/leave/lock, matching,
+> friends (request→auto-accept→list→invite→by-phone), group
+> create/add/fit/queue, resolver confirm/cancel — all per §2.4/§2.12.
+> Built via 3 parallel agents (Matching ‖ Friends ‖ Groups), zero
+> integration warnings.
 
 ## Phase 3 — Days 29–42 · Lobby + Field booking
 

@@ -6,12 +6,37 @@ defmodule FuWeb.BrowseLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: Queues.subscribe_all()
     {:ok, socket |> assign(filters: %{}, fmt: nil) |> reload()}
   end
 
   defp reload(socket) do
-    cards = Queues.browse(socket.assigns.current_player, socket.assigns.filters)
-    assign(socket, cards: cards)
+    player = socket.assigns.current_player
+    cards = Queues.browse(player, socket.assigns.filters)
+    assign(socket, cards: cards, joined: Queues.joined_queue_ids(player))
+  end
+
+  @impl true
+  def handle_event("join", %{"id" => id}, socket) do
+    q = Queues.get_queue!(id)
+
+    case Queues.join(q, socket.assigns.current_player) do
+      {:ok, m} ->
+        {:noreply, socket |> put_flash(:info, "Joined as #{m.declared_position}.") |> reload()}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, join_error(reason))}
+    end
+  end
+
+  def handle_event("leave", %{"id" => id}, socket) do
+    q = Queues.get_queue!(id)
+
+    case Queues.leave(q, socket.assigns.current_player) do
+      :ok -> {:noreply, socket |> put_flash(:info, "Left the queue.") |> reload()}
+      {:error, :locked} -> {:noreply, put_flash(socket, :error, "Locked — you're committed (spec §2.4).")}
+      {:error, _} -> {:noreply, reload(socket)}
+    end
   end
 
   @impl true
@@ -39,6 +64,15 @@ defmodule FuWeb.BrowseLive do
 
     {:noreply, socket |> assign(fmt: sel, filters: filters) |> reload()}
   end
+
+  @impl true
+  def handle_info({:queue_changed, _id}, socket), do: {:noreply, reload(socket)}
+
+  defp join_error(:no_slot), do: "No open slot for your positions here."
+  defp join_error(:already_joined), do: "You're already in this queue."
+  defp join_error(:queue_closed), do: "This queue is no longer open."
+  defp join_error(:suspended), do: "You're on a queue suspension."
+  defp join_error(other), do: "Couldn't join (#{other})."
 
   @impl true
   def render(assigns) do
@@ -74,12 +108,17 @@ defmodule FuWeb.BrowseLive do
         No queues match. Loosen a filter, or check back — density compounds.
       </div>
 
-      <.queue_card :for={c <- @cards} card={c} />
+      <.queue_card
+        :for={c <- @cards}
+        card={c}
+        joined={MapSet.member?(@joined, c.queue.id)}
+      />
     </Layouts.app>
     """
   end
 
   attr :card, :map, required: true
+  attr :joined, :boolean, default: false
 
   defp queue_card(assigns) do
     ~H"""
@@ -125,6 +164,21 @@ defmodule FuWeb.BrowseLive do
         <span :if={!@card.avg_rank}>no players yet</span>
         <span class={@card.locked && "text-warning"}>{lock_label(@card)}</span>
       </div>
+
+      <%= cond do %>
+        <% @joined and @card.locked -> %>
+          <button class="btn btn-sm btn-block" disabled>
+            Committed · in this match
+          </button>
+        <% @joined -> %>
+          <button phx-click="leave" phx-value-id={@card.queue.id} class="btn btn-sm btn-block btn-outline btn-error">
+            Leave queue
+          </button>
+        <% true -> %>
+          <button phx-click="join" phx-value-id={@card.queue.id} class="btn btn-sm btn-block btn-primary">
+            Join {if @card.locked, do: "(commit now)", else: "queue"}
+          </button>
+      <% end %>
     </div>
     """
   end

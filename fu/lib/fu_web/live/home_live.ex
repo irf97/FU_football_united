@@ -5,7 +5,7 @@ defmodule FuWeb.HomeLive do
   """
   use FuWeb, :live_view
 
-  alias Fu.{Accounts, Queues, Positions}
+  alias Fu.{Accounts, Queues, Positions, Friends, Groups, Matching}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -15,8 +15,40 @@ defmodule FuWeb.HomeLive do
   defp load(socket) do
     player = socket.assigns.current_player
     cards = Queues.browse(player)
-    needing = Enum.count(cards, & &1.needs_my_position)
-    assign(socket, player: player, queue_count: length(cards), needing: needing)
+    group = Groups.current_group(player)
+
+    assign(socket,
+      player: player,
+      queue_count: length(cards),
+      needing: Enum.count(cards, & &1.needs_my_position),
+      suggestions: Matching.suggest(player),
+      friends: Friends.list_friends(player),
+      pending: Friends.pending_incoming(player),
+      group: group,
+      group_members: group && Groups.members(group),
+      invite: Friends.invite_link(player)
+    )
+  end
+
+  @impl true
+  def handle_event("accept-friend", %{"id" => id}, socket) do
+    Friends.accept_friend(String.to_integer(id))
+    {:noreply, load(socket)}
+  end
+
+  def handle_event("create-group", _, socket) do
+    {:ok, _g} = Groups.create_group(socket.assigns.player)
+    {:noreply, socket |> put_flash(:info, "Group created.") |> load()}
+  end
+
+  def handle_event("add-to-group", %{"id" => pid}, socket) do
+    friend = Accounts.get_player!(String.to_integer(pid))
+
+    case Groups.add_member(socket.assigns.group, friend) do
+      {:ok, _} -> {:noreply, load(socket)}
+      {:error, :group_full} -> {:noreply, put_flash(socket, :error, "Group is full (8 max).")}
+      {:error, _} -> {:noreply, load(socket)}
+    end
   end
 
   @impl true
@@ -107,19 +139,90 @@ defmodule FuWeb.HomeLive do
         </button>
       </div>
 
-      <!-- Friends row (Phase 2 placeholder, spec §2.12) -->
+      <!-- Auto-match suggestions (spec §2.6 — "can I play soon?") -->
       <div class="fu-card p-4">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider mb-1">Friends</div>
-        <div class="text-sm fu-ink-soft">Group queuing arrives in the next slice.</div>
+        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider mb-2">
+          Suggested for you
+        </div>
+        <div :if={@suggestions == []} class="text-sm fu-ink-soft">
+          Add availability windows in your profile so we can match you.
+        </div>
+        <.link
+          :for={c <- @suggestions}
+          navigate={~p"/browse"}
+          class="flex items-center justify-between py-2 border-b border-neutral last:border-0"
+        >
+          <span class="text-sm">{c.field.name}</span>
+          <span class="text-xs fu-ink-soft font-mono">
+            {c.format}{if c.needs_my_position, do: " · needs you"}
+          </span>
+        </.link>
       </div>
 
-      <!-- Recent matches (Phase 4 placeholder, spec §2.13) -->
-      <div class="fu-card p-4">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider mb-1">Recent matches</div>
-        <div class="text-sm fu-ink-soft">No matches played yet.</div>
+      <!-- Friends & group (spec §2.12) -->
+      <div class="fu-card p-4 space-y-3">
+        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Friends</div>
+
+        <div :if={@pending != []} class="space-y-1">
+          <div
+            :for={f <- @pending}
+            class="flex items-center justify-between text-sm"
+          >
+            <span>{f.requester.display_name} wants to connect</span>
+            <button
+              phx-click="accept-friend"
+              phx-value-id={f.id}
+              class="btn btn-xs btn-primary"
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+
+        <div class="text-sm">
+          <span :if={@friends == []} class="fu-ink-soft">No friends yet.</span>
+          <span :if={@friends != []} class="fu-ink-soft">
+            {@friends |> Enum.map(& &1.display_name) |> Enum.join(", ")}
+          </span>
+        </div>
+
+        <div class="text-xs fu-ink-dim font-mono break-all">invite: {@invite}</div>
+
+        <%= if @group do %>
+          <div class="pt-2 border-t border-neutral space-y-2">
+            <div class="text-sm">
+              Group · {length(@group_members)}/8 —
+              <span class="fu-serif text-primary">
+                {Groups.expected_split(length(@group_members))}
+              </span>
+            </div>
+            <div class="text-xs fu-ink-soft">
+              {@group_members |> Enum.map(& &1.display_name) |> Enum.join(", ")}
+            </div>
+            <div :if={@friends != []} class="flex flex-wrap gap-1">
+              <button
+                :for={fr <- addable(@friends, @group_members)}
+                phx-click="add-to-group"
+                phx-value-id={fr.id}
+                class="pos-pill needs"
+              >
+                + {fr.display_name}
+              </button>
+            </div>
+          </div>
+        <% else %>
+          <button phx-click="create-group" class="btn btn-sm btn-outline w-full">
+            Create a group to queue with friends
+          </button>
+        <% end %>
       </div>
     </Layouts.app>
     """
+  end
+
+  defp addable(friends, group_members) do
+    member_ids = MapSet.new(group_members, & &1.id)
+    Enum.reject(friends, &MapSet.member?(member_ids, &1.id))
   end
 
   attr :label, :string, required: true
