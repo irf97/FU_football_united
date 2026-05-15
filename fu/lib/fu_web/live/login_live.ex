@@ -1,0 +1,95 @@
+defmodule FuWeb.LoginLive do
+  @moduledoc "Surface 1: phone → SMS OTP → session (spec §2.13)."
+  use FuWeb, :live_view
+
+  alias Fu.Accounts
+  alias FuWeb.PlayerAuth
+
+  @impl true
+  def mount(_params, _session, socket) do
+    {:ok, assign(socket, step: :phone, phone: "", error: nil, dev_code: nil)}
+  end
+
+  @impl true
+  def handle_event("send", %{"phone" => phone}, socket) do
+    case Accounts.request_otp(phone) do
+      {:ok, code} ->
+        # v1: there is no SMS gateway, so surface the code for the demo.
+        {:noreply, assign(socket, step: :code, phone: phone, error: nil, dev_code: code)}
+
+      _ ->
+        {:noreply, assign(socket, error: "Enter a valid phone number.")}
+    end
+  end
+
+  def handle_event("verify", %{"code" => code}, socket) do
+    case Accounts.verify_otp(socket.assigns.phone, String.trim(code)) do
+      {:ok, player} ->
+        token = PlayerAuth.login_token(player.id)
+        {:noreply, redirect(socket, to: ~p"/session/#{token}")}
+
+      {:error, _} ->
+        {:noreply, assign(socket, error: "Wrong or expired code.")}
+    end
+  end
+
+  def handle_event("back", _, socket),
+    do: {:noreply, assign(socket, step: :phone, error: nil, dev_code: nil)}
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.app flash={@flash}>
+      <div class="pt-16 space-y-8">
+        <div class="text-center space-y-2">
+          <div class="text-4xl font-semibold tracking-tight">FU</div>
+          <p class="fu-serif text-primary">
+            queue for a match you didn't know existed
+          </p>
+        </div>
+
+        <div class="fu-card p-6 space-y-4">
+          <%= if @step == :phone do %>
+            <h2 class="fu-serif text-lg">Sign in</h2>
+            <p class="fu-ink-soft text-sm">No passwords. We text you a code.</p>
+            <.form for={%{}} phx-submit="send" class="space-y-3">
+              <input
+                type="tel"
+                name="phone"
+                value={@phone}
+                placeholder="+31 6 1000 0001"
+                autocomplete="tel"
+                class="input input-bordered w-full bg-base-200"
+                required
+              />
+              <button class="btn btn-primary w-full" type="submit">Send code</button>
+            </.form>
+          <% else %>
+            <h2 class="fu-serif text-lg">Enter code</h2>
+            <p class="fu-ink-soft text-sm">Sent to {@phone}.</p>
+            <div :if={@dev_code} class="text-xs font-mono text-secondary">
+              demo code: {@dev_code}
+            </div>
+            <.form for={%{}} phx-submit="verify" class="space-y-3">
+              <input
+                type="text"
+                name="code"
+                inputmode="numeric"
+                placeholder="6-digit code"
+                class="input input-bordered w-full bg-base-200 tracking-[0.5em] text-center"
+                required
+              />
+              <button class="btn btn-primary w-full" type="submit">Verify</button>
+              <button type="button" phx-click="back" class="btn btn-ghost btn-sm w-full">
+                Change number
+              </button>
+            </.form>
+          <% end %>
+
+          <p :if={@error} class="text-error text-sm">{@error}</p>
+        </div>
+      </div>
+    </Layouts.app>
+    """
+  end
+end

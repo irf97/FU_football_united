@@ -1,0 +1,14 @@
+# Elixir / Phoenix build artifacts
+fu/_build/
+fu/deps/
+fu/.elixir_ls/
+fu/*.ez
+fu/erl_crash.dump
+
+# Assets
+fu/assets/node_modules/
+fu/priv/static/assets/
+
+# Local dev
+*.log
+.DS_Store
