@@ -9,10 +9,10 @@ missing. "MISSING" = no implementation/surface.
 
 ## Summary
 
-- Features **WIRED: 11 / 17** _(revised post-Phase 2: feature 16 → PARTIAL)_
-- Features **PARTIAL: 5 / 17**
+- Features **WIRED: 12 / 17** _(feature 16 was P2-PARTIAL, Balance loop fixed)_
+- Features **PARTIAL: 4 / 17**
 - Features **MISSING: 1 / 17**
-- Integration breaks identified: **4** (Phase 2 added the Balance loop)
+- Integration breaks: **4 identified, #4 (Balance loop) RESOLVED in Phase 2**
 - PubSub integrity: **clean** (no dead broadcasts, no dead subscribers)
 - Deployment blockers: **3** (SMS stub, no OTP rate-limit, no OTP attempt-cap)
 
@@ -45,7 +45,7 @@ isolation; nothing triggers them in the running product.
 | 13 | Post-match voting (skip, penalty) | **PARTIAL** | `post_match_live.ex:57/80/85` vote/skip/skip-all → `voting.ex:42` `cast` / `:55` `skip` → `Repo`; skip detector `voting.ex:116`; tally `:151` | Gated by `voting_open?` (`voting.ex:101`) which needs a `MatchResult.votes_close_at` — set only by `Matches.complete_match`, **which has no app caller** (seed-only). So voting is unreachable in-app except on the seeded queue. Categories shipped = 3 (`mvp/defender/keeper`, `voting.ex:25`) with own/opp via a flag, vs spec's "4". |
 | 14 | Rank system (Ranking + Decay) | **PARTIAL** | `ranking.ex:74` `finalize_match` — deterministic, idempotent (`:77-82`), transactional (`:91`), §2.9 breakdown (`:132`). `DecayWorker` supervised (`application.ex:16`) → `ranking.ex:325` `apply_decay`. | `finalize_match` has **no production caller** (only `seeds.exs:201`). `ranking.ex:246` `record_no_show` has **zero callers anywhere** (dead). `file_dispute` is called from `post_match_live.ex:100` but wrapped in `try/rescue/catch` that swallows all errors and flashes success regardless (`:99-107`). Decay path itself: WIRED. |
 | 15 | Friends list + invite + requests | **PARTIAL** | `home_live.ex:25/26/29` list/pending/invite_link, `:53` accept-friend → `friends.ex` (`request_friend:19`, `invite_link:80`, `accept_friend`) | **No UI to *send* a friend request** — no `request_friend` caller in any LiveView (`audit/raw/handle-events.txt` shows only `accept-friend`). Invite link is display-only; accept works. |
-| 16 | Multi-format (5v5–11v11, rated 8v8) | **PARTIAL** _(revised post-Phase 2)_ | `positions.ex` formats; `queues.ex:20` `create_queue`; `ranking.ex:136` rated branch — all correct | `Fu.Balance.assign_teams/1` **infinite-loops for every non-8v8 format** (`balance.ex:135` non-termination; proven by `ranking_test.exs:49` 60s timeout). 8v8 converges; nothing else does. Integration break #4. |
+| 16 | Multi-format (5v5–11v11, rated 8v8) | WIRED _(PARTIAL in P2 → **fixed**)_ | `positions.ex` formats; `queues.ex:20`; `ranking.ex:136` rated branch; `balance.ex` `feasibility_swaps/4` now terminates all formats (suite green incl. 7v7) | Was a non-8v8 `Balance.assign_teams` infinite-loop; fixed (strict-progress + fuel cap, Irfan-approved). Integration break #4 RESOLVED. |
 | 17 | Admin surface (password-gated) | WIRED | `login_live.ex:38` show-admin / `:41` admin-login (pw check) → `Admin.ensure_admin_player` → token; `/admin` route → `admin_live.ex` (`:26` filter, `:29` toggle-suspend → `Admin.toggle_suspend`) | Shared hardcoded password in source (`login_live.ex`) — acceptable demo gate, not real auth (already flagged in `STACK.md`). |
 
 ## PubSub integrity
@@ -81,8 +81,8 @@ Topics enumerated from `audit/raw/pubsub-broadcasts.txt` / `pubsub-subscribes.tx
    - `home_live.ex` wires group create/add only. Friend-group *queue join*
      (feature 6) cannot be triggered by a user.
 
-4. **`Fu.Balance.assign_teams/1` non-terminates for non-8v8.**
-   _Severity: blocker._ _(Found in Phase 2 by `ranking_test.exs:49`.)_
+4. **`Fu.Balance.assign_teams/1` non-terminated for non-8v8 — RESOLVED.**
+   _Severity: was blocker._ _(Found in Phase 2 by `ranking_test.exs:49`.)_
    - `balance.ex:122-141` `feasibility_swaps/3` recurses with only an
      exact-state-equality stop (`:135`); an oscillating swap that changes
      teams without reducing a position deficit loops forever. 8v8 quotas
@@ -90,9 +90,10 @@ Topics enumerated from `audit/raw/pubsub-broadcasts.txt` / `pubsub-subscribes.tx
    - Caller path: `LobbyLive.mount` (`lobby_live.ex:13`) →
      `Balance.assign_teams` on any confirmed non-8v8 queue → process hangs
      (per-request DoS). Also blocks Resolver-confirmed non-8v8 lobbies.
-   - **Not fixed (brief: permission required).** `mix test` is 30/31 until
-     resolved; Phase 3 gate (green suite) blocked. See
-     `audit/test-findings.md#5`.
+   - **FIXED (Irfan-approved):** `feasibility_swaps/4` now requires a strict
+     decrease in `total_deficit/3` + a fuel cap — deterministic, terminating
+     (spec §2.7 "or no improving swap remains"). `mix test` → green
+     (31 tests, 2 properties, 0 failures, 0.8s). See `audit/test-findings.md#5`.
 
 Secondary (not breaks, flagged): `post_match_live.ex:99-107` dispute handler
 swallows all errors via `try/rescue/catch` and flashes success

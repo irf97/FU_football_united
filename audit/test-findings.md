@@ -34,9 +34,12 @@ brief, application bugs are flagged here, not patched.
      A) fix `feasibility_swaps` (bound iterations / cycle-detect), or
      B) `@tag :skip` the unrated test + ship the bug as a documented
         DEPLOY blocker and proceed to Phase 3.
-   Until decided, `mix test` is **30/31 (1 failure)** — Phase 3 gate
-   (green suite) is NOT met. Not silently fixed; not silently skipped.
+   **RESOLVED** (Irfan approved option A): `feasibility_swaps/3` now has a
+   strict-progress guard (`total_deficit` must strictly decrease) + a fuel
+   cap (`balance.ex` `feasibility_swaps/4` + `total_deficit/3`).
+   Deterministic, terminating, matches spec §2.7 "or no improving swap
+   remains". Suite re-run → green; 8v8 paths unaffected.
 
-Suite result this pass: **2 properties, 31 tests, 1 failure** (the Balance
-timeout above). All other P0 — Resolver (9), Ranking 8v8 + clamp
-properties, Lobby captain claim (9), OTP (6) — **green**.
+Suite result after fix: **2 properties, 31 tests, 0 failures** (0.8s).
+P0 green: Resolver (9), Ranking 8v8 + clamp/monotonic properties, Lobby
+captain claim (9), OTP (6). Phase 3 gate (green suite) MET.

@@ -119,25 +119,47 @@ defmodule Fu.Balance do
   # Step 3 + Step 4. Repeatedly: find a position where one team is short and
   # the other has a surplus, then apply the minimal aggregate-rank-delta
   # cross-team swap that fixes it. Stop when feasible or no improving swap.
-  defp feasibility_swaps(team_a, team_b, per_team) do
+  defp feasibility_swaps(team_a, team_b, per_team),
+    do: feasibility_swaps(team_a, team_b, per_team, length(team_a) + length(team_b))
+
+  # Fuel cap: a hard bound on swap iterations (defensive — can never exceed
+  # the player count given the strict-progress guard below).
+  defp feasibility_swaps(team_a, team_b, _per_team, 0), do: {team_a, team_b}
+
+  defp feasibility_swaps(team_a, team_b, per_team, fuel) do
     case deficit_position(team_a, team_b, per_team) do
       nil ->
         {team_a, team_b}
 
-      {short_team, surplus_team, pos} ->
+      {short_team, _surplus_team, pos} ->
         {a, b} =
           if short_team == :a,
             do: best_swap(team_a, team_b, pos, :a),
             else: best_swap(team_a, team_b, pos, :b) |> flip()
 
-        # Guard against non-progress (no improving swap) to stay terminating
-        # and deterministic.
-        if {a, b} == {team_a, team_b} or surplus_team == nil do
-          {team_a, team_b}
+        # Only recurse if the swap STRICTLY reduces total infeasibility.
+        # A position-fixing swap can create a deficit elsewhere; without a
+        # monotonic progress measure those oscillate forever (the non-8v8
+        # hang). `total_deficit` is a non-negative integer bounded below by
+        # 0, so a strict decrease guarantees termination — and matches spec
+        # §2.7 "repeat until feasible or no improving swap remains".
+        if total_deficit(a, b, per_team) < total_deficit(team_a, team_b, per_team) do
+          feasibility_swaps(a, b, per_team, fuel - 1)
         else
-          feasibility_swaps(a, b, per_team)
+          {team_a, team_b}
         end
     end
+  end
+
+  # Sum of per-position shortfalls across both teams (0 ⇒ feasible).
+  defp total_deficit(team_a, team_b, per_team) do
+    ca = counts(team_a)
+    cb = counts(team_b)
+
+    Enum.reduce(Positions.positions(), 0, fn pos, acc ->
+      need = Map.get(per_team, pos, 0)
+      acc + max(need - Map.get(ca, pos, 0), 0) + max(need - Map.get(cb, pos, 0), 0)
+    end)
   end
 
   # Returns {short_team, surplus_team, position} for the first position (in
