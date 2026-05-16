@@ -19,6 +19,9 @@ defmodule Fu.Accounts.Player do
     field :secondary_position, :string
     field :fill_mode, :boolean, default: false
     field :queue_region_km, :integer, default: 25
+    field :avatar_legend, :string, default: "Pelé"
+    field :avatar_kit, :string, default: "Custom"
+    field :avatar_color, :string, default: "#67e8f9"
     field :suspended_until, :utc_datetime
     field :last_played_at, :utc_datetime
     field :skip_streak, :integer, default: 0
@@ -51,7 +54,10 @@ defmodule Fu.Accounts.Player do
       :primary_position,
       :secondary_position,
       :fill_mode,
-      :queue_region_km
+      :queue_region_km,
+      :avatar_legend,
+      :avatar_kit,
+      :avatar_color
     ])
     |> validate_required([:display_name, :primary_position])
     |> validate_inclusion(:primary_position, @positions)
@@ -59,6 +65,7 @@ defmodule Fu.Accounts.Player do
     |> validate_inclusion(:playstyle, @playstyles ++ [nil, ""])
     |> validate_number(:jersey_number, greater_than_or_equal_to: 1, less_than_or_equal_to: 99)
     |> validate_number(:queue_region_km, greater_than: 0, less_than_or_equal_to: 200)
+    |> validate_format(:avatar_color, ~r/^#[0-9a-fA-F]{6}$/, message: "must be a hex colour")
     |> validate_secondary_differs()
   end
 

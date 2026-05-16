@@ -75,7 +75,10 @@ players =
         home_lat: 52.2215 + (:rand.uniform() - 0.5) * 0.06,
         home_lng: 6.8937 + (:rand.uniform() - 0.5) * 0.06,
         home_label: "Enschede",
-        jersey_number: i
+        jersey_number: i,
+        avatar_legend: Enum.random(FuWeb.Avatars.legends()),
+        avatar_kit: Enum.random(FuWeb.Avatars.kits()),
+        avatar_color: Enum.random(~w(#67e8f9 #fbbf24 #f43f5e #10b981 #a78bfa #f97316))
       })
 
     rank = 42.0 + :rand.uniform() * 30

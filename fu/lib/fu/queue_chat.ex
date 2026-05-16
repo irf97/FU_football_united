@@ -34,6 +34,17 @@ defmodule Fu.QueueChat do
   @doc "Does this queue have a chatroom yet (≥ #{@min_members} queued)?"
   def available?(queue_id), do: member_count(queue_id) >= @min_members
 
+  @doc "Players currently queued (the chatroom roster), by join order."
+  def members(queue_id) do
+    from(m in QueueMembership,
+      where: m.queue_id == ^queue_id and m.status == "queued",
+      order_by: [asc: m.inserted_at, asc: m.id],
+      preload: [:player]
+    )
+    |> Repo.all()
+    |> Enum.map(& &1.player)
+  end
+
   @doc "Is the player a current member of this queue (gate for read/post)?"
   def member?(queue_id, player_id) do
     Repo.exists?(

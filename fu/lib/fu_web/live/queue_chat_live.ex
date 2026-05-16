@@ -7,6 +7,7 @@ defmodule FuWeb.QueueChatLive do
   use FuWeb, :live_view
 
   alias Fu.{Queues, QueueChat}
+  alias FuWeb.Avatars
 
   @impl true
   def mount(%{"queue_id" => qid}, _session, socket) do
@@ -26,6 +27,7 @@ defmodule FuWeb.QueueChatLive do
 
     assign(socket,
       messages: QueueChat.list_messages(qid),
+      roster: QueueChat.members(qid),
       members: QueueChat.member_count(qid),
       open?: QueueChat.available?(qid),
       can_post?: QueueChat.member?(qid, player.id)
@@ -80,6 +82,22 @@ defmodule FuWeb.QueueChatLive do
           </div>
         </div>
 
+        <!-- Participant roster (everyone in the queue) -->
+        <div class="flex gap-3 overflow-x-auto py-3 border-b border-neutral">
+          <div :for={pl <- @roster} class="flex flex-col items-center gap-1 w-14 shrink-0">
+            <div class="size-12 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden">
+              <Avatars.avatar player={pl} size={44} />
+            </div>
+            <span class={[
+              "text-[10px] truncate w-full text-center",
+              pl.id == @current_player.id && "text-primary",
+              pl.id != @current_player.id && "fu-ink-soft"
+            ]}>
+              {pl.display_name |> String.split() |> hd()}
+            </span>
+          </div>
+        </div>
+
         <%= if @open? do %>
           <!-- Scrollback -->
           <div
@@ -93,7 +111,7 @@ defmodule FuWeb.QueueChatLive do
             <.bubble
               :for={m <- @messages}
               mine={m.player_id == @current_player.id}
-              name={m.player.display_name}
+              author={m.player}
               body={m.body}
               at={m.inserted_at}
             />
@@ -132,19 +150,27 @@ defmodule FuWeb.QueueChatLive do
   end
 
   attr :mine, :boolean, required: true
-  attr :name, :string, required: true
+  attr :author, :map, required: true
   attr :body, :string, required: true
   attr :at, :any, required: true
 
   defp bubble(assigns) do
     ~H"""
-    <div class={["flex", @mine && "justify-end", !@mine && "justify-start"]}>
+    <div class={["flex items-end gap-2", @mine && "justify-end", !@mine && "justify-start"]}>
+      <div
+        :if={!@mine}
+        class="size-8 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden shrink-0"
+      >
+        <Avatars.avatar player={@author} size={30} />
+      </div>
       <div class={[
-        "max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug",
+        "max-w-[72%] px-3 py-2 rounded-2xl text-sm leading-snug",
         @mine && "bg-primary text-primary-content rounded-br-sm",
         !@mine && "bg-base-200 border border-neutral rounded-bl-sm"
       ]}>
-        <div :if={!@mine} class="text-[11px] font-mono text-secondary mb-0.5">{@name}</div>
+        <div :if={!@mine} class="text-[11px] font-mono text-secondary mb-0.5">
+          {@author.display_name}
+        </div>
         <div class="whitespace-pre-wrap break-words">{@body}</div>
         <div class={[
           "text-[10px] font-mono mt-1 text-right",

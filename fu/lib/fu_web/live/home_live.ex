@@ -78,8 +78,8 @@ defmodule FuWeb.HomeLive do
       <!-- Player card -->
       <div class="fu-card p-5">
         <div class="flex items-center gap-4">
-          <div class="size-14 rounded-full bg-base-200 border border-neutral grid place-items-center text-xl fu-serif text-primary">
-            {String.first(@player.display_name)}
+          <div class="size-14 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden">
+            <FuWeb.Avatars.avatar player={@player} size={52} />
           </div>
           <div class="flex-1">
             <div class="font-semibold">{@player.display_name}</div>

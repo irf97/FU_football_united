@@ -3,6 +3,7 @@ defmodule FuWeb.ProfileLive do
   use FuWeb, :live_view
 
   alias Fu.Accounts
+  alias FuWeb.Avatars
 
   @days ~w(Mon Tue Wed Thu Fri Sat Sun)
   @playstyles ~w(Aggressive Possession Counter Defensive Box-to-box Playmaker Finisher)
@@ -17,13 +18,30 @@ defmodule FuWeb.ProfileLive do
 
     socket
     |> assign(:player, p)
+    |> assign(:preview, p)
     |> assign(:days, @days)
     |> assign(:playstyles, @playstyles)
+    |> assign(:legends, Avatars.legends())
+    |> assign(:kits, Avatars.kits())
     |> assign(:form, to_form(Accounts.change_profile(p)))
     |> assign(:windows, Accounts.list_availability(p))
   end
 
   @impl true
+  def handle_event("preview", %{"player" => attrs}, socket) do
+    p = socket.assigns.player
+
+    preview = %{
+      p
+      | avatar_legend: attrs["avatar_legend"] || p.avatar_legend,
+        avatar_kit: attrs["avatar_kit"] || p.avatar_kit,
+        avatar_color: attrs["avatar_color"] || p.avatar_color,
+        jersey_number: parse_int(attrs["jersey_number"], p.jersey_number)
+    }
+
+    {:noreply, assign(socket, preview: preview)}
+  end
+
   def handle_event("save", %{"player" => attrs}, socket) do
     case Accounts.update_profile(socket.assigns.player, attrs) do
       {:ok, p} ->
@@ -56,8 +74,44 @@ defmodule FuWeb.ProfileLive do
     <Layouts.app flash={@flash} current_player={@player} active={:profile}>
       <h1 class="fu-serif text-xl text-primary">Profile</h1>
 
-      <.form for={@form} phx-submit="save" class="fu-card p-4 space-y-3">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Identity</div>
+      <.form
+        for={@form}
+        phx-submit="save"
+        phx-change="preview"
+        class="fu-card p-4 space-y-3"
+      >
+        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Avatar</div>
+        <div class="flex items-center gap-4">
+          <div class="size-20 rounded-xl bg-base-200 border border-neutral grid place-items-center overflow-hidden">
+            <Avatars.avatar player={@preview} size={72} />
+          </div>
+          <div class="flex-1 space-y-2">
+            <.input
+              field={@form[:avatar_legend]}
+              type="select"
+              label="Legend"
+              options={@legends}
+            />
+            <.input
+              field={@form[:avatar_kit]}
+              type="select"
+              label="Nation kit"
+              options={@kits}
+            />
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="text-sm fu-ink-soft">Jersey colour</label>
+          <input
+            type="color"
+            name="player[avatar_color]"
+            value={@preview.avatar_color}
+            class="h-9 w-16 rounded border border-neutral bg-base-200"
+          />
+          <span class="text-[11px] fu-ink-dim">used when kit = Custom</span>
+        </div>
+
+        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider pt-2">Identity</div>
         <.input field={@form[:display_name]} label="Display name" />
         <div class="grid grid-cols-2 gap-3">
           <.input field={@form[:jersey_number]} type="number" label="Jersey" />
@@ -159,6 +213,16 @@ defmodule FuWeb.ProfileLive do
       </.link>
     </Layouts.app>
     """
+  end
+
+  defp parse_int(nil, default), do: default
+  defp parse_int("", default), do: default
+
+  defp parse_int(s, default) do
+    case Integer.parse(s) do
+      {n, _} -> n
+      :error -> default
+    end
   end
 
   defp window_label(%{kind: "recurring", weekday: wd}), do: Enum.at(@days, wd || 0)
