@@ -1,7 +1,8 @@
 defmodule FuWeb.QueueChatLive do
   @moduledoc """
   Per-queue chatroom (opens at ≥ `Fu.QueueChat.min_members/0` queued).
-  Members only; persists so late joiners read back the conversation.
+  Anyone can read once it's open; only queue members can post. Messages
+  persist so late joiners read back. Telegram/WhatsApp-style bubble UI.
   """
   use FuWeb, :live_view
 
@@ -10,33 +11,24 @@ defmodule FuWeb.QueueChatLive do
   @impl true
   def mount(%{"queue_id" => qid}, _session, socket) do
     queue = Queues.get_queue!(qid)
-    player = socket.assigns.current_player
 
-    if QueueChat.member?(queue.id, player.id) do
-      if connected?(socket) do
-        QueueChat.subscribe(queue.id)
-        Queues.subscribe(queue.id)
-      end
-
-      {:ok,
-       socket
-       |> assign(queue: queue, body: "")
-       |> load()}
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "Join this queue to see its chat.")
-       |> redirect(to: ~p"/browse")}
+    if connected?(socket) do
+      QueueChat.subscribe(queue.id)
+      Queues.subscribe(queue.id)
     end
+
+    {:ok, socket |> assign(queue: queue, body: "") |> load()}
   end
 
   defp load(socket) do
     qid = socket.assigns.queue.id
+    player = socket.assigns.current_player
 
     assign(socket,
       messages: QueueChat.list_messages(qid),
       members: QueueChat.member_count(qid),
-      open?: QueueChat.available?(qid)
+      open?: QueueChat.available?(qid),
+      can_post?: QueueChat.member?(qid, player.id)
     )
   end
 
@@ -48,22 +40,24 @@ defmodule FuWeb.QueueChatLive do
 
       text ->
         case QueueChat.post_message(socket.assigns.queue.id, socket.assigns.current_player, text) do
-          {:ok, _} ->
-            {:noreply, assign(socket, body: "")}
-
-          {:error, :not_open} ->
-            {:noreply, put_flash(socket, :error, "Chat opens at #{QueueChat.min_members()}+ players.")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Couldn't send.")}
+          {:ok, _} -> {:noreply, assign(socket, body: "")}
+          {:error, :not_open} -> {:noreply, put_flash(socket, :error, "Chat opens at #{QueueChat.min_members()}+ players.")}
+          {:error, :not_member} -> {:noreply, put_flash(socket, :error, "Join this queue to send messages.")}
+          {:error, _} -> {:noreply, put_flash(socket, :error, "Couldn't send.")}
         end
     end
   end
 
-  @impl true
-  def handle_info({:queue_message, msg}, socket) do
-    {:noreply, assign(socket, messages: socket.assigns.messages ++ [msg])}
+  def handle_event("join", _params, socket) do
+    case Queues.join(socket.assigns.queue, socket.assigns.current_player) do
+      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Joined — you can chat now.") |> load()}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, "Couldn't join (#{reason}).")}
+    end
   end
+
+  @impl true
+  def handle_info({:queue_message, msg}, socket),
+    do: {:noreply, assign(socket, messages: socket.assigns.messages ++ [msg])}
 
   def handle_info({:queue_changed, _id}, socket), do: {:noreply, load(socket)}
 
@@ -71,56 +65,96 @@ defmodule FuWeb.QueueChatLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_player={@current_player} active={:browse}>
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="fu-serif text-xl text-primary">{@queue.field.name}</h1>
-          <div class="text-xs fu-ink-soft font-mono">
-            {@queue.format} · {Calendar.strftime(@queue.scheduled_at, "%a %d %b %H:%M")}
+      <div class="flex flex-col h-[calc(100vh-150px)]">
+        <!-- Header (messenger style) -->
+        <div class="flex items-center gap-3 pb-3 border-b border-neutral">
+          <.link navigate={~p"/browse"} class="fu-ink-soft text-lg leading-none">←</.link>
+          <div class="size-9 rounded-full bg-base-200 border border-neutral grid place-items-center fu-serif text-primary">
+            {String.first(@queue.field.name)}
           </div>
-        </div>
-        <span class="pos-pill">{@members} in queue</span>
-      </div>
-
-      <.link navigate={~p"/browse"} class="text-xs fu-ink-soft">← back to queues</.link>
-
-      <div :if={!@open?} class="fu-card p-6 text-center fu-ink-soft text-sm">
-        Chatroom opens once {QueueChat.min_members()}+ players have joined.
-        Currently {@members}.
-      </div>
-
-      <div :if={@open?} class="fu-card p-3 space-y-3">
-        <div id="qchat-log" class="space-y-2 max-h-[55vh] overflow-y-auto">
-          <div :if={@messages == []} class="text-sm fu-ink-soft text-center py-4">
-            No messages yet — say hi 👋
-          </div>
-          <div :for={m <- @messages} class="text-sm">
-            <span class={[
-              "font-mono text-xs",
-              m.player_id == @current_player.id && "text-primary",
-              m.player_id != @current_player.id && "fu-ink-soft"
-            ]}>
-              {m.player.display_name}
-            </span>
-            <span class="fu-ink-dim text-[10px] font-mono">
-              {Calendar.strftime(m.inserted_at, "%H:%M")}
-            </span>
-            <div>{m.body}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold truncate">{@queue.field.name}</div>
+            <div class="text-[11px] fu-ink-soft font-mono">
+              {@members} in queue · {@queue.format}
+            </div>
           </div>
         </div>
 
-        <.form for={%{}} phx-submit="send" class="flex gap-2">
-          <input
-            type="text"
-            name="body"
-            value={@body}
-            placeholder="Message the queue…"
-            autocomplete="off"
-            class="input input-bordered input-sm flex-1 bg-base-200"
-          />
-          <button class="btn btn-sm btn-primary" type="submit">Send</button>
-        </.form>
+        <%= if @open? do %>
+          <!-- Scrollback -->
+          <div
+            id="chat-log"
+            phx-hook="ChatScroll"
+            class="flex-1 overflow-y-auto py-4 space-y-1 pr-1"
+          >
+            <div :if={@messages == []} class="text-center fu-ink-soft text-sm py-8">
+              No messages yet — say hi 👋
+            </div>
+            <.bubble
+              :for={m <- @messages}
+              mine={m.player_id == @current_player.id}
+              name={m.player.display_name}
+              body={m.body}
+              at={m.inserted_at}
+            />
+          </div>
+
+          <!-- Composer -->
+          <%= if @can_post? do %>
+            <.form for={%{}} phx-submit="send" class="flex gap-2 pt-2 border-t border-neutral">
+              <input
+                type="text"
+                name="body"
+                value={@body}
+                placeholder="Message…"
+                autocomplete="off"
+                class="input input-bordered input-sm flex-1 bg-base-200 rounded-full"
+              />
+              <button class="btn btn-sm btn-primary btn-circle" type="submit" aria-label="Send">
+                ➤
+              </button>
+            </.form>
+          <% else %>
+            <div class="pt-2 border-t border-neutral flex items-center justify-between gap-3">
+              <span class="text-xs fu-ink-soft">Join the queue to chat.</span>
+              <button phx-click="join" class="btn btn-sm btn-primary">Join queue</button>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="flex-1 grid place-items-center text-center fu-ink-soft text-sm px-6">
+            Chatroom opens once {QueueChat.min_members()}+ players have joined.<br />
+            Currently {@members}.
+          </div>
+        <% end %>
       </div>
     </Layouts.app>
+    """
+  end
+
+  attr :mine, :boolean, required: true
+  attr :name, :string, required: true
+  attr :body, :string, required: true
+  attr :at, :any, required: true
+
+  defp bubble(assigns) do
+    ~H"""
+    <div class={["flex", @mine && "justify-end", !@mine && "justify-start"]}>
+      <div class={[
+        "max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug",
+        @mine && "bg-primary text-primary-content rounded-br-sm",
+        !@mine && "bg-base-200 border border-neutral rounded-bl-sm"
+      ]}>
+        <div :if={!@mine} class="text-[11px] font-mono text-secondary mb-0.5">{@name}</div>
+        <div class="whitespace-pre-wrap break-words">{@body}</div>
+        <div class={[
+          "text-[10px] font-mono mt-1 text-right",
+          @mine && "text-primary-content/60",
+          !@mine && "fu-ink-dim"
+        ]}>
+          {Calendar.strftime(@at, "%H:%M")}
+        </div>
+      </div>
+    </div>
     """
   end
 end

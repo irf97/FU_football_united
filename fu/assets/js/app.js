@@ -26,10 +26,20 @@ import {hooks as colocatedHooks} from "phoenix-colocated/fu"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+const Hooks = {
+  // Pin a chat log to the newest message (Telegram/WhatsApp behaviour).
+  ChatScroll: {
+    scroll() { this.el.scrollTop = this.el.scrollHeight },
+    mounted() { this.scroll() },
+    updated() { this.scroll() },
+  },
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, ...Hooks},
 })
 
 // Show progress bar on live navigation and form submits

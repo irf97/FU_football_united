@@ -184,11 +184,12 @@ defmodule FuWeb.BrowseLive do
       <% end %>
 
       <.link
-        :if={@joined and queued_count(@card) >= Fu.QueueChat.min_members()}
+        :if={queued_count(@card) >= Fu.QueueChat.min_members()}
         navigate={~p"/queue/#{@card.queue.id}/chat"}
-        class="block text-center text-xs text-secondary mt-1"
+        class="btn btn-sm btn-block btn-outline btn-secondary mt-1 gap-2"
       >
-        💬 Queue chat ({queued_count(@card)})
+        💬 Queue chatroom
+        <span class="badge badge-sm badge-secondary">{queued_count(@card)}</span>
       </.link>
     </div>
     """
