@@ -96,6 +96,10 @@ html, body {
   font-synthesis: none;
   /* Better ragged edges + no single-word last lines, no JS, no reflow cost */
   text-wrap: pretty;
+  /* Looser base leading + a hair of tracking — perceptibly calmer body
+     text at rest, even on short labels and on Windows. */
+  line-height: 1.55;
+  letter-spacing: 0.005em;
 }
 
 /* Headings never strand a lone word; numerals never jitter as they change. */
@@ -121,11 +125,11 @@ html, body {
 .text-mono { font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 500; }
 .text-caption {
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 11.5px;
+  line-height: 1.35;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.16em;
 }
 
 /* Mobile app shell */
@@ -204,45 +208,59 @@ html, body {
    prefers-reduced-motion so it costs literally nothing when the
    user (or a weak device) opts out. */
 
-button, .btn, a[role="button"], a.fu-card, summary {
-  transition: transform var(--dur-1) var(--ease), opacity var(--dur-2) var(--ease);
+/* Default panels read as DEFINED objects (visible at rest, no reload-
+   timing or interaction needed — the biggest immediate "it changed"). */
+.fu-card {
+  border-color: var(--fu-line-strong);
+  transition: border-color var(--dur-2) var(--ease),
+              transform var(--dur-2) var(--ease);
 }
-.fu-card { transition: border-color var(--dur-2) var(--ease); }
-.fu-tabbar a, .pos-pill, input, select, textarea {
-  transition: color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease),
+
+button, .btn, a[role="button"], summary {
+  transition: transform var(--dur-1) var(--ease),
+              filter var(--dur-2) var(--ease);
+}
+a:not(.btn):not(.fu-card), .fu-tabbar a, .pos-pill, input, select, textarea {
+  transition: color var(--dur-2) var(--ease),
+              border-color var(--dur-2) var(--ease),
+              outline-color var(--dur-1) var(--ease),
               opacity var(--dur-2) var(--ease);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Press: tactile, instant-feeling */
-  button:active, .btn:active, a[role="button"]:active { transform: scale(0.97); }
+  /* Press — clearly tactile (these fire on every tap, survive LiveView
+     DOM patching, so you actually feel them moving around the app). */
+  button:active, .btn:active, a[role="button"]:active { transform: scale(0.95); }
 
-  /* Interactive cards gain a hairline lift + brighter edge (transform
-     + border-color only — both cheap; never animate box-shadow). */
+  /* Interactive cards: a real, felt lift + brighter edge. */
   a.fu-card:hover, button.fu-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--fu-line-strong);
+    transform: translateY(-3px);
+    border-color: rgba(197, 255, 61, 0.35);
   }
 
-  /* One orchestrated entrance: each top-level block of the screen
-     rises + fades once on mount, lightly staggered. Runs per mount,
-     ≤280ms, GPU-only — imperceptible cost, big perceived fluency. */
-  main > * {
-    animation: fu-rise var(--dur-3) var(--ease) backwards;
-  }
+  /* Buttons/links lift slightly on hover so the UI feels responsive
+     to the pointer at every step (transform/filter only). */
+  .btn:hover, button:hover:not(.fu-card) { filter: brightness(1.08); }
+  a:not(.btn):not(.fu-card):hover { opacity: 0.7; }
+
+  /* One orchestrated entrance — plays on full page load (under
+     LiveView, client-side nav patches the DOM so this is a
+     first-load / hard-nav touch, not a per-click cost). */
+  main > * { animation: fu-rise var(--dur-3) var(--ease) backwards; }
   main > *:nth-child(1) { animation-delay: 0ms; }
-  main > *:nth-child(2) { animation-delay: 40ms; }
-  main > *:nth-child(3) { animation-delay: 80ms; }
-  main > *:nth-child(4) { animation-delay: 120ms; }
-  main > *:nth-child(5) { animation-delay: 160ms; }
-  main > *:nth-child(n+6) { animation-delay: 200ms; }
+  main > *:nth-child(2) { animation-delay: 45ms; }
+  main > *:nth-child(3) { animation-delay: 90ms; }
+  main > *:nth-child(4) { animation-delay: 135ms; }
+  main > *:nth-child(5) { animation-delay: 180ms; }
+  main > *:nth-child(n+6) { animation-delay: 220ms; }
 
-  /* Flash toasts ease in instead of snapping */
   [id^="flash"], #flash-group > * { animation: fu-fade var(--dur-2) var(--ease) backwards; }
+}
 
-  /* Native LiveView nav crossfade — calm dissolve, no slide */
-  ::view-transition-old(root),
-  ::view-transition-new(root) { animation-duration: var(--dur-3); }
+/* Visible keyboard focus everywhere (transitioned, accent ring). */
+:where(a, button, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid var(--fu-accent);
+  outline-offset: 2px;
 }
 
 @keyframes fu-rise {
