@@ -72,27 +72,40 @@ Auth ‖ Contexts ‖ UI:
 > Built via 3 parallel agents (Matching ‖ Friends ‖ Groups), zero
 > integration warnings.
 
-## Phase 3 — Days 29–42 · Lobby + Field booking
+## Phase 3 — Days 29–42 · Lobby + Field booking ✅ (verifying)
 
-- [ ] S42 Bookings schema + state machine (speculative/provisional/confirmed)
-- [ ] S43 Booking transitions tied to queue fill %
-- [ ] S44 Field operator API stubs (3 partner fields)
-- [ ] S45 Auto-balance (snake-draft + position-feasibility swap)
-- [ ] S46 Team assignment persistence + deterministic re-derive
-- [ ] S47 Lobby LiveView (rosters, avatars, ranks, numbers, details)
-- [ ] S48 Lobby chat channels (team/match/friend-group)
-- [ ] S49 Position swap requests (mutual consent)
-- [ ] S50 Captain claim sequence (keeper→rank→free→random) + timers
+- [x] S42 `Fu.Booking` schema + state machine (spec/prov/conf/released) [agent]
+- [x] S43 Booking transitions tied to fill% + kickoff (`reconcile/1`) [agent]
+- [x] S44 `OperatorStub` hold/deposit/balance/release (spec §5) [agent]
+- [x] S45 `Fu.Balance` snake-draft + position-feasibility swap [agent]
+- [x] S46 Team persistence + deterministic re-derive + balance_delta [agent]
+- [x] S47 `LobbyLive` rosters/avatars/ranks/numbers/details [agent]
+- [x] S48 Lobby chat channels team/match/group (PubSub) [agent]
+- [x] S49 Position swap requests (two-step mutual consent) [agent]
+- [x] S50 Captain claim seq keeper→rank→free→random + timers [agent]
 
-## Phase 4 — Days 43–60 · Voting + Rank + test
+> Built via 3 parallel agents (Booking ‖ Balance ‖ Lobby). Seeds now
+> include a confirmed full 8v8 with balanced teams + booking at
+> `/lobby/:id`. Verification: phase3_smoke.exs (pending seed run).
 
-- [ ] S51 Match outcome capture (score/goals/assists, event-log stub)
-- [ ] S52 Post-match voting (opp MVP/def/keeper + own-team)
-- [ ] S53 Voting UI (4 cats, skip, 24h close, skip-penalty)
-- [ ] S54 Rank engine §2.9 (weights, delta, idempotent)
-- [ ] S55 Rank decay job
-- [ ] S56 No-show tracking + suspension logic
-- [ ] S57 Rank delta inspection UI (full derivation)
-- [ ] S58 Dispute/amendment append-only events
-- [ ] S59 E2E seed scenario: 1 queue/1 field/16 players full loop
-- [ ] S60 Smoke test pass + README run instructions
+## Phase 4 — Days 43–60 · Voting + Rank + test ✅ VERIFIED
+
+- [x] S51 `Fu.Matches` score/goals/assists + complete_match [agent]
+- [x] S52 `Fu.Voting` opp MVP/def/keeper + own-team + tally [agent]
+- [x] S53 `PostMatchLive` voting UI (4 cats, per-cat skip, 24h) [agent]
+- [x] S54 `Fu.Ranking` engine §2.9 exact weights, idempotent ledger [agent]
+- [x] S55 `DecayWorker` idle-rank decay toward 50 [agent]
+- [x] S56 No-show tracking + 60-day suspension + operator flag [agent]
+- [x] S57 Rank-delta inspection UI (tappable full derivation) [agent]
+- [x] S58 Dispute/amendment append-only events (§2.10) [agent]
+- [x] S59 E2E seed: confirmed full 8v8 + played/finalized 3-2 match
+- [x] S60 Smoke scripts + README run instructions
+
+> Built via 3 parallel agents (Matches+Voting ‖ Ranking ‖ Post-match UI).
+> E2E seed exercises the full chain — record_score/goal → cast votes →
+> complete_match → finalize_match — clean (exit 0). All 6 surfaces
+> HTTP 200 authenticated incl. /lobby/:id and /postmatch/:id.
+
+---
+
+## Done: 60/60 slices. Phases 0–4 complete, all committed.

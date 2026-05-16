@@ -7,6 +7,7 @@ defmodule Fu.Queues.QueueMembership do
     field :status, :string, default: "queued"
     field :team, :string
     field :joined_in_lock, :boolean, default: false
+    field :is_captain, :boolean, default: false
 
     belongs_to :queue, Fu.Queues.Queue
     belongs_to :player, Fu.Accounts.Player
@@ -15,7 +16,7 @@ defmodule Fu.Queues.QueueMembership do
 
   def changeset(m, attrs) do
     m
-    |> cast(attrs, [:queue_id, :player_id, :declared_position, :status, :team, :joined_in_lock])
+    |> cast(attrs, [:queue_id, :player_id, :declared_position, :status, :team, :joined_in_lock, :is_captain])
     |> validate_required([:queue_id, :player_id, :declared_position, :status])
     |> validate_inclusion(:declared_position, Fu.Positions.positions())
     |> validate_inclusion(:status, ~w(queued left))

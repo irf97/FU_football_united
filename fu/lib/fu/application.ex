@@ -13,6 +13,7 @@ defmodule Fu.Application do
       {DNSCluster, query: Application.get_env(:fu, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Fu.PubSub},
       Fu.Queues.Resolver,
+      Fu.Ranking.DecayWorker,
       # Start to serve requests, typically the last entry
       FuWeb.Endpoint
     ]

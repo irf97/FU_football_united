@@ -167,9 +167,12 @@ defmodule FuWeb.BrowseLive do
 
       <%= cond do %>
         <% @joined and @card.locked -> %>
-          <button class="btn btn-sm btn-block" disabled>
-            Committed · in this match
-          </button>
+          <.link
+            navigate={~p"/lobby/#{@card.queue.id}"}
+            class="btn btn-sm btn-block btn-primary"
+          >
+            Open lobby →
+          </.link>
         <% @joined -> %>
           <button phx-click="leave" phx-value-id={@card.queue.id} class="btn btn-sm btn-block btn-outline btn-error">
             Leave queue
