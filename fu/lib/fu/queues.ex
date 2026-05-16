@@ -249,6 +249,13 @@ defmodule Fu.Queues do
             case result do
               {:ok, m} ->
                 broadcast(queue.id, :queue_changed)
+
+                Fu.Events.record("player.join_queue", %{
+                  player_id: player.id,
+                  queue_id: queue.id,
+                  position: m.declared_position
+                })
+
                 {:ok, m}
 
               {:error, %Ecto.Changeset{}} ->
@@ -273,6 +280,7 @@ defmodule Fu.Queues do
           m ->
             {:ok, _} = m |> QueueMembership.changeset(%{status: "left"}) |> Repo.update()
             broadcast(queue.id, :queue_changed)
+            Fu.Events.record("player.leave_queue", %{player_id: player.id, queue_id: queue.id})
             :ok
         end
     end
@@ -353,6 +361,7 @@ defmodule Fu.Queues do
   defp set_state(%Queue{} = queue, state) do
     {:ok, q} = queue |> Queue.changeset(%{state: state}) |> Repo.update()
     broadcast(q.id, :queue_changed)
+    Fu.Events.record("queue.#{state}", %{queue_id: q.id, format: q.format})
     {String.to_atom(state), q}
   end
 
