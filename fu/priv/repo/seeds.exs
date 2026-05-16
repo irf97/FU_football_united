@@ -86,6 +86,11 @@ players =
     %{p | rank: rank}
   end
 
+# First seeded player (+31610000001 / Sven) is the app admin.
+[admin | _] = players
+Repo.update_all(from(x in Player, where: x.id == ^admin.id), set: [is_admin: true])
+IO.puts("Admin: #{admin.display_name} (#{admin.phone}) → /admin")
+
 # --- Queues across formats (spec §2.11) ---
 now = DateTime.utc_now() |> DateTime.truncate(:second)
 

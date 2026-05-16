@@ -45,6 +45,7 @@ defmodule FuWeb.Router do
       live "/lobby/:queue_id", LobbyLive, :index
       live "/postmatch/:queue_id", PostMatchLive, :index
       live "/profile", ProfileLive, :index
+      live "/admin", AdminLive, :index
     end
   end
 

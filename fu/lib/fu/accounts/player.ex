@@ -22,6 +22,7 @@ defmodule Fu.Accounts.Player do
     field :avatar_legend, :string, default: "Pelé"
     field :avatar_kit, :string, default: "Custom"
     field :avatar_color, :string, default: "#67e8f9"
+    field :is_admin, :boolean, default: false
     field :suspended_until, :utc_datetime
     field :last_played_at, :utc_datetime
     field :skip_streak, :integer, default: 0

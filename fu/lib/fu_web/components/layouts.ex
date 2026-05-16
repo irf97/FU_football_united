@@ -35,9 +35,18 @@ defmodule FuWeb.Layouts do
     <div class="fu-shell">
       <header class="flex items-center justify-between px-4 pt-6 pb-3">
         <span class="text-caption">Football United</span>
-        <span :if={@current_player} class="text-mono fu-ink-soft">
-          rank {:erlang.float_to_binary(@current_player.rank, decimals: 0)}
-        </span>
+        <div class="flex items-center gap-3">
+          <a
+            :if={@current_player && @current_player.is_admin}
+            href="/admin"
+            class="text-caption text-[var(--fu-warning)]"
+          >
+            Admin
+          </a>
+          <span :if={@current_player} class="text-mono fu-ink-soft">
+            rank {:erlang.float_to_binary(@current_player.rank, decimals: 0)}
+          </span>
+        </div>
       </header>
 
       <main class="px-4 pb-6 space-y-4">
