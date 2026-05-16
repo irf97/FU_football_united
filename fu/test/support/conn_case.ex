@@ -36,4 +36,11 @@ defmodule FuWeb.ConnCase do
     Fu.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc "Returns a conn with `player` logged in (mirrors PlayerAuth session)."
+  def log_in_player(conn, player) do
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> Plug.Conn.put_session(:player_id, player.id)
+  end
 end

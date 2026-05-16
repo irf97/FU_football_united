@@ -120,6 +120,34 @@ defmodule Fu.Matches do
     end
   end
 
+  @doc """
+  The in-app match-completion trigger (AUDIT integration break #1).
+  Records the final score, completes the match (opens voting, moves the
+  queue to "completed"), and finalizes ranks — as one operation.
+
+  Idempotent: once completed, a re-submit is a no-op returning the
+  existing result (ranks never move twice). Refuses a queue that has not
+  been confirmed.
+  """
+  def submit_result(queue_id, score_a, score_b) do
+    queue = Queues.get_queue!(queue_id)
+    existing = result(queue_id)
+
+    cond do
+      existing && existing.completed_at ->
+        {:ok, existing}
+
+      queue.state != "confirmed" ->
+        {:error, :not_confirmed}
+
+      true ->
+        record_score(queue_id, score_a, score_b)
+        complete_match(queue_id)
+        {:ok, _events} = Fu.Ranking.finalize_match(queue_id)
+        {:ok, result(queue_id)}
+    end
+  end
+
   ## --- Helpers ---
 
   # Team ("A"/"B") the player is on for this queue, or nil if unknown.

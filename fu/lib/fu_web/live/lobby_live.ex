@@ -111,6 +111,29 @@ defmodule FuWeb.LobbyLive do
     end
   end
 
+  ## --- match completion (AUDIT #1) ---
+
+  @impl true
+  def handle_event("submit-result", %{"score_a" => a, "score_b" => b}, socket) do
+    qid = socket.assigns.queue.id
+
+    case Fu.Matches.submit_result(qid, to_int(a), to_int(b)) do
+      {:ok, _result} ->
+        Phoenix.PubSub.broadcast(Fu.PubSub, lobby_topic(qid), :queue_changed)
+        {:noreply, push_navigate(socket, to: ~p"/postmatch/#{qid}")}
+
+      {:error, :not_confirmed} ->
+        {:noreply, put_flash(socket, :error, "Match isn't confirmed yet.")}
+    end
+  end
+
+  defp to_int(s) do
+    case Integer.parse(to_string(s)) do
+      {n, _} when n >= 0 -> n
+      _ -> 0
+    end
+  end
+
   ## --- chat ---
 
   def handle_event("chan", %{"c" => c}, socket) when c in @channels,
@@ -240,6 +263,43 @@ defmodule FuWeb.LobbyLive do
           at <span class="text-mono">{@my_membership.declared_position}</span>.
         </div>
       </div>
+
+      <!-- Captain-only: record the final score (AUDIT #1 — the in-app
+           match-completion trigger). spec §2.5: the captain issues the
+           post-match step. -->
+      <.form
+        :if={@my_membership && @my_membership.is_captain && @queue.state == "confirmed"}
+        id="submit-result"
+        for={%{}}
+        phx-submit="submit-result"
+        class="fu-card p-4 space-y-3"
+      >
+        <div class="fu-divider">Final score</div>
+        <div class="flex items-center justify-center gap-3">
+          <input
+            type="number"
+            name="score_a"
+            min="0"
+            value="0"
+            aria-label="Team A score"
+            class="input input-bordered w-20 text-center text-h2 bg-base-200 min-h-[44px]"
+            required
+          />
+          <span class="fu-ink-soft">A&nbsp;–&nbsp;B</span>
+          <input
+            type="number"
+            name="score_b"
+            min="0"
+            value="0"
+            aria-label="Team B score"
+            class="input input-bordered w-20 text-center text-h2 bg-base-200 min-h-[44px]"
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-primary w-full min-h-[44px]">
+          End match & finalize ranks
+        </button>
+      </.form>
 
       <!-- FE06 — Captain claim widget (plan §7.4) -->
       <.captain_widget

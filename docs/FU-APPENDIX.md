@@ -49,15 +49,16 @@ sequenced captain claim (keeper 60s → highest-rank 60s → free 120s →
 random) → post-match peer voting feeds the deterministic, append-only
 rank ledger (`Ranking`, spec §2.9).
 
-**Documented gap (AUDIT integration break #1):** there is **no in-app way
-to record a score or complete a match**. `Matches.record_score/
-complete_match` and `Ranking.finalize_match` are invoked only by the seed
-script. So in the running product a real match never updates ranks and
-post-match voting never opens. The non-ranked half of the loop
-(browse→join→lobby→captain→chat) works; the ranked half is wired in the
-contexts but has no trigger. This is a ~1-day wiring task, not a rebuild,
-and it is the single most important pre-launch item — not any infra
-concern.
+**AUDIT integration break #1 — RESOLVED.** The captain now records the
+final score from the lobby (`Fu.Matches.submit_result/3` → record score →
+`complete_match` → `Ranking.finalize_match`, idempotent, confirmed-queue
+only). The ranked loop closes end-to-end in-app: a real match now produces
+a rank change and opens post-match voting. TDD-covered
+(`matches_submit_test.exs`, `lobby_submit_test.exs`); suite 48/0. The
+remaining pre-launch blocker is therefore the OTP abuse surface
+(rate-limit `request_otp`/`verify_otp`), not match completion. Still
+absent (by scope, not defect): a live *in-play* surface + captain pause
+(spec feature 12) — score entry is post-whistle, in the lobby.
 
 ## A.4 Verification posture
 
@@ -82,8 +83,9 @@ concern.
 > (time-decay/selective-persistence via the rank ledger and decay
 > worker). It does **not** implement the local-first, proximity-governed,
 > AI-runtime, device, or ledger layers (§§1–6, 8–11, 13); those remain
-> architectural direction. Its known pre-launch gap is the absent
-> match-completion trigger (AUDIT #1)."
+> architectural direction. The ranked loop now closes end-to-end in-app
+> (captain submits the score in the lobby); the remaining pre-launch
+> blocker is OTP rate-limiting, not match completion."
 
 Do not cite FU as evidence of proximity governance, AI-readable
 distributed cognition, IMM hardware, or blockchain coordination — none of

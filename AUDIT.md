@@ -9,10 +9,13 @@ missing. "MISSING" = no implementation/surface.
 
 ## Summary
 
-- Features **WIRED: 12 / 17** _(feature 16 was P2-PARTIAL, Balance loop fixed)_
-- Features **PARTIAL: 4 / 17**
-- Features **MISSING: 1 / 17**
-- Integration breaks: **4 identified, #4 (Balance loop) RESOLVED in Phase 2**
+- Features **WIRED: 15 / 17** _(break #1 fixed → 13 & 14 reachable; 15 done
+  earlier; 16 Balance fixed)_
+- Features **PARTIAL: 1 / 17** _(6 — friend-group *queue join* still has no
+  UI caller; 13/14 carry only minor non-blocking caveats)_
+- Features **MISSING: 1 / 17** _(12 — live in-play UI + captain pause)_
+- Integration breaks: **4 identified; #1 (match-lifecycle) and #4
+  (Balance loop) RESOLVED; #2/#3 remain (no-show dead code, group-queue UI)**
 - PubSub integrity: **clean** (no dead broadcasts, no dead subscribers)
 - Deployment blockers: **3** (SMS stub, no OTP rate-limit, no OTP attempt-cap)
 
@@ -42,8 +45,8 @@ isolation; nothing triggers them in the running product.
 | 10 | Position swap (mutual consent) | WIRED | `lobby_live.ex:137` swap-request → PubSub `{:swap_request}` → `:159` swap-accept → `lobby.ex:116` `swap_positions` `Repo.transaction` (same-team guard `:121`) | — |
 | 11 | Lobby chat (3 channels) | WIRED | `lobby_live.ex:10` `@channels ~w(team match group)`, `:122` send → broadcast `{:chat}` → `:85` `handle_info` | Ephemeral (in-assigns + PubSub, not persisted) — per spec §2.5 this is acceptable. |
 | 12 | Live match UI + captain pause | **MISSING** | No `MatchLive`, no `/match*` route (`audit/raw/routes.txt`), no "pause" handler anywhere (`audit/raw/handle-events.txt`) | Entire surface absent. This is also where match-score entry would live (see Integration break #1). |
-| 13 | Post-match voting (skip, penalty) | **PARTIAL** | `post_match_live.ex:57/80/85` vote/skip/skip-all → `voting.ex:42` `cast` / `:55` `skip` → `Repo`; skip detector `voting.ex:116`; tally `:151` | Gated by `voting_open?` (`voting.ex:101`) which needs a `MatchResult.votes_close_at` — set only by `Matches.complete_match`, **which has no app caller** (seed-only). So voting is unreachable in-app except on the seeded queue. Categories shipped = 3 (`mvp/defender/keeper`, `voting.ex:25`) with own/opp via a flag, vs spec's "4". |
-| 14 | Rank system (Ranking + Decay) | **PARTIAL** | `ranking.ex:74` `finalize_match` — deterministic, idempotent (`:77-82`), transactional (`:91`), §2.9 breakdown (`:132`). `DecayWorker` supervised (`application.ex:16`) → `ranking.ex:325` `apply_decay`. | `finalize_match` has **no production caller** (only `seeds.exs:201`). `ranking.ex:246` `record_no_show` has **zero callers anywhere** (dead). `file_dispute` is called from `post_match_live.ex:100` but wrapped in `try/rescue/catch` that swallows all errors and flashes success regardless (`:99-107`). Decay path itself: WIRED. |
+| 13 | Post-match voting (skip, penalty) | WIRED _(PARTIAL → fixed via break #1)_ | Voting handlers + tally as before; **now reachable**: captain `LobbyLive` "Final score" → `Matches.submit_result/3` → `complete_match` sets `votes_close_at` → `voting_open?` true → `post_match_live` voting runs. | Minor: 3 categories (`mvp/defender/keeper`) with own/opp via a flag vs spec's nominal "4" — modelling choice, not a break. |
+| 14 | Rank system (Ranking + Decay) | WIRED _(PARTIAL → fixed via break #1)_ | `finalize_match` now has a real production caller: `LobbyLive submit-result → Matches.submit_result/3 → Ranking.finalize_match` (TDD: `matches_submit_test.exs`, `lobby_submit_test.exs`). Deterministic/idempotent/transactional as before; `DecayWorker` WIRED. | Remaining minor: `ranking.ex:246` `record_no_show` still has zero callers (dead); `post_match_live.ex` dispute handler still swallows errors via try/rescue. Neither blocks the rank loop. |
 | 15 | Friends list + invite + requests | WIRED _(PARTIAL → **completed**)_ | `home_live.ex` add-friend form → `Friends.request_by_phone/2`; accept-friend & decline-friend → `accept_friend`/`decline_friend`; incoming/outgoing/list/invite all rendered. `Friends` context extended (`request_by_phone`, `decline_friend`, `pending_outgoing`). | Was: no send-request UI. Now full add/invite/accept/decline/cancel, 5 green DB tests (`test/fu/friends_test.exs`). |
 | 16 | Multi-format (5v5–11v11, rated 8v8) | WIRED _(PARTIAL in P2 → **fixed**)_ | `positions.ex` formats; `queues.ex:20`; `ranking.ex:136` rated branch; `balance.ex` `feasibility_swaps/4` now terminates all formats (suite green incl. 7v7) | Was a non-8v8 `Balance.assign_teams` infinite-loop; fixed (strict-progress + fuel cap, Irfan-approved). Integration break #4 RESOLVED. |
 | 17 | Admin surface (password-gated) | WIRED | `login_live.ex:38` show-admin / `:41` admin-login (pw check) → `Admin.ensure_admin_player` → token; `/admin` route → `admin_live.ex` (`:26` filter, `:29` toggle-suspend → `Admin.toggle_suspend`) | Shared hardcoded password in source (`login_live.ex`) — acceptable demo gate, not real auth (already flagged in `STACK.md`). |
@@ -63,15 +66,21 @@ Topics enumerated from `audit/raw/pubsub-broadcasts.txt` / `pubsub-subscribes.tx
 
 ## Integration breaks
 
-1. **Match-lifecycle has no application entry point.** _Severity: blocker._
-   - Callers of `Matches.record_score/record_goal/complete_match` and
-     `Ranking.finalize_match`: **only `priv/repo/seeds.exs:185-201`**
-     (`audit/raw` grep). No LiveView, controller, or worker invokes them.
-   - Missing link: a referee/operator/captain surface to enter score + goals
-     and complete the match. Without it `voting_open?` (`voting.ex:101`) is
-     never true in-app, so feature 13 can't run, and `finalize_match`
-     (feature 14) never fires → ranks never change from real play.
-   - This is the root cause of PARTIALs #13 and #14 and is *why* #12 matters.
+1. **Match-lifecycle had no application entry point — RESOLVED.**
+   _Severity: was blocker._
+   - Was: `Matches.complete_match` / `Ranking.finalize_match` were
+     seed-only; `voting_open?` never true in-app; ranks never moved.
+   - Fixed (TDD): `Fu.Matches.submit_result/3` (records score →
+     `complete_match` → `Ranking.finalize_match`, idempotent, refuses a
+     non-confirmed queue) called from a **captain-only "Final score" form
+     in `LobbyLive`** (`handle_event("submit-result", …)` →
+     `push_navigate` to `/postmatch/:id`). Tests:
+     `test/fu/matches_submit_test.exs` (3, incl. idempotency) +
+     `test/fu_web/lobby_submit_test.exs` (2, full LiveView flow + the
+     non-captain negative). Suite 48/0.
+   - Knock-on: PARTIAL #13 and #14 are now reachable in-app (see matrix).
+     #12 (live in-play UI + captain *pause*) is still MISSING — only
+     post-match score entry was added, not an in-play surface.
 
 2. **`Ranking.record_no_show/2` is dead code.** _Severity: bug._
    - `ranking.ex:246`, **zero callers** (not even seeds). The no-show penalty
@@ -116,9 +125,11 @@ unconditionally — a real `file_dispute` failure is invisible to the user.
 
 ## Critical-path concerns for deployment
 
-1. **No way to finish a match in-app** → ranks/voting only move via the seed
-   script. A real footballer's match would never produce a rank change.
-   (Integration break #1 — the single most important finding.)
+1. ~~No way to finish a match in-app~~ **RESOLVED** — captain submits the
+   final score in the lobby (`Matches.submit_result/3`); the ranked loop
+   now closes end-to-end in-app. (Integration break #1, TDD-fixed.) The
+   remaining product gap is now **#2 below**, which becomes the single
+   most important pre-launch item.
 2. **OTP abuse surface**: unbounded `request_otp` (SMS-bomb / DB-fill) and
    unbounded `verify_otp` guesses (brute-force). Must be rate-limited before
    any public exposure.
