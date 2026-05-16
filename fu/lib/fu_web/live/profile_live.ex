@@ -1,8 +1,8 @@
 defmodule FuWeb.ProfileLive do
-  @moduledoc "Surface 7: identity, position prefs, availability windows (spec §2.6, §2.13)."
+  @moduledoc "Surface 7: identity, position prefs, availability, history (spec §2.6, plan §10)."
   use FuWeb, :live_view
 
-  alias Fu.Accounts
+  alias Fu.{Accounts, Ranking}
   alias FuWeb.Avatars
 
   @days ~w(Mon Tue Wed Thu Fri Sat Sun)
@@ -25,6 +25,7 @@ defmodule FuWeb.ProfileLive do
     |> assign(:kits, Avatars.kits())
     |> assign(:form, to_form(Accounts.change_profile(p)))
     |> assign(:windows, Accounts.list_availability(p))
+    |> assign(:history, Ranking.history(p.id))
   end
 
   @impl true
@@ -74,44 +75,48 @@ defmodule FuWeb.ProfileLive do
     <Layouts.app flash={@flash} current_player={@player} active={:profile}>
       <h1 class="text-h1">Profile</h1>
 
-      <.form
-        for={@form}
-        phx-submit="save"
-        phx-change="preview"
-        class="fu-card p-4 space-y-3"
-      >
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Avatar</div>
+      <!-- Identity summary (player-card echo) -->
+      <div class="fu-card p-5 flex items-center gap-4">
+        <div class="size-14 rounded-full bg-base-200 ring-1 ring-[var(--fu-line-strong)] grid place-items-center overflow-hidden">
+          <Avatars.avatar player={@preview} size={52} />
+        </div>
+        <div class="flex-1">
+          <div class="text-h3">{@player.display_name}</div>
+          <div class="text-meta fu-ink-soft">
+            {@player.primary_position} · {@player.secondary_position || "—"}
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-display leading-none">
+            {:erlang.float_to_binary(@player.rank, decimals: 0)}
+          </div>
+          <div class="text-caption fu-ink-soft">rank</div>
+        </div>
+      </div>
+
+      <.form for={@form} phx-submit="save" phx-change="preview" class="fu-card p-5 space-y-4">
+        <div class="fu-divider">Avatar</div>
         <div class="flex items-center gap-4">
-          <div class="size-20 rounded-xl bg-base-200 border border-neutral grid place-items-center overflow-hidden">
+          <div class="size-20 rounded-xl bg-base-200 grid place-items-center overflow-hidden">
             <Avatars.avatar player={@preview} size={72} />
           </div>
           <div class="flex-1 space-y-2">
-            <.input
-              field={@form[:avatar_legend]}
-              type="select"
-              label="Legend"
-              options={@legends}
-            />
-            <.input
-              field={@form[:avatar_kit]}
-              type="select"
-              label="Nation kit"
-              options={@kits}
-            />
+            <.input field={@form[:avatar_legend]} type="select" label="Legend" options={@legends} />
+            <.input field={@form[:avatar_kit]} type="select" label="Nation kit" options={@kits} />
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <label class="text-sm fu-ink-soft">Jersey colour</label>
+          <label class="text-meta fu-ink-soft">Jersey colour</label>
           <input
             type="color"
             name="player[avatar_color]"
             value={@preview.avatar_color}
             class="h-9 w-16 rounded border border-neutral bg-base-200"
           />
-          <span class="text-[11px] fu-ink-dim">used when kit = Custom</span>
+          <span class="text-caption fu-ink-dim">used when kit = Custom</span>
         </div>
 
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider pt-2">Identity</div>
+        <div class="fu-divider">Identity</div>
         <.input field={@form[:display_name]} label="Display name" />
         <div class="grid grid-cols-2 gap-3">
           <.input field={@form[:jersey_number]} type="number" label="Jersey" />
@@ -123,7 +128,7 @@ defmodule FuWeb.ProfileLive do
           <.input field={@form[:home_lng]} type="text" label="Home lng" />
         </div>
 
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider pt-2">Play</div>
+        <div class="fu-divider">Playing</div>
         <.input
           field={@form[:primary_position]}
           type="select"
@@ -142,7 +147,7 @@ defmodule FuWeb.ProfileLive do
           label="Playstyle"
           options={[{"—", ""} | Enum.map(@playstyles, &{&1, &1})]}
         />
-        <label class="flex items-center gap-2 text-sm">
+        <label class="flex items-center gap-2 text-meta">
           <input
             type="checkbox"
             name="player[fill_mode]"
@@ -156,25 +161,23 @@ defmodule FuWeb.ProfileLive do
         <button class="btn btn-primary w-full" type="submit">Save profile</button>
       </.form>
 
-      <!-- Availability windows (spec §2.6) -->
-      <div class="fu-card p-4 space-y-3">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Availability</div>
+      <!-- Availability (spec §2.6, plan §10.3) -->
+      <div class="fu-card p-5 space-y-3">
+        <div class="fu-divider">Availability</div>
 
-        <div :if={@windows == []} class="text-sm fu-ink-soft">
-          No windows yet. Add one so the auto-matcher can find you.
+        <div :if={@windows == []} class="fu-serif fu-ink-soft text-meta">
+          No windows yet — add one so the auto-matcher can find you.
         </div>
 
         <div
           :for={w <- @windows}
-          class="flex items-center justify-between text-sm border-b border-neutral pb-2"
+          class="flex items-center justify-between text-meta border-b border-[var(--fu-line)] pb-2"
         >
           <span>
-            {window_label(w)} · {Calendar.strftime(w.start_time, "%H:%M")}–{Calendar.strftime(
-              w.end_time,
-              "%H:%M"
-            )}
+            <span class="text-mono fu-ink-soft">{window_label(w)}</span>
+            · {Calendar.strftime(w.start_time, "%H:%M")}–{Calendar.strftime(w.end_time, "%H:%M")}
           </span>
-          <button phx-click="del-window" phx-value-id={w.id} class="text-error text-xs">
+          <button phx-click="del-window" phx-value-id={w.id} class="text-error text-caption">
             remove
           </button>
         </div>
@@ -187,11 +190,7 @@ defmodule FuWeb.ProfileLive do
           <select name="win[weekday]" class="select select-sm select-bordered bg-base-200">
             <option :for={{d, i} <- Enum.with_index(@days)} value={i}>{d}</option>
           </select>
-          <input
-            type="date"
-            name="win[date]"
-            class="input input-sm input-bordered bg-base-200"
-          />
+          <input type="date" name="win[date]" class="input input-sm input-bordered bg-base-200" />
           <input
             type="time"
             name="win[start_time]"
@@ -208,12 +207,57 @@ defmodule FuWeb.ProfileLive do
         </.form>
       </div>
 
+      <!-- Rank trajectory + history (plan §10.4) -->
+      <div class="fu-card p-5 space-y-3">
+        <div class="fu-divider">Rank trajectory</div>
+        <%= case spark(@history) do %>
+          <% {:ok, points, lo, hi} -> %>
+            <svg viewBox="0 0 300 60" class="w-full h-16" preserveAspectRatio="none">
+              <polyline
+                points={points}
+                fill="none"
+                stroke="var(--fu-accent)"
+                stroke-width="2"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
+            <div class="flex justify-between text-caption fu-ink-dim">
+              <span>{lo}</span>
+              <span>now {:erlang.float_to_binary(@player.rank, decimals: 1)}</span>
+              <span>{hi}</span>
+            </div>
+          <% :none -> %>
+            <div class="fu-serif fu-ink-soft text-meta">
+              Play a rated match to start your trajectory.
+            </div>
+        <% end %>
+
+        <div class="fu-divider">Matches</div>
+        <div :if={@history == []} class="text-meta fu-ink-soft">No rank events yet.</div>
+        <div
+          :for={ev <- Enum.take(@history, 10)}
+          class="flex items-center justify-between border-b border-[var(--fu-line)] py-2"
+        >
+          <span class="text-meta">{ev_label(ev)}</span>
+          <span class="text-mono">
+            <span class={delta_class(ev.delta)}>{signed(ev.delta)}</span>
+            <span class="fu-ink-soft">
+              → {:erlang.float_to_binary(ev.rank_after, decimals: 1)}
+            </span>
+          </span>
+        </div>
+      </div>
+
       <.link href={~p"/session"} method="delete" class="btn btn-ghost btn-sm w-full">
         Sign out
       </.link>
     </Layouts.app>
     """
   end
+
+  ## helpers
 
   defp parse_int(nil, default), do: default
   defp parse_int("", default), do: default
@@ -228,4 +272,49 @@ defmodule FuWeb.ProfileLive do
   defp window_label(%{kind: "recurring", weekday: wd}), do: Enum.at(@days, wd || 0)
   defp window_label(%{kind: "oneoff", date: d}), do: Calendar.strftime(d, "%d %b")
   defp window_label(_), do: "—"
+
+  defp ev_label(%{kind: "match"} = ev), do: "Match · queue #{ev.queue_id || "—"}"
+  defp ev_label(%{kind: k}), do: String.capitalize(to_string(k))
+
+  defp signed(d) when is_number(d) and d >= 0, do: "+#{:erlang.float_to_binary(d / 1, decimals: 1)}"
+  defp signed(d) when is_number(d), do: "−#{:erlang.float_to_binary(abs(d) / 1, decimals: 1)}"
+  defp signed(_), do: "—"
+
+  defp delta_class(d) when is_number(d) and d > 0, do: "text-primary"
+  defp delta_class(d) when is_number(d) and d < 0, do: "text-[var(--fu-danger)]"
+  defp delta_class(_), do: "fu-ink-soft"
+
+  # Build an SVG polyline over rank_after, oldest→newest, scaled to 300×60.
+  defp spark(history) do
+    pts =
+      history
+      |> Enum.reverse()
+      |> Enum.map(& &1.rank_after)
+      |> Enum.filter(&is_number/1)
+
+    case pts do
+      [] ->
+        :none
+
+      [_one] ->
+        :none
+
+      vals ->
+        lo = Enum.min(vals)
+        hi = Enum.max(vals)
+        span = max(hi - lo, 1.0)
+        n = length(vals)
+
+        points =
+          vals
+          |> Enum.with_index()
+          |> Enum.map_join(" ", fn {v, i} ->
+            x = i * 300 / (n - 1)
+            y = 56 - (v - lo) / span * 52
+            "#{Float.round(x, 1)},#{Float.round(y, 1)}"
+          end)
+
+        {:ok, points, round(lo), round(hi)}
+    end
+  end
 end

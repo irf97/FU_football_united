@@ -69,21 +69,22 @@ defmodule FuWeb.QueueChatLive do
     <Layouts.app flash={@flash} current_player={@current_player} active={:browse}>
       <div class="flex flex-col h-[calc(100vh-150px)]">
         <!-- Header (messenger style) -->
-        <div class="flex items-center gap-3 pb-3 border-b border-neutral">
+        <div class="flex items-center gap-3 pb-3 border-b border-[var(--fu-line)]">
           <.link navigate={~p"/browse"} class="fu-ink-soft text-lg leading-none">←</.link>
-          <div class="size-9 rounded-full bg-base-200 border border-neutral grid place-items-center fu-serif fu-ink-soft">
+          <div class="size-9 rounded-full bg-base-200 grid place-items-center fu-serif fu-ink-soft">
             {String.first(@queue.field.name)}
           </div>
           <div class="flex-1 min-w-0">
-            <div class="font-semibold truncate">{@queue.field.name}</div>
-            <div class="text-[11px] fu-ink-soft font-mono">
+            <div class="text-h3 truncate">{@queue.field.name}</div>
+            <div class="text-caption fu-ink-soft">
               {@members} in queue · {@queue.format}
             </div>
           </div>
         </div>
 
         <!-- Participant roster (everyone in the queue) -->
-        <div class="flex gap-3 overflow-x-auto py-3 border-b border-neutral">
+        <div class="fu-divider mt-3">In the queue</div>
+        <div class="flex gap-3 overflow-x-auto pb-3 border-b border-[var(--fu-line)]">
           <div :for={pl <- @roster} class="flex flex-col items-center gap-1 w-14 shrink-0">
             <div class="size-12 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden">
               <Avatars.avatar player={pl} size={44} />
@@ -105,7 +106,7 @@ defmodule FuWeb.QueueChatLive do
             phx-hook="ChatScroll"
             class="flex-1 overflow-y-auto py-4 space-y-1 pr-1"
           >
-            <div :if={@messages == []} class="text-center fu-ink-soft text-sm py-8">
+            <div :if={@messages == []} class="text-center fu-serif fu-ink-soft text-meta py-8">
               No messages yet — say hi 👋
             </div>
             <.bubble
@@ -119,7 +120,7 @@ defmodule FuWeb.QueueChatLive do
 
           <!-- Composer -->
           <%= if @can_post? do %>
-            <.form for={%{}} phx-submit="send" class="flex gap-2 pt-2 border-t border-neutral">
+            <.form for={%{}} phx-submit="send" class="flex gap-2 pt-2 border-t border-[var(--fu-line)]">
               <input
                 type="text"
                 name="body"
@@ -133,13 +134,13 @@ defmodule FuWeb.QueueChatLive do
               </button>
             </.form>
           <% else %>
-            <div class="pt-2 border-t border-neutral flex items-center justify-between gap-3">
-              <span class="text-xs fu-ink-soft">Join the queue to chat.</span>
+            <div class="pt-2 border-t border-[var(--fu-line)] flex items-center justify-between gap-3">
+              <span class="text-meta fu-ink-soft">Join the queue to chat.</span>
               <button phx-click="join" class="btn btn-sm btn-primary">Join queue</button>
             </div>
           <% end %>
         <% else %>
-          <div class="flex-1 grid place-items-center text-center fu-ink-soft text-sm px-6">
+          <div class="flex-1 grid place-items-center text-center fu-serif fu-ink-soft text-meta px-6">
             Chatroom opens once {QueueChat.min_members()}+ players have joined.<br />
             Currently {@members}.
           </div>

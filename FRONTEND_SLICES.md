@@ -26,20 +26,19 @@ Post-match (`post_match_live.ex`) — ✅ done, compile-verified:
 - [x] FE10 Rank-delta hero + itemized breakdown → §9.4
 - [x] FE11 Voting flow → §9.5 (editorial taglines, keeper 1–10)
 
-Profile (`profile_live.ex`) — ⛔ DEFERRED (agent hit usage cap mid-write,
-reverted to working brand-themed 8324203):
-- [ ] FE12 Settings sectioned list → §10.2
-- [ ] FE13 Availability editor → §10.3
-- [ ] FE14 Match history + SVG sparkline → §10.4
+Profile (`profile_live.ex`) — ✅ done (orchestrator, runtime-verified):
+- [x] FE12 Settings sectioned list (fu-divider Avatar/Identity/Playing) + identity summary
+- [x] FE13 Availability editor restyled (§10.3)
+- [x] FE14 Match history + inline SVG rank sparkline (§10.4)
 
-Queue chatroom (`queue_chat_live.ex`) — ⛔ DEFERRED (agent cap):
-- [ ] FE15 Type-scale/divider polish (already messenger-style + themed)
+Queue chatroom (`queue_chat_live.ex`) — ✅ done, runtime-verified:
+- [x] FE15 Type-scale + fu-divider polish (messenger UI kept, ChatScroll intact)
 
-> Wave A: 2 agents completed cleanly (browse, lobby); post-match agent
-> also completed (compiles); profile agent truncated → reverted.
-> Re-run FE12–15 after usage resets (06:00 Europe/Amsterdam).
-> /lobby & /postmatch runtime click needs a fresh `mix run seeds.exs`
-> (current seed ids 33/34 reassigned) — code is compile-clean.
+> All 15 frontend slices complete. FE12–15 done directly (sub-agent
+> usage was capped); profile rebuilt from the reverted base, not the
+> truncated agent output. /profile + /queue/:id/chat verified 200.
+> /lobby & /postmatch are compile-clean; runtime click needs a fresh
+> `mix run priv/repo/seeds.exs` (seed ids reassigned across reseeds).
 
 ## Wave B — polish (orchestrator + shared files)
 
