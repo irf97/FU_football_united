@@ -229,20 +229,31 @@ defmodule Fu.Queues do
             {:error, :no_slot}
 
           pos ->
-            result =
-              %QueueMembership{}
-              |> QueueMembership.changeset(%{
-                queue_id: queue.id,
-                player_id: player.id,
-                declared_position: pos,
-                status: "queued",
-                joined_in_lock: locked?(queue)
-              })
-              |> Repo.insert()
+            attrs = %{
+              queue_id: queue.id,
+              player_id: player.id,
+              declared_position: pos,
+              status: "queued",
+              joined_in_lock: locked?(queue)
+            }
 
-            with {:ok, m} <- result do
-              broadcast(queue.id, :queue_changed)
-              {:ok, m}
+            # A prior "left" row keeps the (queue_id, player_id) unique key,
+            # so a fresh insert would hit the constraint. Re-joining an open
+            # queue should reactivate that row, not crash.
+            result =
+              case Repo.get_by(QueueMembership, queue_id: queue.id, player_id: player.id) do
+                nil -> %QueueMembership{} |> QueueMembership.changeset(attrs) |> Repo.insert()
+                existing -> existing |> QueueMembership.changeset(attrs) |> Repo.update()
+              end
+
+            case result do
+              {:ok, m} ->
+                broadcast(queue.id, :queue_changed)
+                {:ok, m}
+
+              {:error, %Ecto.Changeset{}} ->
+                # Never leak a changeset to callers — normalise to an atom.
+                {:error, :already_joined}
             end
         end
     end

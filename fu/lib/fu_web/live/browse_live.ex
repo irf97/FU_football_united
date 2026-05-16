@@ -72,7 +72,10 @@ defmodule FuWeb.BrowseLive do
   defp join_error(:already_joined), do: "You're already in this queue."
   defp join_error(:queue_closed), do: "This queue is no longer open."
   defp join_error(:suspended), do: "You're on a queue suspension."
-  defp join_error(other), do: "Couldn't join (#{other})."
+  defp join_error(reason) when is_atom(reason), do: "Couldn't join (#{reason})."
+  # Never interpolate a non-atom (e.g. an Ecto.Changeset) — that raised
+  # Protocol.UndefinedError and crashed the LiveView.
+  defp join_error(_), do: "Couldn't join — please try again."
 
   @impl true
   def render(assigns) do

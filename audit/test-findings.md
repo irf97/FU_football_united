@@ -43,3 +43,18 @@ brief, application bugs are flagged here, not patched.
 Suite result after fix: **2 properties, 31 tests, 0 failures** (0.8s).
 P0 green: Resolver (9), Ranking 8v8 + clamp/monotonic properties, Lobby
 captain claim (9), OTP (6). Phase 3 gate (green suite) MET.
+
+6. **BUG (user-reported, post-brief) — `Queues.join/3` leaked an
+   `Ecto.Changeset` → LiveView crash. FIXED.** Player had a `status:
+   "left"` `queue_memberships` row for queue 49; `already_member?/2` only
+   checks `status == "queued"`, so `join` proceeded to `Repo.insert`, hit
+   the `(queue_id, player_id)` unique index, returned `{:error,
+   %Ecto.Changeset{}}`; `BrowseLive.join_error/1`'s `"#{other}"` then
+   raised `Protocol.UndefinedError` (String.Chars on Ecto.Changeset) and
+   crashed the LiveView. Two fixes: (a) `queues.ex` `join/3` now
+   reactivates an existing (left) row instead of blind-inserting, and
+   normalises any changeset error to `{:error, :already_joined}`;
+   (b) `browse_live.ex` `join_error/1` guards `is_atom/1` + safe generic
+   fallback (never interpolates arbitrary terms). Regression:
+   `test/fu/queues_join_test.exs` (3 tests). Suite → **34 tests, 0
+   failures**. Not a Phase-4 regression (pre-existing error path).
