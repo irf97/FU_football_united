@@ -152,7 +152,7 @@ defmodule FuWeb.PostMatchLive do
       <div class="fu-card p-5 space-y-2">
         <div class="flex items-start justify-between">
           <div>
-            <h1 class="fu-serif text-xl text-primary">{@queue.field.name}</h1>
+            <h1 class="text-h1">{@queue.field.name}</h1>
             <div class="text-xs fu-ink-soft">Post-match</div>
           </div>
           <span class={if @queue.rated, do: "fu-badge-rated", else: "fu-badge-casual"}>
@@ -206,7 +206,7 @@ defmodule FuWeb.PostMatchLive do
       <!-- Soft signals: voting (spec §2.8, §4 Q3) -->
       <div :if={@voting_open? and @pending != []} class="space-y-3">
         <div class="flex items-center justify-between">
-          <h2 class="fu-serif text-lg text-primary">Rate your opponents</h2>
+          <h2 class="text-h2">Rate your opponents</h2>
           <button phx-click="skip-all" class="pos-pill needs">Skip all</button>
         </div>
 

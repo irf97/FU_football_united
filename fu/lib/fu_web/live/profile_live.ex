@@ -72,7 +72,7 @@ defmodule FuWeb.ProfileLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_player={@player} active={:profile}>
-      <h1 class="fu-serif text-xl text-primary">Profile</h1>
+      <h1 class="text-h1">Profile</h1>
 
       <.form
         for={@form}

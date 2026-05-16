@@ -209,7 +209,7 @@ defmodule FuWeb.LobbyLive do
       <div class="fu-card p-5 space-y-2">
         <div class="flex items-start justify-between">
           <div>
-            <h1 class="fu-serif text-xl text-primary">{@queue.field.name}</h1>
+            <h1 class="text-h1">{@queue.field.name}</h1>
             <div class="text-xs fu-ink-soft">{@queue.field.operator_name}</div>
           </div>
           <span class={if @queue.rated, do: "fu-badge-rated", else: "fu-badge-casual"}>
@@ -333,7 +333,7 @@ defmodule FuWeb.LobbyLive do
           @me && m.id == @me.id && "bg-base-200"
         ]}
       >
-        <div class="size-8 rounded-full bg-base-200 border border-neutral grid place-items-center text-xs fu-serif text-primary shrink-0">
+        <div class="size-8 rounded-full bg-base-200 border border-neutral grid place-items-center text-xs fu-serif fu-ink-soft shrink-0">
           {String.first(m.player.display_name)}
         </div>
         <div class="flex-1 min-w-0">

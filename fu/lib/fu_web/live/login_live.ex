@@ -40,12 +40,12 @@ defmodule FuWeb.LoginLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="pt-16 space-y-8">
-        <div class="text-center space-y-2">
-          <div class="text-4xl font-semibold tracking-tight">FU</div>
-          <p class="fu-serif text-primary">
-            queue for a match you didn't know existed
-          </p>
+      <div class="pt-20 space-y-10">
+        <div class="text-center space-y-4">
+          <div class="text-caption fu-ink-soft">Football United</div>
+          <h1 class="text-h1">
+            where i am,<br />I am<span class="text-primary">...!</span>
+          </h1>
         </div>
 
         <div class="fu-card p-6 space-y-4">

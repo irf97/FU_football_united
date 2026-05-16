@@ -71,7 +71,7 @@ defmodule FuWeb.QueueChatLive do
         <!-- Header (messenger style) -->
         <div class="flex items-center gap-3 pb-3 border-b border-neutral">
           <.link navigate={~p"/browse"} class="fu-ink-soft text-lg leading-none">←</.link>
-          <div class="size-9 rounded-full bg-base-200 border border-neutral grid place-items-center fu-serif text-primary">
+          <div class="size-9 rounded-full bg-base-200 border border-neutral grid place-items-center fu-serif fu-ink-soft">
             {String.first(@queue.field.name)}
           </div>
           <div class="flex-1 min-w-0">

@@ -5,7 +5,7 @@ defmodule FuWeb.HomeLive do
   """
   use FuWeb, :live_view
 
-  alias Fu.{Accounts, Queues, Positions, Friends, Groups, Matching}
+  alias Fu.{Accounts, Queues, Positions, Friends, Groups, Matching, Ranking}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -26,9 +26,27 @@ defmodule FuWeb.HomeLive do
       pending: Friends.pending_incoming(player),
       group: group,
       group_members: group && Groups.members(group),
-      invite: Friends.invite_link(player)
+      invite: Friends.invite_link(player),
+      form: recent_form(player)
     )
   end
+
+  # Last 5 rated matches as W/L/D, newest first — derived from the
+  # rank-event outcome component (win +1.5 / draw +0.3 / loss −0.8).
+  defp recent_form(player) do
+    Ranking.history(player.id)
+    |> Enum.filter(&(&1.kind == "match"))
+    |> Enum.take(5)
+    |> Enum.map(fn ev ->
+      case ev.breakdown["outcome"] do
+        o when is_number(o) and o >= 1.0 -> "W"
+        o when is_number(o) and o <= -0.1 -> "L"
+        _ -> "D"
+      end
+    end)
+  end
+
+  defp pad_form(form), do: form ++ List.duplicate("", max(5 - length(form), 0))
 
   @impl true
   def handle_event("accept-friend", %{"id" => id}, socket) do
@@ -75,45 +93,67 @@ defmodule FuWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_player={@player} active={:home}>
-      <!-- Player card -->
-      <div class="fu-card p-5">
-        <div class="flex items-center gap-4">
-          <div class="size-14 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden">
-            <FuWeb.Avatars.avatar player={@player} size={52} />
-          </div>
-          <div class="flex-1">
-            <div class="font-semibold">{@player.display_name}</div>
-            <div class="text-xs fu-ink-soft font-mono">
-              {@player.primary_position} · {@player.secondary_position || "—"}
-              {if @player.fill_mode, do: " · fill"}
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="text-3xl font-semibold text-primary leading-none">
+      <!-- Player card — the hero (frontend plan §5.3). Rank is NOT lime;
+           lime is reserved for moments that land. -->
+      <.link navigate={~p"/profile"} class="block fu-card p-6">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-display leading-none">
               {:erlang.float_to_binary(@player.rank, decimals: 0)}
             </div>
-            <div class="text-[10px] fu-ink-dim font-mono uppercase tracking-wider">rank</div>
+            <div class="text-caption fu-ink-soft mt-1">rank</div>
+          </div>
+          <div class="size-14 rounded-full bg-base-200 ring-1 ring-[var(--fu-line-strong)] grid place-items-center overflow-hidden">
+            <FuWeb.Avatars.avatar player={@player} size={52} />
           </div>
         </div>
-      </div>
 
-      <!-- Queue button (primary action) -->
-      <.link
-        navigate={~p"/browse"}
-        class="block fu-card p-5 text-center border-primary/40 hover:border-primary transition"
-      >
-        <div class="text-lg font-semibold text-primary">Find a match</div>
-        <div class="text-sm fu-ink-soft mt-1">
-          <%= cond do %>
-            <% @needing > 0 -> %>
-              {@needing} {if @needing == 1, do: "queue needs", else: "queues need"} your spot
-            <% @queue_count > 0 -> %>
-              {@queue_count} open {if @queue_count == 1, do: "queue", else: "queues"} nearby
-            <% true -> %>
-              no open queues — check back soon
-          <% end %>
+        <div class="mt-5">
+          <div class="text-h3">{@player.display_name}</div>
+          <div class="text-meta fu-ink-soft">
+            {@player.primary_position} · {@player.secondary_position || "—"}{if @player.fill_mode,
+              do: " · fill"}
+          </div>
+        </div>
+
+        <div class="flex gap-1.5 mt-4">
+          <div
+            :for={r <- pad_form(@form)}
+            class={[
+              "form-cell",
+              r == "W" && "form-w",
+              r == "L" && "form-l",
+              r == "D" && "form-d",
+              r == "" && "border border-[var(--fu-line)]"
+            ]}
+          >
+            {r}
+          </div>
+        </div>
+
+        <div class="fu-serif text-meta fu-ink-dim mt-5">
+          Born to play · since {@player.inserted_at.year}
         </div>
       </.link>
+
+      <!-- Queue button — the single most pressable thing (plan §5.4) -->
+      <%= if @queue_count > 0 do %>
+        <.link
+          navigate={~p"/browse"}
+          class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
+        >
+          ⚡ QUEUE — {if @needing > 0,
+            do: "#{@needing} need your spot",
+            else: "#{@queue_count} open nearby"}
+        </.link>
+      <% else %>
+        <.link
+          navigate={~p"/profile"}
+          class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
+        >
+          ⚡ QUEUE — set availability
+        </.link>
+      <% end %>
 
       <!-- Position quick-edit -->
       <div class="fu-card p-4 space-y-3">
@@ -192,7 +232,7 @@ defmodule FuWeb.HomeLive do
           <div class="pt-2 border-t border-neutral space-y-2">
             <div class="text-sm">
               Group · {length(@group_members)}/8 —
-              <span class="fu-serif text-primary">
+              <span class="fu-serif fu-ink-soft">
                 {Groups.expected_split(length(@group_members))}
               </span>
             </div>

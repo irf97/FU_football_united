@@ -1,4 +1,6 @@
-/* Football United — dark theme from MVP spec design tokens */
+/* Football United — brand design system (frontend plan v1.0)
+   Dark canvas · Instrument Serif × Schibsted Grotesk × JetBrains Mono
+   One reserved accent: lime #C5FF3D for moments that land. */
 
 @import "tailwindcss" source(none);
 @source "../css";
@@ -10,35 +12,34 @@
   themes: false;
 }
 
-/* FU dark theme — palette from fumvpspec design tokens */
 @plugin "../vendor/daisyui-theme" {
   name: "dark";
   default: true;
   prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: #0d1322;   /* card */
-  --color-base-200: #0a0f1c;   /* soft */
-  --color-base-300: #040711;   /* bg */
-  --color-base-content: #e6e9f2;
-  --color-primary: #fbbf24;    /* amber */
-  --color-primary-content: #1a1205;
-  --color-secondary: #67e8f9;  /* cyan */
-  --color-secondary-content: #04181c;
-  --color-accent: #67e8f9;
-  --color-accent-content: #04181c;
-  --color-neutral: #1a2238;    /* line */
-  --color-neutral-content: #e6e9f2;
-  --color-info: #67e8f9;
-  --color-info-content: #04181c;
-  --color-success: #10b981;    /* emerald */
-  --color-success-content: #02160f;
-  --color-warning: #fbbf24;
+  --color-base-100: #1C1815;          /* elevated — cards, modals */
+  --color-base-200: #14110F;          /* bg-2 */
+  --color-base-300: #0A0908;          /* bg — the canvas */
+  --color-base-content: #F4F0E8;      /* ink */
+  --color-primary: #C5FF3D;           /* the one accent — lime */
+  --color-primary-content: #0A0908;
+  --color-secondary: #6B6660;         /* muted — NOT lime (reserve it) */
+  --color-secondary-content: #F4F0E8;
+  --color-accent: #C5FF3D;
+  --color-accent-content: #0A0908;
+  --color-neutral: #2A2521;           /* line, solid form */
+  --color-neutral-content: #F4F0E8;
+  --color-info: #6BAEFF;
+  --color-info-content: #04121f;
+  --color-success: #C5FF3D;           /* success == accent (spec §2.1) */
+  --color-success-content: #0A0908;
+  --color-warning: #F4B860;           /* lock-period, partial-fill */
   --color-warning-content: #1a1205;
-  --color-error: #f43f5e;      /* rose */
-  --color-error-content: #2a0710;
-  --radius-selector: 0.5rem;
-  --radius-field: 0.375rem;
-  --radius-box: 0.5rem;
+  --color-error: #FF6B5A;             /* rose-coral — no-show, errors */
+  --color-error-content: #1A0A08;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
   --size-selector: 0.21875rem;
   --size-field: 0.21875rem;
   --border: 1px;
@@ -54,74 +55,124 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 :root {
-  --fu-serif: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --fu-ink-soft: #8a92a8;
-  --fu-ink-dim: #4d5573;
-  --fu-line: #1a2238;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "Schibsted Grotesk", -apple-system, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+  --fu-bg: #0A0908;
+  --fu-bg-2: #14110F;
+  --fu-bg-elevated: #1C1815;
+  --fu-line: rgba(244, 240, 232, 0.08);
+  --fu-line-strong: rgba(244, 240, 232, 0.16);
+  --fu-text: #F4F0E8;
+  --fu-text-muted: #6B6660;
+  --fu-text-faint: #3A3733;
+  --fu-accent: #C5FF3D;
+  --fu-danger: #FF6B5A;
+  --fu-warning: #F4B860;
 }
 
 html, body {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(251,191,36,0.04), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(103,232,249,0.03), transparent 60%),
-    #040711;
-  color: #e6e9f2;
+    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(197, 255, 61, 0.03), transparent 60%),
+    var(--fu-bg);
+  color: var(--fu-text);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.fu-serif { font-family: var(--fu-serif); font-style: italic; }
-.fu-ink-soft { color: var(--fu-ink-soft); }
-.fu-ink-dim { color: var(--fu-ink-dim); }
+/* Editorial italic serif — empty states, brand line, human moments only */
+.fu-serif { font-family: var(--font-serif); font-style: italic; letter-spacing: -0.01em; }
+.fu-ink-soft { color: var(--fu-text-muted); }
+.fu-ink-dim { color: var(--fu-text-faint); }
+
+/* Type scale (frontend plan §2.2) */
+.text-display { font-family: var(--font-serif); font-size: 56px; line-height: 1.05; font-weight: 400; }
+.text-h1 { font-family: var(--font-serif); font-size: 34px; line-height: 1.15; font-weight: 400; }
+.text-h2 { font-family: var(--font-serif); font-size: 24px; line-height: 1.2; font-weight: 400; }
+.text-h3 { font-family: var(--font-sans); font-size: 18px; line-height: 1.3; font-weight: 600; }
+.text-meta { font-size: 13px; line-height: 1.4; font-weight: 500; }
+.text-mono { font-family: var(--font-mono); font-size: 12px; line-height: 1.4; font-weight: 500; }
+.text-caption {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
 
 /* Mobile app shell */
-.fu-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 76px; }
+.fu-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; }
 
 .fu-card {
-  background: #0d1322;
+  background: var(--fu-bg-elevated);
   border: 1px solid var(--fu-line);
-  border-radius: 0.625rem;
+  border-radius: 1rem;
 }
 
-/* Position pill (GK/DEF/MID/FWD fill chips, spec §2.2) */
+/* Per-position fill pill (spec §2.2) — lime stays reserved, so 'needs'
+   uses warning amber, 'full' is de-emphasized. */
 .pos-pill {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid var(--fu-line);
+  color: var(--fu-text-muted);
 }
-.pos-pill.full { border-color: #10b981; color: #10b981; }
-.pos-pill.needs { border-color: #fbbf24; color: #fbbf24; }
+.pos-pill.full { border-color: var(--fu-line-strong); color: var(--fu-text-faint); }
+.pos-pill.needs { border-color: var(--fu-warning); color: var(--fu-warning); }
 
+/* Rated 8v8 badge — a moment that lands → lime. Casual → quiet. */
 .fu-badge-rated {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #fbbf24;
-  border: 1px solid #fbbf24;
-  border-radius: 4px;
-  padding: 1px 6px;
+  color: var(--fu-bg);
+  background: var(--fu-accent);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-weight: 600;
 }
 .fu-badge-casual {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--fu-ink-soft);
+  color: var(--fu-text-muted);
   border: 1px solid var(--fu-line);
-  border-radius: 4px;
-  padding: 1px 6px;
+  border-radius: 5px;
+  padding: 2px 7px;
 }
 
-/* Fixed bottom tab bar */
+/* Fixed bottom tab bar (frontend plan §5.8) */
 .fu-tabbar {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   max-width: 480px;
   margin: 0 auto;
-  background: rgba(10,15,28,0.95);
+  background: rgba(10, 9, 8, 0.95);
   border-top: 1px solid var(--fu-line);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Recent-form cells (player card §5.3): W=lime, L=danger, D=line */
+.form-w { background: var(--fu-accent); color: var(--fu-bg); }
+.form-l { background: rgba(255, 107, 90, 0.18); color: var(--fu-danger); }
+.form-d { background: var(--fu-line); color: var(--fu-text-muted); }
+.form-cell {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 600;
+}
+
+/* Press feedback (plan §2.5) */
+button, .btn, a[role="button"] { transition: transform 50ms ease, filter 100ms ease; }
+button:active, .btn:active { transform: scale(0.98); }

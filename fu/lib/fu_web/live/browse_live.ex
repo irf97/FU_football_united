@@ -78,7 +78,7 @@ defmodule FuWeb.BrowseLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_player={@current_player} active={:browse}>
-      <h1 class="fu-serif text-xl text-primary">Open queues</h1>
+      <h1 class="text-h1">Open queues</h1>
 
       <!-- Filter chips (spec §2.13 Surface 3) -->
       <div class="flex flex-wrap gap-2">

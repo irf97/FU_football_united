@@ -33,12 +33,9 @@ defmodule FuWeb.Layouts do
   def app(assigns) do
     ~H"""
     <div class="fu-shell">
-      <header class="flex items-center justify-between px-4 pt-5 pb-3">
-        <div class="flex items-baseline gap-2">
-          <span class="text-lg font-semibold tracking-tight">FU</span>
-          <span class="fu-serif text-primary text-sm">football united</span>
-        </div>
-        <span :if={@current_player} class="text-xs fu-ink-soft font-mono">
+      <header class="flex items-center justify-between px-4 pt-6 pb-3">
+        <span class="text-caption">Football United</span>
+        <span :if={@current_player} class="text-mono fu-ink-soft">
           rank {:erlang.float_to_binary(@current_player.rank, decimals: 0)}
         </span>
       </header>
@@ -68,13 +65,14 @@ defmodule FuWeb.Layouts do
     <a
       href={@href}
       class={[
-        "flex-1 flex flex-col items-center gap-1 py-3 text-[11px] font-mono",
+        "flex-1 flex flex-col items-center gap-1 py-3",
         @active && "text-primary",
         !@active && "fu-ink-soft"
       ]}
     >
+      <span class={["h-1 w-1 rounded-full", @active && "bg-primary", !@active && "bg-transparent"]} />
       <.icon name={@icon} class="size-5" />
-      {@label}
+      <span class="text-[10px] font-mono uppercase tracking-[0.1em]">{@label}</span>
     </a>
     """
   end

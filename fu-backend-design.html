@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Football United · Backend Design</title>
+<style>
+  :root {
+    --bg: #040711;
+    --bg-soft: #0a0f1c;
+    --bg-card: #0d1322;
+    --line: #1a2238;
+    --line-soft: #131a2c;
+    --ink: #e6e9f2;
+    --ink-soft: #8a92a8;
+    --ink-dim: #4d5573;
+    --amber: #fbbf24;
+    --cyan: #67e8f9;
+    --rose: #f43f5e;
+    --emerald: #10b981;
+    --serif: ui-serif, "Iowan Old Style", "Apple Garamond", "Hoefler Text", Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 16px;
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(251,191,36,0.04), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(103,232,249,0.03), transparent 60%),
+      var(--bg);
+  }
+  em, .serif { font-family: var(--serif); font-style: italic; }
+  strong { color: var(--ink); font-weight: 600; }
+  a { color: var(--cyan); text-decoration: none; border-bottom: 1px dotted var(--cyan); }
+  a:hover { color: var(--amber); border-bottom-color: var(--amber); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    max-width: 1180px;
+    margin: 0 auto;
+    gap: 40px;
+    padding: 40px 24px;
+  }
+
+  /* ============================ NAV ============================ */
+  nav.toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    border-right: 1px solid var(--line-soft);
+    padding-right: 16px;
+    font-size: 13px;
+  }
+  nav.toc .head {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--amber);
+    font-size: 14px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  nav.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: section;
+  }
+  nav.toc li {
+    counter-increment: section;
+    margin: 6px 0;
+    padding-left: 0;
+  }
+  nav.toc a {
+    color: var(--ink-soft);
+    border-bottom: none;
+    display: block;
+    padding: 4px 0;
+    transition: color 100ms;
+    line-height: 1.4;
+  }
+  nav.toc a::before {
+    content: counter(section, decimal-leading-zero) " · ";
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  nav.toc a:hover {
+    color: var(--amber);
+  }
+  nav.toc a.active {
+    color: var(--amber);
+  }
+
+  /* ============================ MAIN ============================ */
+  main {
+    min-width: 0;
+    max-width: 760px;
+  }
+
+  header.doc-head {
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  header.doc-head h1 {
+    margin: 0 0 8px;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 36px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  header.doc-head h1 em {
+    color: var(--amber);
+  }
+  header.doc-head .meta {
+    color: var(--ink-soft);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  header.doc-head .sub {
+    color: var(--ink-soft);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 16px;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  section.chapter {
+    margin: 60px 0;
+    scroll-margin-top: 24px;
+  }
+  section.chapter:first-of-type { margin-top: 0; }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 26px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  h2 .num {
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 14px;
+    margin-right: 12px;
+    vertical-align: middle;
+    font-style: normal;
+  }
+  h2 em { color: var(--amber); }
+  section.chapter > p:first-of-type,
+  section.chapter > .lede {
+    color: var(--ink-soft);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 15px;
+    margin: 0 0 28px;
+    line-height: 1.55;
+  }
+
+  h3 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 20px;
+    color: var(--ink);
+    margin: 28px 0 10px;
+    letter-spacing: -0.005em;
+  }
+  h3::before {
+    content: "· ";
+    color: var(--amber);
+  }
+
+  h4 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    margin: 22px 0 8px;
+    font-weight: 600;
+  }
+
+  p { margin: 14px 0; }
+  ul, ol { margin: 12px 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+  li strong { color: var(--amber); }
+
+  blockquote {
+    border-left: 2px solid var(--amber);
+    margin: 18px 0;
+    padding: 4px 18px;
+    color: var(--ink-soft);
+    font-family: var(--serif);
+    font-style: italic;
+    background: rgba(251,191,36,0.03);
+  }
+
+  /* ============================ CODE / TABLES ============================ */
+  pre {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 16px 0;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--cyan);
+    background: rgba(103,232,249,0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre code {
+    background: none;
+    color: var(--ink-soft);
+    padding: 0;
+    font-size: inherit;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+  th {
+    text-align: left;
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--ink-soft);
+    vertical-align: top;
+  }
+  td:first-child { color: var(--ink); }
+  td code { font-size: 11.5px; }
+
+  /* ============================ CALLOUT BOXES ============================ */
+  .callout {
+    background: var(--bg-card);
+    border-left: 3px solid var(--cyan);
+    border-radius: 0 4px 4px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+  }
+  .callout.amber { border-left-color: var(--amber); }
+  .callout.rose { border-left-color: var(--rose); }
+  .callout .head {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--cyan);
+    margin-bottom: 6px;
+  }
+  .callout.amber .head { color: var(--amber); }
+  .callout.rose .head { color: var(--rose); }
+  .callout .body { font-size: 14px; color: var(--ink-soft); line-height: 1.6; }
+  .callout .body strong { color: var(--ink); }
+
+  /* ============================ FOOTER ============================ */
+  footer.doc-foot {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  /* ============================ MOBILE ============================ */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+      padding: 24px 16px;
+      gap: 0;
+    }
+    nav.toc {
+      position: relative;
+      top: 0;
+      max-height: none;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 0 0 18px;
+      margin-bottom: 24px;
+    }
+    nav.toc ol {
+      columns: 2;
+      column-gap: 16px;
+    }
+    main { max-width: 100%; }
+    header.doc-head h1 { font-size: 28px; }
+    h2 { font-size: 22px; }
+    h3 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<nav class="toc">
+  <div class="head">contents</div>
+  <ol>
+    <li><a href="#s0">Purpose &amp; audience</a></li>
+    <li><a href="#s1">System overview</a></li>
+    <li><a href="#s2">Match Event Log</a></li>
+    <li><a href="#s3">Ingest</a></li>
+    <li><a href="#s4">AI Referee</a></li>
+    <li><a href="#s5">Music Box</a></li>
+    <li><a href="#s6">Grading · dual pipeline</a></li>
+    <li><a href="#s7">Roster &amp; Auth</a></li>
+    <li><a href="#s8">Hardware tier degradation</a></li>
+    <li><a href="#s9">Operational concerns</a></li>
+    <li><a href="#s10">Not in v1</a></li>
+    <li><a href="#s11">Limitations &amp; open problems</a></li>
+    <li><a href="#s12">Build order</a></li>
+    <li><a href="#s13">Pre-mortem</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="doc-head">
+  <div class="meta">Football United · Backend Design Document · v1.0</div>
+  <h1>Football United<br><em>backend design</em></h1>
+  <div class="sub">Six services, three latency tiers, one event log. The match doesn't replay — every choice is downstream of that constraint.</div>
+</header>
+
+<!-- ============================ §0 PURPOSE ============================ -->
+<section class="chapter" id="s0">
+  <h2><span class="num">00</span>Purpose &amp; audience</h2>
+  <p class="lede">This document is the backend architecture reference for Football United. The audience is the engineering team and any technical reviewer who needs to implement against, audit, or extend the system. It is not marketing material. It states the architecture, defends the choices, names the limitations, and specifies the pieces in enough detail that implementation is mechanical rather than interpretive.</p>
+
+  <p>FU is its own backend, not a tenant of IrfTek Runtime or City OS. The two products will share patterns (cartridge-driven architecture, ProofChain audit) but no runtime. FU's failure modes and audience are distinct enough to warrant independent operation, and the separation lets FU spin out commercially without entangling IrfTek's broader concerns.</p>
+
+  <div class="callout amber">
+    <div class="head">load-bearing constraint</div>
+    <div class="body">The decisions in this document are calibrated against a single constraint that anchors the entire design: <strong>the match doesn't replay.</strong> Cities can replay traffic events from logs; a goal scored at minute 37 of a 60-minute match either got captured cleanly or didn't. Once the whistle blows for full time, the window has closed. Every architectural choice — the event log's centrality, the dual-pipeline cross-validation, the latency tiers, the hardware fidelity model — is downstream of that constraint.</div>
+  </div>
+</section>
+
+<!-- ============================ §1 OVERVIEW ============================ -->
+<section class="chapter" id="s1">
+  <h2><span class="num">01</span>System overview</h2>
+  <p class="lede">Six services, three latency tiers, one shared event log. Each service owns its data, communicates via the event log, can fail independently.</p>
+
+<pre>┌─────────────────────────────────────────────────────────────────┐
+│                       FOOTBALL UNITED BACKEND                   │
+│                                                                 │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌──────────┐   │
+│  │  Ingest    │  │  Referee   │  │   Music    │  │  Roster  │   │
+│  │  (cameras  │  │  (real-    │  │   Box      │  │  &amp; Auth  │   │
+│  │   + Pips)  │  │   time     │  │  (atmos.   │  │          │   │
+│  │            │  │   calls)   │  │   cues)    │  │          │   │
+│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └────┬─────┘   │
+│        │               │               │              │         │
+│        ▼               ▼               ▼              ▼         │
+│  ╔═════════════════════════════════════════════════════════╗    │
+│  ║          MATCH EVENT LOG  (append-only, hash-anchored)  ║    │
+│  ║          NATS JetStream · per-match stream              ║    │
+│  ╚════════════════════════╤════════════════════════════════╝    │
+│                           │                                     │
+│         ┌─────────────────┼──────────────────┐                  │
+│         ▼                 ▼                  ▼                  │
+│  ┌────────────┐    ┌────────────┐    ┌────────────┐             │
+│  │  Grading   │    │ Simulator  │    │  Archive   │             │
+│  │  (overnight│    │ (Isaac +   │    │  (cold:    │             │
+│  │   v1, RT   │    │  Research  │    │   S3 +     │             │
+│  │   v2)      │    │  Football) │    │   Postgres)│             │
+│  └────────────┘    └────────────┘    └────────────┘             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘</pre>
+
+  <h3>Latency tiers</h3>
+  <table>
+    <thead><tr><th>Tier</th><th>Budget</th><th>Services</th></tr></thead>
+    <tbody>
+      <tr><td>Real-time (whistle-to-cue)</td><td>80–400 ms</td><td>Music Box (80 ms), Referee (400 ms)</td></tr>
+      <tr><td>Near-real-time (intra-match)</td><td>1–5 s</td><td>Ingest fan-in, captain pause propagation, scoreboard updates</td></tr>
+      <tr><td>Batch (post-match)</td><td>hours</td><td>Grading pipelines A and B, archive sealing, rating publication</td></tr>
+    </tbody>
+  </table>
+  <p>The architecture refuses to flatten these tiers into a uniform "as fast as possible" stance. Different tiers have different consistency models, different failure-handling strategies, and different operational tolerances. Conflating them produces over-engineered batch and under-built real-time.</p>
+
+  <h3>Hardware tier model</h3>
+  <p>Three input fidelities feed the same backend:</p>
+  <ul>
+    <li><strong>Pro Rig:</strong> per-pitch instrumentation, 8–12 cameras, full Pip wearable coverage, optional ball/line cameras. Highest-confidence input.</li>
+    <li><strong>Box:</strong> self-build kit, 1–3 cameras, full Pip coverage. Mid-fidelity.</li>
+    <li><strong>Pip-only:</strong> wearables only, no cameras. Lowest-fidelity but most accessible.</li>
+  </ul>
+  <p>The backend doesn't branch on hardware tier. Every event carries <code>confidence</code> and <code>fidelity</code> fields; downstream consumers weight signals accordingly. This is the cartridge-driven engineering discipline applied — consumers don't care about producer substrate.</p>
+</section>
+
+<!-- ============================ §2 EVENT LOG ============================ -->
+<section class="chapter" id="s2">
+  <h2><span class="num">02</span>The Match Event Log</h2>
+  <p class="lede">The single load-bearing piece of the system. Everything else is replaceable. The event log isn't.</p>
+
+  <div class="callout amber">
+    <div class="head">design rule</div>
+    <div class="body"><strong>If it's in the log, it happened. If it's not, it didn't.</strong></div>
+  </div>
+  <p>This rule sounds simple and produces a lot of consequences. Services don't keep authoritative state — they keep caches of the log. Disputes are resolved against the log, never against service memory. Crash recovery is reconstruction from the log, not from snapshots.</p>
+
+  <h3>Transport</h3>
+  <p>NATS JetStream. The reasoning:</p>
+  <ul>
+    <li>Lightweight ops (single binary, embeddable, runs on edge hardware)</li>
+    <li>Persistent streams with replay, hash-of-payload available natively</li>
+    <li>Per-subject filtering, which maps to per-match streams cleanly</li>
+    <li>Mobile-friendly (relevant for Box deployments where the broker may live on a Mac Mini under the pitch shed)</li>
+  </ul>
+  <p>RedPanda was considered. Kafka-compatible, stronger throughput at scale, but heavier to operate and overkill for FU's per-match scale. Migration path is open if NATS hits limits at &gt;100 concurrent matches: the schema is transport-agnostic enough that re-pointing producers and consumers is a 2-week project, not a rewrite.</p>
+
+  <h3>Stream organization</h3>
+  <p>One stream per match. Streams are bounded by match start (whistle-1) and match end (full-time + post-match seal window).</p>
+<pre>Stream: match.{league_id}.{match_id}
+  - Bounded: match.start → match.seal
+  - Retention: 7 days hot, then archive copy to S3
+  - Subjects within stream: typed event categories</pre>
+  <p>Bounded streams give natural archival units and prevent unbounded growth. After a match seals, the stream is hash-finalized (Merkle root computed across the chain), copied to S3 in three independent regions (Frankfurt, Amsterdam, Stockholm), and the hot stream is retained for 7 days for replay/debug before deletion.</p>
+
+  <h3>The hash chain</h3>
+  <p>Every event carries:</p>
+<pre>{
+  "seq":        &lt;uint64&gt;,        // monotonic within stream
+  "ts_wall":   &lt;ISO-8601&gt;,       // wall-clock, server time
+  "ts_game":   &lt;int&gt;,            // game-clock seconds, signed (-300 to +5400 typical)
+  "type":       &lt;enum&gt;,          // one of the 10 event categories
+  "payload":   &lt;typed&gt;,          // type-specific data
+  "producer":   &lt;string&gt;,        // service-id of emitter
+  "fidelity":   &lt;enum&gt;,          // pro_rig | box | pip_only | system
+  "confidence": &lt;float&gt;,         // 0.0–1.0
+  "prev_hash":  &lt;sha256&gt;,        // hash of seq-1 event
+  "hash":       &lt;sha256&gt;         // hash of this event including prev_hash
+}</pre>
+  <p>Hash chain rule: <code>event.hash = sha256(canonical_json(event_minus_hash))</code>. The <code>prev_hash</code> field anchors each event to its predecessor. Insertion, modification, or reordering breaks the chain — the verifier walks from seq=0 forward and detects discrepancy at the first broken link.</p>
+  <p>Hash verification runs:</p>
+  <ul>
+    <li>At every consumer on read (lightweight: prev_hash equality only)</li>
+    <li>During seal (full chain walk by sealing service)</li>
+    <li>On dispute (operator can request full audit)</li>
+  </ul>
+
+  <h3>The ten event types</h3>
+  <p>The schema is small and locked. New event categories require a schema migration, not free-form additions.</p>
+  <table>
+    <thead><tr><th>Type</th><th>Producer</th><th>Payload (sketch)</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td><code>frame_capture</code></td><td>Ingest (cameras)</td><td><code>{players: [{id, x, y, pose}], ball: {x, y, z}, frame_id, camera_id}</code></td><td>RT</td></tr>
+      <tr><td><code>pip_telemetry</code></td><td>Ingest (Pips)</td><td><code>{player_id, x, y, imu, hr, skin_temp, battery}</code></td><td>RT</td></tr>
+      <tr><td><code>referee_call</code></td><td>Referee</td><td><code>{call_type, players_involved, reason_code, confidence, evidence_events}</code></td><td>RT</td></tr>
+      <tr><td><code>music_cue</code></td><td>Music Box</td><td><code>{channel, action, intensity, source_event}</code></td><td>RT</td></tr>
+      <tr><td><code>goal</code></td><td>Referee (confirmed)</td><td><code>{scorer_id, assister_id?, team_id, ball_trajectory_id}</code></td><td>RT</td></tr>
+      <tr><td><code>card</code></td><td>Referee</td><td><code>{color, player_id, reason_code, evidence_events}</code></td><td>RT</td></tr>
+      <tr><td><code>substitution</code></td><td>Roster (via app)</td><td><code>{out_player_id, in_player_id, team_id}</code></td><td>NRT</td></tr>
+      <tr><td><code>pause</code></td><td>Referee or captain</td><td><code>{requester, reason}</code></td><td>RT</td></tr>
+      <tr><td><code>pause_resume</code></td><td>Referee</td><td><code>{paused_for_seconds}</code></td><td>RT</td></tr>
+      <tr><td><code>match_seal</code></td><td>Sealing service</td><td><code>{merkle_root, total_events, sealed_at, signature}</code></td><td>Batch</td></tr>
+    </tbody>
+  </table>
+  <p>Payload schemas are versioned with Protobuf. Schema version is implicit in stream metadata; consumers check on connect and refuse to read incompatible versions rather than silently coerce.</p>
+
+  <h3>Throughput</h3>
+  <p>Estimated event rate per match:</p>
+  <ul>
+    <li><code>frame_capture</code>: 30 Hz × 1 stream (cameras pre-fused at edge) = 30 events/s</li>
+    <li><code>pip_telemetry</code>: 16 players × 10 Hz = 160 events/s</li>
+    <li><code>referee_call</code>: ~1 per minute average, ~10/min during incidents = 0.5 events/s avg</li>
+    <li><code>music_cue</code>: ~3 events/min = 0.05 events/s</li>
+    <li>Other: negligible average</li>
+  </ul>
+  <p>Total: ~190 events/s sustained per match. Peaks during incidents at ~250 events/s. A single NATS broker on commodity hardware handles 100k events/s; FU's per-match load is three orders of magnitude under that ceiling.</p>
+  <p>Multi-match scale (100 concurrent matches) → 19k events/s aggregate, still well within a single broker. Sharding becomes a concern at &gt;1000 concurrent matches, which is a 2027+ problem.</p>
+
+  <h3>Sealing</h3>
+  <p>When the referee emits a match-end event (or the scheduled match-clock + extra-time window expires), the sealing service:</p>
+  <ol>
+    <li>Verifies the full hash chain from seq=0 to current head</li>
+    <li>Computes the Merkle root over all event hashes</li>
+    <li>Emits a <code>match_seal</code> event with the root and total event count</li>
+    <li>Signs the seal event with the league's private key (Ed25519)</li>
+    <li>Copies the sealed stream to S3 in three regions</li>
+    <li>Retains hot stream for 7 days, then deletes</li>
+  </ol>
+  <p>After seal, the stream is read-only forever. Disputes append <code>match_amendment</code> events to a separate <code>amendments.{match_id}</code> stream — they never modify the original.</p>
+</section>
+
+<!-- ============================ §3 INGEST ============================ -->
+<section class="chapter" id="s3">
+  <h2><span class="num">03</span>Ingest service</h2>
+  <p class="lede">Fan-in from heterogeneous sources, fan-out into the event log. Three input substrates, one output shape.</p>
+
+  <h3>Architecture</h3>
+<pre>                Pro Rig
+            ┌─────────────────┐
+   Cameras ─┤ Edge GPU node   ├──┐
+            │ (Jetson Orin)   │  │
+            │  pose extract   │  │
+            │  fusion         │  │
+            └─────────────────┘  │
+                                 │
+                Box              │      ┌──────────────┐
+            ┌─────────────────┐  ├──────┤ Match Event  │
+   Cameras ─┤ Edge node       ├──┤      │ Log (NATS)   │
+            │ (Pi 5 + Coral)  │  │      └──────────────┘
+            │  pose extract   │  │
+            └─────────────────┘  │
+                                 │
+                Pip-only         │
+            ┌─────────────────┐  │
+   Pips ────┤ Gateway service ├──┘
+            │ (BLE/UWB → IP)  │
+            └─────────────────┘</pre>
+
+  <h3>Edge processing (Pro Rig &amp; Box)</h3>
+  <p>Pose extraction runs on local hardware, not in the cloud:</p>
+  <ul>
+    <li><strong>Latency budget.</strong> Cloud round-trip for pose extraction blows the music-cue budget. Edge keeps it local.</li>
+    <li><strong>Network failure tolerance.</strong> A pitch with bad internet still records the match locally. The edge node buffers events and reconciles to the log when connectivity returns; the match doesn't stop because the wifi did.</li>
+    <li><strong>Privacy.</strong> Raw camera frames never leave the pitch. Only extracted pose data does. This is the GDPR-clean position for player consent — extracted features are derived data, raw video is restricted.</li>
+  </ul>
+  <p>The Pro Rig node uses YOLOv9-pose or equivalent for player detection + 17-keypoint pose extraction at 30Hz. The Box node uses a smaller model (MoveNet or similar) and accepts higher false-negative rates on partial occlusion, flagged via the confidence field.</p>
+
+  <h3>Pip gateway</h3>
+  <p>Pips are 28×28×5mm wearables clipped to the player's shirt collar. They emit:</p>
+  <ul>
+    <li>IMU readings (9-axis, 100Hz internal, downsampled to 10Hz for transmit)</li>
+    <li>UWB position (10Hz)</li>
+    <li>Optical HR + skin temperature (1Hz)</li>
+    <li>Battery and signal-quality telemetry (1Hz)</li>
+  </ul>
+  <p>A gateway service on-pitch aggregates Pip BLE/UWB into IP packets and emits to the log as <code>pip_telemetry</code> events. The gateway is stateless and restartable; lost Pip connections degrade the event stream's confidence rather than dropping the match.</p>
+
+  <h3>Failure modes</h3>
+  <p><strong>A Pip drops mid-match.</strong> Pose extraction degrades for that player. Events for the player continue to flow (from cameras if present, or stop entirely if Pip-only), with <code>confidence</code> reflecting the degradation. The grading service is told what happened via the event metadata — no manual intervention.</p>
+  <p><strong>Edge GPU crashes.</strong> The pitch keeps recording raw video locally to disk. Pose extraction resumes on restart and back-fills events into the log with <code>producer.restart=true</code> flag. Grading service knows to weight back-filled events differently.</p>
+  <p><strong>Network partition.</strong> Edge node buffers events to local disk (lz4-compressed protobuf). When connectivity returns, events are emitted in order. Buffer size: 60 minutes of full match traffic ≈ 700 MB compressed. Cheap to provision.</p>
+</section>
+
+<!-- ============================ §4 REFEREE ============================ -->
+<section class="chapter" id="s4">
+  <h2><span class="num">04</span>AI Referee service</h2>
+  <p class="lede">Lowest-latency, highest-stakes service. Reads from event log, emits referee-call events. Latency budget: 400 ms from triggering event to emitted call, hard ceiling.</p>
+
+  <h3>Design stance</h3>
+  <p>Pace-first. Faults acceptable. The bar is calibrated to "would a Sunday-league referee call this," not premier-league strict. The system intervenes for:</p>
+  <ul>
+    <li>Goals (ball fully crosses goal line)</li>
+    <li>Clear fouls (contact-with-intent, dangerous tackles)</li>
+    <li>Offsides (when assistant-referee model is enabled)</li>
+    <li>Ball-out (touchline, goal line)</li>
+    <li>Time-keeping (half-time, full-time)</li>
+  </ul>
+  <p>It deliberately does <em>not</em> intervene for:</p>
+  <ul>
+    <li>Marginal fouls (50/50 challenges, soft contact)</li>
+    <li>Tactical fouls that don't endanger players</li>
+    <li>Dissent or behavioral issues (defer to captain pause + post-match review)</li>
+  </ul>
+
+  <h3>The 400ms budget</h3>
+  <table>
+    <thead><tr><th>Stage</th><th>Budget</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Event log read</td><td>20 ms</td><td>Tail of stream, in-memory</td></tr>
+      <tr><td>Context window assembly</td><td>30 ms</td><td>5 seconds of recent events, pre-buffered</td></tr>
+      <tr><td>Model inference</td><td>200 ms</td><td>Multi-head decision model, GPU-resident</td></tr>
+      <tr><td>Evidence chain build</td><td>50 ms</td><td>Trace back through event seq numbers</td></tr>
+      <tr><td>Emit event</td><td>20 ms</td><td>Write to log</td></tr>
+      <tr><td>Slack</td><td>80 ms</td><td>Network jitter, GC, etc.</td></tr>
+    </tbody>
+  </table>
+  <p>The hard ceiling is enforced: if any stage exceeds budget, the call is <em>dropped</em> rather than emitted late. A late call is worse than no call. Dropped calls are logged for post-match review.</p>
+
+  <h3>State and crashes</h3>
+  <p>The referee service is <strong>stateless</strong>. All context comes from the event log; all decisions emit back to the log. If the service crashes, the supervisor restarts it and it resumes from the current log head. No state lives in the referee.</p>
+  <p>This is the "let it crash" discipline applied at the highest-stakes point: the most critical service is the one that should crash most freely, because its only state of value is its readiness to read the next event.</p>
+
+  <h3>Captain pause override</h3>
+  <p>Either captain can request pause via the Roster API (mobile app button) or via a long-press on their Pip. The pause request is emitted as a <code>pause</code> event with <code>requester: captain_&lt;id&gt;</code>. The referee service consumes the pause event and emits a confirming <code>referee_call</code> with <code>call_type: pause_acknowledged</code>. Music Box receives the pause and fades atmosphere down within its 80ms budget.</p>
+  <p>Resume requires both captains to acknowledge, also via app or Pip. The referee emits <code>pause_resume</code> with the paused duration; game clock resumes from where it stopped.</p>
+
+  <h3>Calibration</h3>
+  <p>The decision model is trained on a hand-labeled dataset of amateur match footage + synthetic data from the Isaac Sim pipeline. Calibration target: <strong>&lt;5% false-positive call rate, &lt;15% false-negative call rate on Sunday-league footage.</strong> False positives are worse than false negatives — wrong calls erode trust faster than missed calls.</p>
+  <p>Post-match review identifies disputed calls. Each dispute creates a training signal that flows back into the model's next training round. The model retrains weekly during the first season, monthly after stability.</p>
+
+  <div class="callout rose">
+    <div class="head">failure mode the design must handle</div>
+    <div class="body"><strong>Model confidence is too low for many events.</strong> During the first months of deployment, the model may emit fewer calls than a human referee would, because confidence gating is set conservatively. This is acceptable — the captain pause override and post-match review fill the gap. Pre-mortem: do not raise the confidence gate to "fix" call rate; that lowers precision and erodes trust. Address the model's discrimination directly.</div>
+  </div>
+</section>
+
+<!-- ============================ §5 MUSIC BOX ============================ -->
+<section class="chapter" id="s5">
+  <h2><span class="num">05</span>Music Box service</h2>
+  <p class="lede">Atmosphere event consumer. Reads referee calls, goals, pauses, substitutions. Emits no events back. Pure consumer.</p>
+
+  <h3>Six channels</h3>
+  <table>
+    <thead><tr><th>Channel</th><th>Purpose</th><th>Typical triggers</th></tr></thead>
+    <tbody>
+      <tr><td>Ambient</td><td>Baseline pitch atmosphere</td><td>Match start, low-intensity play</td></tr>
+      <tr><td>Crowd</td><td>Reactive crowd sounds</td><td>Goals, near-misses, fouls</td></tr>
+      <tr><td>Dramatic</td><td>Tension-building</td><td>Pre-shot setup, penalty preparation</td></tr>
+      <tr><td>Tension</td><td>Sustained pressure</td><td>Last 10 min if close, knockout matches</td></tr>
+      <tr><td>Celebration</td><td>Goal/win moments</td><td>Goal events, full-time on win</td></tr>
+      <tr><td>Ceremonial</td><td>Match transitions</td><td>Pre-match, half-time, post-match</td></tr>
+    </tbody>
+  </table>
+  <p>Each channel has an independent state machine: <code>idle → building → active → fading → idle</code>. State transitions are triggered by event-log events. Multiple channels can be active simultaneously (e.g., ambient + tension + dramatic during a penalty).</p>
+
+  <h3>The 80ms budget</h3>
+  <p>Music has to feel reactive or it feels broken. A goal happens, the celebration channel kicks in within 80ms or the audience notices the lag.</p>
+  <table>
+    <thead><tr><th>Stage</th><th>Budget</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Event log read</td><td>10 ms</td><td>Tail of stream</td></tr>
+      <tr><td>State machine update</td><td>5 ms</td><td>Pattern-matched dispatch</td></tr>
+      <tr><td>Audio mixer trigger</td><td>30 ms</td><td>Pre-loaded samples, immediate playback</td></tr>
+      <tr><td>Audio output latency</td><td>20 ms</td><td>Hardware audio buffer</td></tr>
+      <tr><td>Slack</td><td>15 ms</td><td></td></tr>
+    </tbody>
+  </table>
+  <p>All audio samples are pre-loaded in memory at match start. There's no streaming during play — the entire atmosphere library for the match (~500MB) lives in RAM on the local audio node.</p>
+
+  <h3>Spotify Personal Layer integration</h3>
+  <p>For ceremonial moments (pre-match player intros, half-time DJ, post-match reflection), the Music Box defers to player-chosen tracks via the Spotify MCP integration.</p>
+
+  <div class="callout rose">
+    <div class="head">hard architectural rule</div>
+    <div class="body"><strong>Spotify is the only external dependency in the real-time path.</strong> If Spotify auth fails or the API stalls, the Music Box falls back to its internal ceremonial channel. <strong>Never block a match on Spotify auth.</strong> Implementation: 2-second timeout on all Spotify API calls during real-time operation. Timeout → fallback. The fallback is logged as a <code>music_cue</code> event with <code>fallback: true</code> for post-match review, but the match continues unaffected.</div>
+  </div>
+
+  <h3>Stateless near the pitch</h3>
+  <p>The Music Box runs on local hardware (often the same Mac Mini that hosts the NATS broker for Box deployments). It's stateless in the sense that all state can be reconstructed from recent events (last 5 minutes is enough). If it crashes, restart from the current log head.</p>
+</section>
+
+<!-- ============================ §6 GRADING ============================ -->
+<section class="chapter" id="s6">
+  <h2><span class="num">06</span>Grading service — the <em>dual pipeline</em></h2>
+  <p class="lede">Reads sealed match streams from cold storage. Runs the two cross-validating pipelines. Emits ratings.</p>
+
+  <h3>Pipeline A: capture-native</h3>
+  <p>Standard football analytics derived from <code>frame_capture</code> and <code>pip_telemetry</code> events:</p>
+  <ul>
+    <li><strong>Pace metrics:</strong> sprint count, top speed, distance covered, high-intensity runs</li>
+    <li><strong>Technical metrics:</strong> passes attempted/completed, pass success rate, dribbles, shots, shot conversion</li>
+    <li><strong>Physical metrics:</strong> duels won, headers won, tackles, interceptions</li>
+    <li><strong>Tempo metrics:</strong> time on ball, decision speed, tempo of touches</li>
+  </ul>
+  <p>These map onto the four FIFA-lens registers:</p>
+  <ul>
+    <li><strong>Pace lens (FIFA 15):</strong> pace metrics</li>
+    <li><strong>Technique lens (FIFA 16):</strong> technical metrics</li>
+    <li><strong>Physicality lens (FIFA 18):</strong> physical metrics</li>
+    <li><strong>Tempo lens (FIFA 23):</strong> tempo metrics</li>
+  </ul>
+  <p>Each lens produces a 0–99 score per player per match, with confidence intervals based on event coverage.</p>
+  <p>Pipeline A is deterministic given the same event log. The same match graded twice produces the same ratings. This is the property that makes ratings disputable: when a player disputes their rating, the league can re-run pipeline A and prove the rating is correct relative to the captured events. The dispute then becomes "did the events accurately reflect what I did" — a capture problem, not a grading problem.</p>
+
+  <h3>Pipeline B: sim-native</h3>
+  <p>Runs the match through Isaac Sim + Google Research Football. Inverse RL extracts a reward function: given the decisions the player actually made, what reward function would have produced those decisions?</p>
+  <p>The reward function decomposes naturally onto the four FIFA lenses because that's how the lenses were designed. A player optimizing for pace-style rewards is playing FIFA-15-style; one optimizing for technique-style rewards is FIFA-16-style.</p>
+  <p>Pipeline B is <em>not</em> deterministic — it depends on the simulation's random seed. Multiple runs produce a distribution. Pipeline B is run 10 times per match; the distribution is summarized as median + confidence interval per lens.</p>
+
+  <h3>Cross-validation</h3>
+<pre>for each player, each lens:
+    A_score = pipeline_A_score(player, lens)
+    A_conf  = pipeline_A_confidence(player, lens)
+    B_dist  = pipeline_B_distribution(player, lens)  // 10 samples
+
+    if |A_score - B_dist.median| ≤ tolerance(A_conf, B_dist.spread):
+        ship rating = weighted_combine(A_score, B_dist.median)
+        confidence = high
+    else:
+        flag for human review
+        interim rating = A_score (with caveat flag)
+        confidence = uncertain</pre>
+  <p>The tolerance function is calibrated empirically over the first 50 matches. Initial tolerance: ±8 points on a 0–99 scale, tightened as data accumulates.</p>
+
+  <h3>Why two pipelines</h3>
+  <p>The honest reason: ratings affect career outcomes. Pipeline A alone gives a derivation that's defensible against "the system is rigged" but vulnerable to "your captured events miss what I did off-ball." Pipeline B alone is more sophisticated but harder to dispute — the inverse RL black-boxes the reasoning.</p>
+  <p>Two pipelines together create cross-validation: when they agree, the rating is robustly defensible. When they disagree, that's <em>signal</em> — something about this match doesn't fit the standard models, and human judgment is warranted. The disagreement is a feature, not a bug.</p>
+
+  <h3>v1 vs. v2 grading</h3>
+  <p><strong>v1: overnight batch.</strong> Match ends at 22:00, stream seals at midnight, grading runs by 06:00, ratings appear in players' apps before their first coffee. Pipeline A runs in ~10 minutes per match. Pipeline B runs in ~2 hours per match (10 simulations × ~12 min each). Total: ~2.5 hours including cross-validation. Comfortably fits the overnight window.</p>
+  <p><strong>v2: real-time grading.</strong> Pipeline A streams during the match — players see live preliminary scores on the app. Pipeline B remains overnight. Final overnight rating supersedes the live preliminary. v2 is built only after v1 has run for ~50 matches and pipeline A's per-event computation is profiled.</p>
+
+  <div class="callout amber">
+    <div class="head">discipline</div>
+    <div class="body"><strong>Don't build v2 before v1 is stable.</strong> The temptation to ship real-time grading from day one is real — players will demand it. Resist. Pipeline A has to be trusted before it can run live; running it live before trust is established compounds disputes.</div>
+  </div>
+
+  <h3>Human review queue</h3>
+  <p>When cross-validation flags disagreement, the match goes to a league manager review queue. The manager sees:</p>
+  <ul>
+    <li>The disputed player(s) and lens(es)</li>
+    <li>The pipeline A score with its underlying event evidence</li>
+    <li>The pipeline B distribution and its inverse-RL reward function</li>
+    <li>A video segment timestamped to the relevant events</li>
+  </ul>
+  <p>The manager either confirms pipeline A, confirms pipeline B, or sets a custom rating with explanatory note. The manager's decision is logged as an amendment event in the amendments stream. The original event log is never modified.</p>
+
+  <h3>Watch indicator</h3>
+  <p><strong>Percentage of matches needing human review.</strong> If it climbs above 15%, the cross-validation tolerance is too tight or the pipelines are systematically diverging. Investigate the divergence pattern before loosening tolerance.</p>
+  <p><strong>Exit-early trigger:</strong> at 20% sustained review-rate over two weeks, raise tolerance by 1 point until rate drops below 15%, then investigate root cause in the calmer regime.</p>
+</section>
+
+<!-- ============================ §7 ROSTER ============================ -->
+<section class="chapter" id="s7">
+  <h2><span class="num">07</span>Roster &amp; Auth service</h2>
+  <p class="lede">The boring service that's actually load-bearing. Players, teams, leagues, identities, match scheduling.</p>
+
+  <h3>Architecture</h3>
+  <p>Standard Elixir/Phoenix backend. Postgres for state. The choices are unremarkable individually; the system-level discipline is what matters:</p>
+  <ul>
+    <li><strong>Identity persists across leagues, hardware tiers, time.</strong> A player's career card aggregates ratings from all matches across all leagues they've played in, weighted by fidelity.</li>
+    <li><strong>Player ID is stable forever.</strong> Once issued, never changed. Apps, audit logs, dispute records all reference the stable ID.</li>
+    <li><strong>Card is derived, not stored.</strong> The player's public card is computed on-demand from their match history. Rating updates propagate automatically when new matches grade.</li>
+  </ul>
+
+  <h3>Authentication</h3>
+  <p>Phone-number-first, Apple/Google fallback. Most Sunday-league players don't have LinkedIn; they have phones. SMS OTP flow with optional cross-device sync via Apple/Google.</p>
+  <p>Scaling assumption: 100k players in the first year, 10M long-term. Postgres handles that without exotic sharding. Per-player data is modest (career stats + match history + preferences ≈ 50 KB per player). 10M × 50 KB = 500 GB, comfortable on a single Postgres instance with read replicas.</p>
+
+  <h3>Schema (sketch)</h3>
+<pre>CREATE TABLE players (
+  id            UUID PRIMARY KEY,
+  phone_hash    TEXT UNIQUE NOT NULL,
+  display_name  TEXT NOT NULL,
+  apple_id      TEXT UNIQUE,
+  google_id     TEXT UNIQUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE matches (
+  id              UUID PRIMARY KEY,
+  league_id       UUID NOT NULL REFERENCES leagues(id),
+  home_team_id    UUID NOT NULL REFERENCES teams(id),
+  away_team_id    UUID NOT NULL REFERENCES teams(id),
+  scheduled_at    TIMESTAMPTZ NOT NULL,
+  pitch_id        UUID NOT NULL REFERENCES pitches(id),
+  status          match_status_enum NOT NULL,
+  event_stream_id TEXT,
+  seal_merkle_root BYTEA
+);
+
+CREATE TABLE player_match_ratings (
+  player_id        UUID NOT NULL REFERENCES players(id),
+  match_id         UUID NOT NULL REFERENCES matches(id),
+  lens             rating_lens_enum NOT NULL,
+  pipeline_a_score INTEGER,
+  pipeline_b_score INTEGER,
+  final_score      INTEGER NOT NULL,
+  confidence       NUMERIC(3,2) NOT NULL,
+  cross_validation cv_result_enum NOT NULL,
+  amendments       JSONB,
+  PRIMARY KEY (player_id, match_id, lens)
+);</pre>
+  <p>The <code>player_match_ratings</code> table is the join between identity (Postgres) and match events (event log). It's the only place where the two domains meet, and it's deliberately narrow — one row per (player, match, lens). The match's full event log lives in NATS/S3; the ratings live in Postgres.</p>
+
+  <h3>Concurrency</h3>
+  <p>Phoenix/LiveView handles the player-facing real-time updates (live rating notifications, match-day push notifications). The supervision tree restarts crashed processes without taking down the API. This is the Elixir-shaped discipline applied where it matters most: at the user-facing boundary where individual session crashes shouldn't cascade.</p>
+</section>
+
+<!-- ============================ §8 HARDWARE TIERS ============================ -->
+<section class="chapter" id="s8">
+  <h2><span class="num">08</span>Hardware tier degradation</h2>
+  <p class="lede">Three input fidelities, one backend. How the differences flow through the system.</p>
+
+  <h3>The principle</h3>
+  <p>The backend doesn't branch on hardware tier. It branches on <code>confidence</code> and <code>fidelity</code> fields per event. This means a Box pitch with a degraded Pip (one player lost their wearable) flows the same code path as a normal Box match — just with lower confidence on that player's events.</p>
+
+  <h3>Profiles</h3>
+  <table>
+    <thead><tr><th>Tier</th><th>Coverage</th><th>Event confidence</th><th>Pipeline A</th><th>Pipeline B</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Pro Rig</strong></td>
+        <td>8–12 cameras, all Pips, optional sensors</td>
+        <td>≥ 0.85</td>
+        <td>High-res metrics</td>
+        <td>High-confidence RL</td>
+      </tr>
+      <tr>
+        <td><strong>Box</strong></td>
+        <td>1–3 cameras, all Pips</td>
+        <td>0.65–0.85</td>
+        <td>Medium-res metrics</td>
+        <td>Medium-confidence RL</td>
+      </tr>
+      <tr>
+        <td><strong>Pip-only</strong></td>
+        <td>No cameras, all Pips</td>
+        <td>0.50–0.75</td>
+        <td>Limited metrics</td>
+        <td>Relies on Pip trajectories</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Cross-tier identity</h3>
+  <p>A player who plays a Pro Rig match Monday and a Pip-only match Wednesday has both matches contributing to their career card, weighted by per-match confidence. The career card carries this weighting transparently — clicking a rating shows the contributing matches and their fidelities.</p>
+  <p>This is the GDPR-relevant point: players consent to having their data captured, and the system tells them what fidelity of data was captured for each match. Career rating dispute → show me the match contributions → see which were Pro Rig vs. Pip-only → understand the weighting.</p>
+
+  <h3>Degradation patterns</h3>
+  <table>
+    <thead><tr><th>Scenario</th><th>Backend behavior</th></tr></thead>
+    <tbody>
+      <tr><td>Pip drops on player X mid-match</td><td>Events for X continue from camera; if Pip-only, X's events flag <code>confidence reduced</code> for affected window</td></tr>
+      <tr><td>Camera drops in Pro Rig</td><td>Pose extraction falls back to other cameras; coverage degraded for affected zone</td></tr>
+      <tr><td>Network partition between edge and broker</td><td>Edge buffers events to disk; reconciles when partition heals; <code>producer.late_arrival=true</code> flag</td></tr>
+      <tr><td>Edge GPU crashes</td><td>Raw video buffered to disk; pose extraction resumes on restart; events back-filled</td></tr>
+    </tbody>
+  </table>
+  <p>Every degradation is graceful and logged. The match never stops; the grading service knows what happened and weights accordingly.</p>
+</section>
+
+<!-- ============================ §9 OPERATIONS ============================ -->
+<section class="chapter" id="s9">
+  <h2><span class="num">09</span>Operational concerns</h2>
+  <p class="lede">Deployment, observability, on-call, match-day runbook.</p>
+
+  <h3>Deployment topology</h3>
+<pre>                    ┌─────────────────────────────┐
+                    │  CLOUD (EU, Hetzner/Scaleway) │
+                    │                              │
+                    │  ┌────────┐  ┌────────────┐  │
+                    │  │Roster  │  │  Grading   │  │
+                    │  │API     │  │  workers   │  │
+                    │  │(Elixir)│  │  (Python)  │  │
+                    │  └────────┘  └────────────┘  │
+                    │                              │
+                    │  ┌────────────────────────┐  │
+                    │  │  Postgres + S3 archive │  │
+                    │  └────────────────────────┘  │
+                    └──────────────┬───────────────┘
+                                   │
+                                   │  match seal sync
+                                   │  + roster sync
+                                   ▼
+        ┌──────────────────────────────────────────────────┐
+        │                  PER-PITCH (EDGE)                 │
+        │                                                   │
+        │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────────────┐   │
+        │  │Ingest│  │Ref   │  │Music │  │NATS broker   │   │
+        │  │(Rust)│  │(Rust)│  │(Rust)│  │(local stream)│   │
+        │  └──────┘  └──────┘  └──────┘  └──────────────┘   │
+        │                                                   │
+        │  Pro Rig: dedicated rack | Box: Mac Mini          │
+        └───────────────────────────────────────────────────┘</pre>
+  <p>Cloud holds identity, scheduling, archives, grading. Pitch holds real-time. Sync at match seal.</p>
+
+  <h3>Stack choices</h3>
+  <table>
+    <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Real-time services</td><td><strong>Rust</strong></td><td>Latency-critical, no GC pauses, predictable memory. Same language across Ingest/Ref/Music for shared concerns.</td></tr>
+      <tr><td>Grading service</td><td><strong>Python</strong></td><td>ML pipeline native, Isaac Sim native, Research Football native. Batch overnight.</td></tr>
+      <tr><td>Roster &amp; API</td><td><strong>Elixir/Phoenix</strong></td><td>High-concurrency player-facing, supervision trees, LiveView dashboards.</td></tr>
+      <tr><td>Database</td><td><strong>Postgres</strong></td><td>Identity, scheduling, ratings. Boring, correct.</td></tr>
+      <tr><td>Cold storage</td><td><strong>S3-compatible</strong></td><td>Sealed streams, EU region, durable, cheap.</td></tr>
+      <tr><td>Event log transport</td><td><strong>NATS JetStream</strong></td><td>Lightweight, mobile-friendly, sufficient throughput.</td></tr>
+      <tr><td>Edge compute</td><td>Jetson Orin / Pi 5 + Coral</td><td>On-device pose extraction.</td></tr>
+      <tr><td>Pip firmware</td><td><strong>Embedded Rust</strong></td><td>No room for runtime overhead on 12g hardware.</td></tr>
+    </tbody>
+  </table>
+  <p>Three runtimes total. The previous homeserver-architecture mistake (three runtimes for an undefined workload) doesn't apply here because the workloads are <em>specifically</em> different and each language is genuinely best-fit. Don't add a fourth.</p>
+
+  <h3>Observability</h3>
+  <p>Three signal layers, in priority order:</p>
+  <ol>
+    <li><strong>The event log itself is the primary observability signal.</strong> Anomalies surface as event-rate drops, confidence cliffs, hash chain breaks. The dashboard at <code>/match/&lt;id&gt;/health</code> shows per-service event rates, confidence histograms, and chain integrity for the current match.</li>
+    <li><strong>Service health metrics.</strong> Standard Prometheus-style: request latency, error rates, GPU utilization, memory pressure. Single Grafana dashboard per pitch + cloud dashboard for cross-pitch view.</li>
+    <li><strong>Application logs.</strong> Structured JSON, shipped to a central store (Loki or equivalent). Indexed by <code>match_id</code> and <code>service</code>. Don't over-log during match; an event-log entry is more durable than a log line.</li>
+  </ol>
+
+  <h3>Match-day runbook</h3>
+<pre>T-60min  | Pitch operator arrives, powers on rack/Mac Mini
+         | Edge node boot self-test (verifies NATS, GPU, cameras)
+         | Pips charging in dock, charge level check
+T-30min  | Players arrive, Pips paired to player identities
+         | Captain auth tested on app
+T-10min  | Final health check, music box ambient channel started
+T-5min   | Music box pre-match ceremonial channel triggered
+T+0      | Kickoff event emitted (referee whistle + manual button)
+T+60min  | Full time event emitted
+T+5min   | Stream seal initiated, Merkle root verified
+T+15min  | Archive sync confirmed (3 regions)
+         | Players notified that ratings will arrive overnight
+T+morning | Ratings appear in player apps</pre>
+
+  <h3>Cost model (rough)</h3>
+  <p>Per-pitch capex:</p>
+  <ul>
+    <li>Pro Rig: €450k–€950k (cameras, edge rack, installation)</li>
+    <li>Box: €1,499–€7,999 (self-build, mini PC, basic cameras)</li>
+    <li>Pip-only: €0 (just wearables, cost on player side)</li>
+  </ul>
+  <p>Per-pitch opex (cloud share, monthly): ~€350/pitch/month at 4 matches/week. Cloud opex scales sub-linearly with pitch count (shared API, shared grading workers). At 100 pitches, cloud opex is ~€20k/month, not €35k.</p>
+
+  <h3>Disaster recovery</h3>
+  <ul>
+    <li><strong>Pitch network drops mid-match:</strong> edge buffers, match continues offline, syncs on reconnect. Tested quarterly.</li>
+    <li><strong>NATS broker dies mid-match:</strong> edge nodes detect within 5s, buffer to local disk, attempt reconnect. If broker is dead at full time, replay buffered events into a recovered broker before seal.</li>
+    <li><strong>S3 region fails:</strong> archive sync uses three independent regions, any one is sufficient. Cross-region failover automatic.</li>
+    <li><strong>Postgres primary fails:</strong> read replica promoted, write latency briefly elevated, no data loss (WAL shipping).</li>
+    <li><strong>Catastrophic data loss:</strong> sealed match streams are immutable and replicated. The grading service can re-run from any sealed stream and produce identical ratings (pipeline A is deterministic).</li>
+  </ul>
+</section>
+
+<!-- ============================ §10 NOT IN V1 ============================ -->
+<section class="chapter" id="s10">
+  <h2><span class="num">10</span>What's deliberately not in v1</h2>
+  <p class="lede">The discipline of stating non-features explicitly. Things that might seem natural to include but are excluded by design.</p>
+
+  <ul>
+    <li><strong>No distributed pitch mesh.</strong> Each pitch runs locally; cross-pitch coordination only via cloud sync after seal. Real-time cross-pitch coordination is a v3+ concern, not earlier. The complexity is large and there's no validated demand.</li>
+    <li><strong>No live streaming infrastructure.</strong> FU's first product is data + cards + ratings, not broadcasting. Live video streaming is a separate product layer, addable later via standard CDN tooling.</li>
+    <li><strong>No social feed / activity stream.</strong> The player card is shareable as a static image. That's the social surface in v1. A full feed comes later, after the rating economy is real and trusted.</li>
+    <li><strong>No prediction markets / fantasy.</strong> Tempting because the ratings are rich. Don't build it in v1. Markets on top of unverified ratings amplify any rating-system errors and create incentive misalignment before the underlying rating is trusted.</li>
+    <li><strong>No multi-region beyond EU.</strong> Single-region (EU) deployment, GDPR-clean, sized for Netherlands → DACH → wider Europe. Cross-region complexity arrives only when demand outside EU materializes.</li>
+    <li><strong>No real-time grading in v1.</strong> Pipeline A real-time is v2 work. Build the trusted overnight pipeline first.</li>
+    <li><strong>No AR/VR overlays.</strong> Cards-on-app is sufficient. AR overlays of player stats during live spectating are a different product entirely.</li>
+    <li><strong>No global player marketplace.</strong> FU's identity is local-league-rooted. A player belongs to leagues they actually play in.</li>
+  </ul>
+</section>
+
+<!-- ============================ §11 LIMITATIONS ============================ -->
+<section class="chapter" id="s11">
+  <h2><span class="num">11</span>Limitations &amp; open problems</h2>
+  <p class="lede">What this design doesn't solve, and what's known to need iteration.</p>
+
+  <h3>Limitations</h3>
+  <ul>
+    <li><strong>Dual-pipeline assumption.</strong> Cross-validation provides signal only if pipelines disagree in informative ways. If they share a bias, cross-validation provides no signal. Mitigation: pipeline A is rule-based and inspectable; pipeline B is model-based. Failure modes unlikely to correlate, but this assumption needs empirical validation over the first season.</li>
+    <li><strong>Pip-only accuracy floor.</strong> Technique-lens metrics in particular are hard without camera coverage. Pip-only is acceptable but must be marketed as such — career card weights Pip-only matches lower, and the UI must communicate this honestly.</li>
+    <li><strong>400ms referee budget is tight.</strong> Hitting it consistently requires careful model selection, batching discipline, avoiding cold-start latency. May need quantization, distillation, or specialized inference runtime (TensorRT, ONNX Runtime).</li>
+    <li><strong>Inverse RL sample-inefficient.</strong> 10 simulations per match is minimum for stable distributions; more would tighten confidence intervals but blow the overnight grading budget. Pipeline B accuracy floor is bounded by simulation budget.</li>
+    <li><strong>Spotify is single external dependency.</strong> Even with graceful fallback, an extended Spotify outage degrades the ceremonial experience. Acceptable for v1 because Music Box's internal channels handle in-match.</li>
+  </ul>
+
+  <h3>Open problems</h3>
+  <ul>
+    <li><strong>Cross-validation tolerance.</strong> Initial ±8 points is a guess. The right tolerance emerges from the first 50 matches. Real risk of over-flagging (review queue explodes) or under-flagging (disputes go unchallenged).</li>
+    <li><strong>Anti-cheat strategy.</strong> Pips are wearable; what if a player swaps their Pip mid-match? Gait-based re-ID from camera footage can detect this on Pro Rig, not on Pip-only. Open question: photo-verified Pip pairing per match, or accept some cheating risk in the Pip-only tier?</li>
+    <li><strong>Player IP and footage rights.</strong> Player retains rights to their own performance data, FU has license to aggregate for ratings, leagues have license to share footage within the league. Needs legal review before scale.</li>
+    <li><strong>Regulatory pushback.</strong> If KNVB or UEFA-adjacent bodies dispute the rating methodology, the audit chain is the only defense. ProofChain bulletproof from day one, not bolted on later.</li>
+    <li><strong>Cross-league rating portability.</strong> Career cards aggregate across leagues. But if leagues differ in camera setups, Pip versions, referee calibration — are ratings genuinely comparable? Cross-league comparability needs careful weighting, possibly per-league normalization.</li>
+  </ul>
+</section>
+
+<!-- ============================ §12 BUILD ORDER ============================ -->
+<section class="chapter" id="s12">
+  <h2><span class="num">12</span>Build order</h2>
+  <p class="lede">If forced to pick the first 90 days of engineering work, in priority order.</p>
+
+  <h3>Days 1–21 · Foundation</h3>
+  <ol>
+    <li>NATS JetStream deployment in dev environment</li>
+    <li>Event schema (10 event types, Protobuf, versioned)</li>
+    <li>Hash chain implementation + verifier</li>
+    <li>One full mock match flowing through the log (synthetic events at expected rate)</li>
+    <li>Health dashboard skeleton</li>
+  </ol>
+
+  <h3>Days 22–42 · Ingest + Pipeline A</h3>
+  <ol start="6">
+    <li>Single-camera pose extraction on Jetson, emitting <code>frame_capture</code> events</li>
+    <li>Pip gateway service, emitting <code>pip_telemetry</code> events</li>
+    <li>Pipeline A: rule-based grading derivation, runs against sealed mock streams</li>
+    <li>Manual grading runner (no scheduler, no UI)</li>
+  </ol>
+
+  <h3>Days 43–63 · Referee + Music Box</h3>
+  <ol start="10">
+    <li>Referee service skeleton with decision model stub</li>
+    <li>400ms budget instrumentation</li>
+    <li>Music Box service with 3 channels (ambient, crowd, celebration)</li>
+    <li>Captain pause flow end-to-end</li>
+  </ol>
+
+  <h3>Days 64–90 · Roster + Real match test</h3>
+  <ol start="14">
+    <li>Phoenix API with player/team/match models</li>
+    <li>Phone-OTP authentication</li>
+    <li>Player card derivation from ratings</li>
+    <li>First real test match on a Box deployment with consenting amateur players</li>
+    <li>Post-match dispute flow</li>
+  </ol>
+
+  <p>After 90 days you have a system that can run a single Box match end-to-end with overnight grading. Pipeline B (sim), Pro Rig hardware, multi-pitch coordination — all come after this.</p>
+
+  <div class="callout amber">
+    <div class="head">the mistake to avoid</div>
+    <div class="body">Building the Music Box first because it's the most fun, and finding the event log can't support its needs because the schema's wrong. Foundation first. The fun pieces are downstream readers; they don't care what the event log is <em>eventually</em>, they care what it is <em>right now</em>.</div>
+  </div>
+</section>
+
+<!-- ============================ §13 PRE-MORTEM ============================ -->
+<section class="chapter" id="s13">
+  <h2><span class="num">13</span>Pre-mortem</h2>
+  <p class="lede">Six months after launch, the failure mode I'd worry about most.</p>
+
+  <div class="callout rose">
+    <div class="head">dominant risk</div>
+    <div class="body"><strong>The dual-pipeline cross-validation flags too many matches for human review, the league manager becomes the bottleneck, ratings ship late, players lose trust.</strong></div>
+  </div>
+
+  <p>Why it's the dominant risk: every other failure mode has either a graceful degradation path or is technically tractable. The review-queue bottleneck is human-attention-bound and scales worse than linearly with match volume. A single league manager can review maybe 5 matches a day; if 20% of matches need review and the league runs 20 matches a week, that's 4 reviews/day — manageable. If it's 30% of 50 matches a week — 15 reviews/day, one full-time job per league.</p>
+
+  <p><strong>Watch indicator:</strong> percentage of matches needing human review.</p>
+  <p><strong>Exit-early trigger:</strong> 20% sustained over two weeks → raise tolerance by 1 point until rate drops below 15%, then investigate divergence pattern.</p>
+  <p><strong>What I'm not pricing in:</strong> regulatory or league-association pushback. If a national football body decides FU's ratings constitute unofficial player evaluation and disputes the methodology, the architecture's auditability is the only defense. Make sure ProofChain is bulletproof from day one, not bolted on later. Joint legal-engineering exercise, and the engineering side needs to be ready when the legal side needs receipts.</p>
+
+  <p><strong>The honest read:</strong> this design is well-suited to v1 deployment on Box hardware in 1–3 friendly amateur leagues, with a single dedicated technical operator and overnight grading. It is <em>not</em> well-suited to multi-pitch concurrent Pro Rig deployments at scale without significant additional work on distributed coordination, cross-pitch identity, and real-time grading. Those are v2 and v3 concerns. Don't pretend the v1 design solves them.</p>
+</section>
+
+<footer class="doc-foot">
+  Document v1.0 · Reference implementation forthcoming · Football United engineering, c/o IrfTek, Enschede
+</footer>
+
+</main>
+</div>
+
+<script>
+// Active-section highlighting on scroll
+const sections = document.querySelectorAll('section.chapter');
+const navLinks = document.querySelectorAll('nav.toc a');
+
+function updateActive() {
+  let active = null;
+  for (const sec of sections) {
+    const rect = sec.getBoundingClientRect();
+    if (rect.top <= 100) active = sec.id;
+  }
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + active);
+  });
+}
+
+window.addEventListener('scroll', updateActive, {passive: true});
+updateActive();
+</script>
+
+</body>
+</html>
