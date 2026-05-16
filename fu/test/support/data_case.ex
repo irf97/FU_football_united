@@ -24,6 +24,7 @@ defmodule Fu.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Fu.DataCase
+      import Fu.Fixtures
     end
   end
 

@@ -28,6 +28,7 @@ defmodule FuWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import FuWeb.ConnCase
+      import Fu.Fixtures
     end
   end
 

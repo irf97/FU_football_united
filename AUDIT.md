@@ -9,10 +9,10 @@ missing. "MISSING" = no implementation/surface.
 
 ## Summary
 
-- Features **WIRED: 12 / 17**
-- Features **PARTIAL: 4 / 17**
+- Features **WIRED: 11 / 17** _(revised post-Phase 2: feature 16 → PARTIAL)_
+- Features **PARTIAL: 5 / 17**
 - Features **MISSING: 1 / 17**
-- Integration breaks identified: **3** (one root cause)
+- Integration breaks identified: **4** (Phase 2 added the Balance loop)
 - PubSub integrity: **clean** (no dead broadcasts, no dead subscribers)
 - Deployment blockers: **3** (SMS stub, no OTP rate-limit, no OTP attempt-cap)
 
@@ -37,7 +37,7 @@ isolation; nothing triggers them in the running product.
 | 5 | Join queue (individual) | WIRED | `browse_live.ex:20` join → `queues.ex:215` `join/3` → `Repo` + `broadcast/2` (`queues.ex:200`) | — |
 | 6 | Join queue (friend group ≤8) | **PARTIAL** | `home_live.ex:58` `Groups.create_group`, `:65` `Groups.add_member` wired; `groups.ex` `queue_as_group` exists | **No LiveView calls `Groups.queue_as_group`** — a group can be formed but never queued into a match from the UI (only `phase2_smoke.exs` exercises it). |
 | 7 | T-3h lock + partial-fill | WIRED | `application.ex:15` `Fu.Queues.Resolver` supervised → `resolver.ex:21` tick → `queues.ex:359` `due_for_resolution` + `:317` `resolve_partial_fill` → `Repo` + broadcast. Idempotent via `state == "open"` filter (`queues.ex:362`). | No 8v8→7v7 format *downgrade* (spec §2.4 as implemented = confirm/extend-once/cancel only — matches `fu-mvp-spec`; the frontend-plan's downgrade example is not in the canonical spec). |
-| 8 | Lobby rosters + avg rank | WIRED | `lobby_live.ex:13` mount → `Balance.assign_teams` + `Balance.rosters` (`:46`) | — |
+| 8 | Lobby rosters + avg rank | WIRED (8v8 only) | `lobby_live.ex:13` mount → `Balance.assign_teams` + `Balance.rosters` (`:46`) | Inherits Integration break #4: `Balance.assign_teams` hangs for non-8v8 → `LobbyLive.mount` hangs for any non-8v8 confirmed queue. |
 | 9 | Sequenced captain claim | WIRED | `lobby.ex:34` `claim_phase` (keeper60→ranked120→free240→random), `:59` `eligible_to_claim?`, `:78` `claim_captain` → `Repo`; `lobby_live.ex:103` handler, `:69` 1s tick → `random_assign` (`lobby.ex:96`) | Lobby-open anchor approximated by `queue.updated_at` (`lobby.ex:45`, documented). `claim_phase/2` takes injectable `now` → testable. |
 | 10 | Position swap (mutual consent) | WIRED | `lobby_live.ex:137` swap-request → PubSub `{:swap_request}` → `:159` swap-accept → `lobby.ex:116` `swap_positions` `Repo.transaction` (same-team guard `:121`) | — |
 | 11 | Lobby chat (3 channels) | WIRED | `lobby_live.ex:10` `@channels ~w(team match group)`, `:122` send → broadcast `{:chat}` → `:85` `handle_info` | Ephemeral (in-assigns + PubSub, not persisted) — per spec §2.5 this is acceptable. |
@@ -45,7 +45,7 @@ isolation; nothing triggers them in the running product.
 | 13 | Post-match voting (skip, penalty) | **PARTIAL** | `post_match_live.ex:57/80/85` vote/skip/skip-all → `voting.ex:42` `cast` / `:55` `skip` → `Repo`; skip detector `voting.ex:116`; tally `:151` | Gated by `voting_open?` (`voting.ex:101`) which needs a `MatchResult.votes_close_at` — set only by `Matches.complete_match`, **which has no app caller** (seed-only). So voting is unreachable in-app except on the seeded queue. Categories shipped = 3 (`mvp/defender/keeper`, `voting.ex:25`) with own/opp via a flag, vs spec's "4". |
 | 14 | Rank system (Ranking + Decay) | **PARTIAL** | `ranking.ex:74` `finalize_match` — deterministic, idempotent (`:77-82`), transactional (`:91`), §2.9 breakdown (`:132`). `DecayWorker` supervised (`application.ex:16`) → `ranking.ex:325` `apply_decay`. | `finalize_match` has **no production caller** (only `seeds.exs:201`). `ranking.ex:246` `record_no_show` has **zero callers anywhere** (dead). `file_dispute` is called from `post_match_live.ex:100` but wrapped in `try/rescue/catch` that swallows all errors and flashes success regardless (`:99-107`). Decay path itself: WIRED. |
 | 15 | Friends list + invite + requests | **PARTIAL** | `home_live.ex:25/26/29` list/pending/invite_link, `:53` accept-friend → `friends.ex` (`request_friend:19`, `invite_link:80`, `accept_friend`) | **No UI to *send* a friend request** — no `request_friend` caller in any LiveView (`audit/raw/handle-events.txt` shows only `accept-friend`). Invite link is display-only; accept works. |
-| 16 | Multi-format (5v5–11v11, rated 8v8) | WIRED | `positions.ex` formats; `queues.ex:20` `create_queue` carries `format`; `ranking.ex:136` `if queue.rated` branch gates points to 8v8 | — |
+| 16 | Multi-format (5v5–11v11, rated 8v8) | **PARTIAL** _(revised post-Phase 2)_ | `positions.ex` formats; `queues.ex:20` `create_queue`; `ranking.ex:136` rated branch — all correct | `Fu.Balance.assign_teams/1` **infinite-loops for every non-8v8 format** (`balance.ex:135` non-termination; proven by `ranking_test.exs:49` 60s timeout). 8v8 converges; nothing else does. Integration break #4. |
 | 17 | Admin surface (password-gated) | WIRED | `login_live.ex:38` show-admin / `:41` admin-login (pw check) → `Admin.ensure_admin_player` → token; `/admin` route → `admin_live.ex` (`:26` filter, `:29` toggle-suspend → `Admin.toggle_suspend`) | Shared hardcoded password in source (`login_live.ex`) — acceptable demo gate, not real auth (already flagged in `STACK.md`). |
 
 ## PubSub integrity
@@ -80,6 +80,19 @@ Topics enumerated from `audit/raw/pubsub-broadcasts.txt` / `pubsub-subscribes.tx
 3. **`Groups.queue_as_group` has no UI caller.** _Severity: bug._
    - `home_live.ex` wires group create/add only. Friend-group *queue join*
      (feature 6) cannot be triggered by a user.
+
+4. **`Fu.Balance.assign_teams/1` non-terminates for non-8v8.**
+   _Severity: blocker._ _(Found in Phase 2 by `ranking_test.exs:49`.)_
+   - `balance.ex:122-141` `feasibility_swaps/3` recurses with only an
+     exact-state-equality stop (`:135`); an oscillating swap that changes
+     teams without reducing a position deficit loops forever. 8v8 quotas
+     converge; 5v5/6v6/7v7/9v9/11v11 do not.
+   - Caller path: `LobbyLive.mount` (`lobby_live.ex:13`) →
+     `Balance.assign_teams` on any confirmed non-8v8 queue → process hangs
+     (per-request DoS). Also blocks Resolver-confirmed non-8v8 lobbies.
+   - **Not fixed (brief: permission required).** `mix test` is 30/31 until
+     resolved; Phase 3 gate (green suite) blocked. See
+     `audit/test-findings.md#5`.
 
 Secondary (not breaks, flagged): `post_match_live.ex:99-107` dispute handler
 swallows all errors via `try/rescue/catch` and flashes success
