@@ -2,8 +2,10 @@ defmodule FuWeb.LoginLive do
   @moduledoc "Surface 1: phone → SMS OTP → session (spec §2.13)."
   use FuWeb, :live_view
 
-  alias Fu.Accounts
+  alias Fu.{Accounts, Admin}
   alias FuWeb.PlayerAuth
+
+  @admin_password "boobs"
 
   @impl true
   def mount(_params, _session, socket) do
@@ -33,6 +35,24 @@ defmodule FuWeb.LoginLive do
     end
   end
 
+  def handle_event("show-admin", _, socket),
+    do: {:noreply, assign(socket, step: :admin, error: nil)}
+
+  def handle_event("admin-login", %{"password" => pw}, socket) do
+    if String.downcase(String.trim(pw)) == @admin_password do
+      case Admin.ensure_admin_player() do
+        nil ->
+          {:noreply, assign(socket, error: "No players yet — run the seed first.")}
+
+        admin ->
+          token = PlayerAuth.login_token(admin.id)
+          {:noreply, redirect(socket, to: ~p"/session/#{token}?#{[to: "/admin"]}")}
+      end
+    else
+      {:noreply, assign(socket, error: "Wrong password.")}
+    end
+  end
+
   def handle_event("back", _, socket),
     do: {:noreply, assign(socket, step: :phone, error: nil, dev_code: nil)}
 
@@ -49,7 +69,8 @@ defmodule FuWeb.LoginLive do
         </div>
 
         <div class="fu-card p-6 space-y-4">
-          <%= if @step == :phone do %>
+          <%= cond do %>
+            <% @step == :phone -> %>
             <h2 class="fu-serif text-lg">Sign in</h2>
             <p class="fu-ink-soft text-sm">No passwords. We text you a code.</p>
             <.form for={%{}} phx-submit="send" class="space-y-3">
@@ -64,7 +85,24 @@ defmodule FuWeb.LoginLive do
               />
               <button class="btn btn-primary w-full" type="submit">Send code</button>
             </.form>
-          <% else %>
+          <% @step == :admin -> %>
+            <h2 class="fu-serif text-lg">Admin access</h2>
+            <p class="fu-ink-soft text-sm">Enter the management password.</p>
+            <.form for={%{}} phx-submit="admin-login" class="space-y-3">
+              <input
+                type="password"
+                name="password"
+                placeholder="password"
+                autocomplete="off"
+                class="input input-bordered w-full bg-base-200"
+                required
+              />
+              <button class="btn btn-primary w-full" type="submit">Enter dashboard</button>
+              <button type="button" phx-click="back" class="btn btn-ghost btn-sm w-full">
+                Back
+              </button>
+            </.form>
+          <% true -> %>
             <h2 class="fu-serif text-lg">Enter code</h2>
             <p class="fu-ink-soft text-sm">Sent to {@phone}.</p>
             <div :if={@dev_code} class="text-xs font-mono text-secondary">
@@ -88,6 +126,15 @@ defmodule FuWeb.LoginLive do
 
           <p :if={@error} class="text-error text-sm">{@error}</p>
         </div>
+
+        <button
+          :if={@step != :admin}
+          type="button"
+          phx-click="show-admin"
+          class="block mx-auto text-caption text-[var(--fu-warning)]"
+        >
+          Admin login
+        </button>
       </div>
     </Layouts.app>
     """

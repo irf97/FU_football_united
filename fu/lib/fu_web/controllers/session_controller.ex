@@ -4,13 +4,15 @@ defmodule FuWeb.SessionController do
   alias FuWeb.PlayerAuth
 
   @doc "LiveView login hands off here with a signed token to set the session cookie."
-  def create(conn, %{"token" => token}) do
+  def create(conn, %{"token" => token} = params) do
     case PlayerAuth.verify_token(token) do
       {:ok, player_id} ->
+        to = if params["to"] == "/admin", do: "/admin", else: "/"
+
         conn
         |> PlayerAuth.log_in(player_id)
         |> put_flash(:info, "Welcome to Football United.")
-        |> redirect(to: "/")
+        |> redirect(to: to)
 
       {:error, _} ->
         conn

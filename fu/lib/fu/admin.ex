@@ -81,4 +81,25 @@ defmodule Fu.Admin do
   end
 
   def get_player!(id), do: Repo.get!(Player, id)
+
+  @doc """
+  Returns a player guaranteed to have `is_admin: true` — the existing
+  admin, else the highest-ranked player promoted on the spot. `nil`
+  only if there are no players at all. Backs the password-gated admin
+  login.
+  """
+  def ensure_admin_player do
+    cond do
+      admin = Repo.one(from p in Player, where: p.is_admin == true, limit: 1) ->
+        admin
+
+      first = Repo.one(from p in Player, order_by: [desc: p.rank], limit: 1) ->
+        {:ok, promoted} = first |> Ecto.Changeset.change(is_admin: true) |> Repo.update()
+        promoted
+
+      true ->
+        nil
+    end
+  end
 end
+
