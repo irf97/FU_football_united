@@ -1,0 +1,19 @@
+{
+  "name": "Football United",
+  "short_name": "FU",
+  "description": "Queue for a match you didn't know existed.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0908",
+  "theme_color": "#0A0908",
+  "icons": [
+    {
+      "src": "/images/fu-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

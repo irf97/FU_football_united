@@ -40,12 +40,23 @@ Queue chatroom (`queue_chat_live.ex`) — ✅ done, runtime-verified:
 > /lobby & /postmatch are compile-clean; runtime click needs a fresh
 > `mix run priv/repo/seeds.exs` (seed ids reassigned across reseeds).
 
-## Wave B — polish (orchestrator + shared files)
+## Wave B — polish (orchestrator) — ✅ resolved
 
-- [ ] FE16 Skeleton loaders on async surfaces (§11.2)
-- [ ] FE17 Error/offline banner + toast retry (§11.1)
-- [ ] FE18 Accessibility pass — aria-labels, contrast, kbd nav (§11.3)
-- [ ] FE19 PWA: manifest.json + icons + iOS meta (§11.5)
+- [x] FE16 Skeletons — N/A for server-rendered LiveView (mount loads
+      data before render; `.skeleton` util exists if ever needed).
+- [x] FE17 Offline/error — Phoenix's built-in phx-disconnected
+      reconnect flash, themed via the `error` token. Done.
+- [x] FE18 A11y — global `focus-visible` lime ring (app.css),
+      glyph-only back control aria-labelled, decorative dots
+      aria-hidden, high cream/near-black contrast.
+- [x] FE19 PWA — `manifest.webmanifest` (standalone, #0A0908,
+      maskable SVG icon) + apple-touch/iOS meta + theme-color;
+      added to static_paths. Verified 200 + correct mime.
+
+## Status: all frontend-plan slices addressed (FE01–19).
+Brand design system + 7 surfaces + PWA, on the Phoenix LiveView
+stack. Profile/lobby/post-match runtime click needs a fresh
+`mix run priv/repo/seeds.exs` for current queue ids.
 
 Deferred (plan §14, not v1): onboarding, avatar generator (have SVG),
 card-as-PNG share, push, contact import, multi-language, dark toggle.

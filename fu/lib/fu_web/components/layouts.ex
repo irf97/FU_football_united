@@ -70,7 +70,10 @@ defmodule FuWeb.Layouts do
         !@active && "fu-ink-soft"
       ]}
     >
-      <span class={["h-1 w-1 rounded-full", @active && "bg-primary", !@active && "bg-transparent"]} />
+      <span
+        aria-hidden="true"
+        class={["h-1 w-1 rounded-full", @active && "bg-primary", !@active && "bg-transparent"]}
+      />
       <.icon name={@icon} class="size-5" />
       <span class="text-[10px] font-mono uppercase tracking-[0.1em]">{@label}</span>
     </a>

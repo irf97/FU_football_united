@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Football United">
+  <rect width="512" height="512" rx="96" fill="#0A0908"/>
+  <text x="50%" y="50%" dy="0.07em" text-anchor="middle" dominant-baseline="middle"
+        font-family="Georgia, 'Times New Roman', serif" font-style="italic"
+        font-size="240" fill="#F4F0E8">FU</text>
+  <circle cx="256" cy="402" r="14" fill="#C5FF3D"/>
+</svg>
