@@ -80,8 +80,8 @@ defmodule FuWeb.BrowseLive do
     <Layouts.app flash={@flash} current_player={@current_player} active={:browse}>
       <h1 class="text-h1">Open queues</h1>
 
-      <!-- Filter chips (spec §2.13 Surface 3) -->
-      <div class="flex flex-wrap gap-2">
+      <!-- Filter chips (spec §2.13 Surface 3, plan §6.5) -->
+      <div class="flex overflow-x-auto gap-2 -mx-1 px-1 py-1">
         <.chip active={@filters[:time] == "today"} click="time" val={%{"window" => "today"}}>
           Today
         </.chip>
@@ -98,14 +98,19 @@ defmodule FuWeb.BrowseLive do
           Rated only
         </.chip>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex overflow-x-auto gap-2 -mx-1 px-1 py-1">
         <.chip :for={f <- Positions.formats()} active={@fmt == f} click="format" val={%{"fmt" => f}}>
           {f}
         </.chip>
       </div>
 
-      <div :if={@cards == []} class="fu-card p-6 text-center fu-ink-soft text-sm">
-        No queues match. Loosen a filter, or check back — density compounds.
+      <div :if={@cards == []} class="fu-card p-8 text-center space-y-4">
+        <p class="fu-serif text-h3">
+          no queues yet — set your availability and we'll find you a match.
+        </p>
+        <.link navigate={~p"/profile"} class="btn btn-primary btn-sm">
+          Set availability
+        </.link>
       </div>
 
       <.queue_card
@@ -122,75 +127,92 @@ defmodule FuWeb.BrowseLive do
 
   defp queue_card(assigns) do
     ~H"""
-    <div class="fu-card p-4 space-y-3">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="font-semibold">{@card.field.name}</div>
-          <div class="text-xs fu-ink-soft">
-            {@card.field.operator_name}
-            <span :if={@card.distance_km}>· {fmt_km(@card.distance_km)}</span>
-          </div>
-        </div>
+    <div class="fu-card p-5 rounded-2xl space-y-4 transition-colors hover:border-strong">
+      <!-- Meta row (plan §6.3) -->
+      <div class="flex items-center gap-2 text-caption">
+        <span>{time_bucket(@card.scheduled_at)}</span>
+        <span class="fu-ink-dim">·</span>
         <span class={if @card.rated, do: "fu-badge-rated", else: "fu-badge-casual"}>
-          {if @card.rated, do: "Rated", else: "Casual"}
+          {if @card.rated, do: "RATED", else: "CASUAL"}
         </span>
       </div>
 
-      <div class="flex items-center justify-between text-sm">
-        <span>{fmt_when(@card.scheduled_at)}</span>
-        <span class="font-mono text-xs fu-ink-soft">
-          {@card.format} · {@card.formation}
-        </span>
+      <div>
+        <div class="text-h3">{@card.field.name}</div>
+        <div class="text-meta fu-ink-soft">
+          {@card.field.operator_name}<span :if={@card.distance_km}> · {fmt_km(@card.distance_km)} away</span>
+        </div>
       </div>
 
-      <!-- Position-by-position fill (spec §2.2) -->
-      <div class="flex flex-wrap gap-1.5">
-        <span
-          :for={pos <- ~w(GK DEF MID FWD)}
-          class={[
-            "pos-pill",
-            fill_full?(@card.fill[pos]) && "full",
-            !fill_full?(@card.fill[pos]) && "needs"
-          ]}
-        >
-          {pos} {@card.fill[pos].filled}/{@card.fill[pos].capacity}
-        </span>
-      </div>
+      <!-- Position-by-position fill (spec §2.2, plan §6.4) -->
+      <.position_fill fill={@card.fill} needs_me={@card.needs_my_position} />
 
-      <div class="flex items-center justify-between text-xs fu-ink-soft">
+      <div class="text-meta fu-ink-soft">
         <span :if={@card.avg_rank}>
-          avg rank {:erlang.float_to_binary(@card.avg_rank, decimals: 0)}
+          avg rank {:erlang.float_to_binary(@card.avg_rank, decimals: 0)} ·
         </span>
-        <span :if={!@card.avg_rank}>no players yet</span>
-        <span class={@card.locked && "text-warning"}>{lock_label(@card)}</span>
+        {fill_totals(@card.fill)} players
       </div>
 
-      <%= cond do %>
-        <% @joined and @card.locked -> %>
-          <.link
-            navigate={~p"/lobby/#{@card.queue.id}"}
-            class="btn btn-sm btn-block btn-primary"
-          >
-            Open lobby →
-          </.link>
-        <% @joined -> %>
-          <button phx-click="leave" phx-value-id={@card.queue.id} class="btn btn-sm btn-block btn-outline btn-error">
-            Leave queue
-          </button>
-        <% true -> %>
-          <button phx-click="join" phx-value-id={@card.queue.id} class="btn btn-sm btn-block btn-primary">
-            Join {if @card.locked, do: "(commit now)", else: "queue"}
-          </button>
-      <% end %>
+      <div class="flex items-center justify-between gap-3">
+        <span class={["text-mono", lock_class(@card)]}>{lock_label(@card)}</span>
+
+        <%= cond do %>
+          <% @joined and @card.locked -> %>
+            <.link navigate={~p"/lobby/#{@card.queue.id}"} class="btn btn-primary btn-sm">
+              Open lobby →
+            </.link>
+          <% @joined -> %>
+            <button
+              phx-click="leave"
+              phx-value-id={@card.queue.id}
+              class="btn btn-sm btn-outline border-neutral fu-ink-soft"
+            >
+              Leave queue
+            </button>
+          <% true -> %>
+            <button phx-click="join" phx-value-id={@card.queue.id} class="btn btn-primary btn-sm">
+              Join {if @card.locked, do: "(commit now)", else: "queue"}
+            </button>
+        <% end %>
+      </div>
 
       <.link
         :if={queued_count(@card) >= Fu.QueueChat.min_members()}
         navigate={~p"/queue/#{@card.queue.id}/chat"}
-        class="btn btn-sm btn-block btn-outline btn-secondary mt-1 gap-2"
+        class="flex items-center justify-between text-meta fu-ink-soft hover:text-base-content transition-colors pt-1"
       >
-        💬 Queue chatroom
-        <span class="badge badge-sm badge-secondary">{queued_count(@card)}</span>
+        <span>Queue chatroom</span>
+        <span class="text-mono fu-ink-dim">{queued_count(@card)}</span>
       </.link>
+    </div>
+    """
+  end
+
+  attr :fill, :map, required: true
+  attr :needs_me, :boolean, default: false
+
+  defp position_fill(assigns) do
+    ~H"""
+    <div class="space-y-1.5">
+      <div :for={pos <- ~w(GK DEF MID FWD)} class="flex items-center gap-3">
+        <span class="text-mono fu-ink-soft w-10">{pos}</span>
+        <span class={["text-mono w-12", fill_count_class(@fill[pos])]}>
+          {@fill[pos].filled}/{@fill[pos].capacity}
+        </span>
+        <div class="flex gap-1">
+          <span
+            :for={i <- 1..@fill[pos].capacity}
+            class={["slot-cell", i <= @fill[pos].filled && "on"]}
+          />
+        </div>
+        <span
+          :if={@needs_me and not fill_full?(@fill[pos])}
+          class="text-caption text-primary"
+        >
+          NEEDS YOU
+        </span>
+      </div>
     </div>
     """
   end
@@ -206,9 +228,9 @@ defmodule FuWeb.BrowseLive do
       phx-click={@click}
       {Map.new(@val, fn {k, v} -> {"phx-value-#{k}", v} end)}
       class={[
-        "px-3 py-1.5 rounded-full text-xs font-mono border transition",
-        @active && "border-primary text-primary",
-        !@active && "border-neutral fu-ink-soft"
+        "rounded-full px-4 py-1.5 text-meta whitespace-nowrap transition-colors",
+        @active && "bg-base-content text-base-300",
+        !@active && "border border-neutral fu-ink-soft"
       ]}
     >
       {render_slot(@inner_block)}
@@ -222,20 +244,38 @@ defmodule FuWeb.BrowseLive do
   defp fill_full?(%{filled: f, capacity: c}), do: f >= c
   defp fill_full?(_), do: false
 
-  defp fmt_km(km) when is_number(km), do: "#{:erlang.float_to_binary(km, decimals: 1)} km"
-  defp fmt_km(_), do: ""
+  defp fill_count_class(%{filled: f, capacity: c}) when f >= c, do: "fu-ink-dim"
+  defp fill_count_class(_), do: "text-warning"
 
-  defp fmt_when(dt) do
+  defp fill_totals(fill) do
+    {filled, total} =
+      fill
+      |> Map.values()
+      |> Enum.reduce({0, 0}, fn %{filled: f, capacity: c}, {af, at} -> {af + f, at + c} end)
+
+    "#{filled}/#{total}"
+  end
+
+  defp lock_class(%{locked: true}), do: "text-warning"
+
+  defp lock_class(%{seconds_to_lock: s}) when is_integer(s) and s > 0 and s < 10_800,
+    do: "text-warning"
+
+  defp lock_class(_), do: "fu-ink-soft"
+
+  defp time_bucket(dt) do
     today = Date.utc_today()
     d = DateTime.to_date(dt)
-    t = Calendar.strftime(dt, "%H:%M")
 
     cond do
-      d == today -> "Today #{t}"
-      d == Date.add(today, 1) -> "Tomorrow #{t}"
-      true -> Calendar.strftime(dt, "%a %d %b · %H:%M")
+      d == today -> "TONIGHT"
+      d == Date.add(today, 1) -> "TOMORROW"
+      true -> Calendar.strftime(dt, "%a %H:%M") |> String.upcase()
     end
   end
+
+  defp fmt_km(km) when is_number(km), do: "#{:erlang.float_to_binary(km, decimals: 1)} km"
+  defp fmt_km(_), do: ""
 
   defp lock_label(%{locked: true}), do: "● locked"
 

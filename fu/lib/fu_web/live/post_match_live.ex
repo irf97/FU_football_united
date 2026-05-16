@@ -144,6 +144,25 @@ defmodule FuWeb.PostMatchLive do
     end
   end
 
+  # editorial verdict line from my result, falling back to @winner only
+  defp verdict(winner, nil) do
+    case winner do
+      :draw -> "All square."
+      "A" -> "Team A win."
+      "B" -> "Team B win."
+      _ -> ""
+    end
+  end
+
+  defp verdict(:draw, _my_team), do: "All square."
+  defp verdict(winner, my_team) when winner == my_team, do: "You won."
+  defp verdict(_winner, _my_team), do: "Next time."
+
+  defp tagline("mvp"), do: "Who hurt your team the most?"
+  defp tagline("defender"), do: "Who shut your attack down?"
+  defp tagline("keeper"), do: "How good was their keeper?"
+  defp tagline(_), do: ""
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -153,107 +172,121 @@ defmodule FuWeb.PostMatchLive do
         <div class="flex items-start justify-between">
           <div>
             <h1 class="text-h1">{@queue.field.name}</h1>
-            <div class="text-xs fu-ink-soft">Post-match</div>
+            <div class="text-meta fu-ink-soft">Post-match</div>
           </div>
           <span class={if @queue.rated, do: "fu-badge-rated", else: "fu-badge-casual"}>
             {if @queue.rated, do: "Rated", else: "Casual"}
           </span>
         </div>
-        <div class="flex items-center justify-between text-sm">
+        <div class="flex items-center justify-between text-meta">
           <span>{fmt_kickoff(@queue.scheduled_at)}</span>
-          <span class="font-mono text-xs fu-ink-soft">{@queue.format}</span>
+          <span class="text-mono fu-ink-soft">{@queue.format}</span>
         </div>
       </div>
 
-      <!-- Hard signals: final score (spec §2.8) -->
-      <div :if={@result} class="fu-card p-6 text-center space-y-3">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Full time</div>
-        <div class="flex items-center justify-center gap-4">
-          <span class={["fu-serif text-5xl leading-none", @winner == "A" && "text-primary", @winner != "A" && "fu-ink-soft"]}>
-            A {@result.score_a}
+      <!-- FE09 — Final score (plan §9.2/§9.3) -->
+      <div :if={@result} class="fu-card p-6 text-center space-y-4">
+        <div class="fu-divider">FULL TIME</div>
+        <div class="flex items-end justify-center gap-5">
+          <span class={[
+            "text-display leading-none",
+            @winner == "A" && "text-primary",
+            @winner != "A" && "fu-ink-soft"
+          ]}>
+            {@result.score_a}
           </span>
-          <span class="fu-ink-dim text-2xl">–</span>
-          <span class={["fu-serif text-5xl leading-none", @winner == "B" && "text-primary", @winner != "B" && "fu-ink-soft"]}>
-            {@result.score_b} B
+          <span class="fu-ink-dim text-h2 pb-2">–</span>
+          <span class={[
+            "text-display leading-none",
+            @winner == "B" && "text-primary",
+            @winner != "B" && "fu-ink-soft"
+          ]}>
+            {@result.score_b}
           </span>
         </div>
-        <div class="text-sm fu-ink-soft">
-          {cond do
-            @winner == :draw -> "Draw"
-            @winner -> "Team #{@winner} win"
-            true -> ""
-          end}
-        </div>
+        <p class="fu-serif text-h3 fu-ink-soft">
+          {verdict(@winner, assigns[:my_team])}
+        </p>
 
-        <div :if={@goals != []} class="pt-3 border-t border-neutral space-y-1 text-left">
-          <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Goals</div>
-          <div :for={g <- @goals} class="text-sm flex justify-between">
+        <div :if={@goals != []} class="space-y-2 text-left">
+          <div class="fu-divider">GOALS</div>
+          <div :for={g <- @goals} class="flex items-baseline justify-between">
             <span>
-              <span class="text-primary">{name(@roster_map, g.scorer_id)}</span>
-              <span :if={g.assist_id} class="fu-ink-soft">
+              <span class="text-body">{name(@roster_map, g.scorer_id)}</span>
+              <span :if={g.assist_id} class="fu-ink-soft text-meta">
                 · assist {name(@roster_map, g.assist_id)}
               </span>
             </span>
-            <span class="font-mono text-xs fu-ink-soft">Team {g.team}</span>
+            <span class="text-mono fu-ink-soft">Team {g.team}</span>
           </div>
         </div>
       </div>
 
-      <div :if={!@result} class="fu-card p-6 text-center fu-ink-soft text-sm">
+      <div :if={!@result} class="fu-card p-6 text-center fu-serif fu-ink-soft">
         Result not finalized yet — check back once the operator confirms.
       </div>
 
-      <!-- Soft signals: voting (spec §2.8, §4 Q3) -->
+      <!-- FE11 — Voting (plan §9.5) -->
       <div :if={@voting_open? and @pending != []} class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-h2">Rate your opponents</h2>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-h2">Rate your opponents</h2>
+            <div class="text-meta fu-ink-soft">Vote closes after 24h</div>
+          </div>
           <button phx-click="skip-all" class="pos-pill needs">Skip all</button>
         </div>
 
-        <div :if={"mvp" in @pending} class="fu-card p-4 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs fu-ink-dim font-mono uppercase tracking-wider">MVP</span>
+        <div :if={"mvp" in @pending} class="fu-card p-4 space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <p class="fu-serif fu-ink-soft text-meta">{tagline("mvp")}</p>
             <button phx-click="skip" phx-value-category="mvp" class="pos-pill needs">Skip</button>
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div class="space-y-2">
             <button
               :for={m <- @opponents}
               phx-click="vote"
               phx-value-category="mvp"
               phx-value-subject={m.player.id}
-              class="pos-pill"
+              class="w-full flex items-center justify-between border border-neutral rounded-lg px-3 py-2 text-left hover:bg-primary hover:text-primary-content transition"
             >
-              {m.player.display_name} #{m.player.jersey_number}
+              <span class="text-body">{m.player.display_name}</span>
+              <span class="flex items-center gap-2 text-meta">
+                <span class="pos-pill">{m.declared_position}</span>
+                <span class="text-mono fu-ink-soft">{f1(m.player.rank)}</span>
+              </span>
             </button>
           </div>
         </div>
 
-        <div :if={"defender" in @pending} class="fu-card p-4 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Best defender</span>
+        <div :if={"defender" in @pending} class="fu-card p-4 space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <p class="fu-serif fu-ink-soft text-meta">{tagline("defender")}</p>
             <button phx-click="skip" phx-value-category="defender" class="pos-pill needs">Skip</button>
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div class="space-y-2">
             <button
               :for={m <- @opponents}
               phx-click="vote"
               phx-value-category="defender"
               phx-value-subject={m.player.id}
-              class="pos-pill"
+              class="w-full flex items-center justify-between border border-neutral rounded-lg px-3 py-2 text-left hover:bg-primary hover:text-primary-content transition"
             >
-              {m.player.display_name} #{m.player.jersey_number}
+              <span class="text-body">{m.player.display_name}</span>
+              <span class="flex items-center gap-2 text-meta">
+                <span class="pos-pill">{m.declared_position}</span>
+                <span class="text-mono fu-ink-soft">{f1(m.player.rank)}</span>
+              </span>
             </button>
           </div>
         </div>
 
-        <div :if={"keeper" in @pending} class="fu-card p-4 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs fu-ink-dim font-mono uppercase tracking-wider">
-              Keeper score{if @opp_keeper, do: " · #{@opp_keeper.player.display_name}"}
-            </span>
+        <div :if={"keeper" in @pending} class="fu-card p-4 space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <p class="fu-serif fu-ink-soft text-meta">{tagline("keeper")}</p>
             <button phx-click="skip" phx-value-category="keeper" class="pos-pill needs">Skip</button>
           </div>
-          <div :if={@opp_keeper} class="space-y-2">
+          <div :if={@opp_keeper} class="space-y-3">
+            <div class="text-meta fu-ink-soft">{@opp_keeper.player.display_name}</div>
             <div class="flex flex-wrap gap-1">
               <button
                 :for={s <- 0..10}
@@ -267,94 +300,89 @@ defmodule FuWeb.PostMatchLive do
             <button
               phx-click="vote-keeper"
               phx-value-score={@keeper_score}
-              class="btn btn-sm btn-primary w-full"
+              class="btn btn-primary w-full"
             >
               Submit {@keeper_score}/10
             </button>
           </div>
-          <div :if={!@opp_keeper} class="text-xs fu-ink-soft">
+          <div :if={!@opp_keeper} class="text-meta fu-ink-soft">
             Opponent had no declared keeper.
           </div>
         </div>
 
-        <div class="text-xs fu-ink-soft px-1">
+        <p class="text-meta fu-ink-soft px-1">
           Skipping doesn't block you being voted on; skipping 2 matches in a row
           costs you −10 (spec §2.8).
-        </div>
+        </p>
       </div>
 
       <!-- Tally (after voting closed or all done) -->
       <div :if={@tally} class="fu-card p-4 space-y-2">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Results</div>
-        <div class="flex justify-between text-sm">
+        <div class="fu-divider">RESULTS</div>
+        <div class="flex justify-between text-meta">
           <span class="fu-ink-soft">MVP</span>
-          <span class="text-primary">{name(@roster_map, @tally.mvp.winner_id)}</span>
+          <span class="text-body">{name(@roster_map, @tally.mvp.winner_id)}</span>
         </div>
-        <div class="flex justify-between text-sm">
+        <div class="flex justify-between text-meta">
           <span class="fu-ink-soft">Best defender</span>
-          <span class="text-primary">{name(@roster_map, @tally.defender.winner_id)}</span>
+          <span class="text-body">{name(@roster_map, @tally.defender.winner_id)}</span>
         </div>
-        <div class="flex justify-between text-sm">
+        <div class="flex justify-between text-meta">
           <span class="fu-ink-soft">Keeper median</span>
-          <span class="font-mono">
+          <span class="text-mono">
             A {f1(@tally.keeper["A"])} · B {f1(@tally.keeper["B"])}
           </span>
         </div>
       </div>
 
-      <!-- Rank delta + full derivation (spec §2.9) -->
-      <div class="fu-card p-5 space-y-3">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Your rank</div>
-
+      <!-- FE10 — Rank-delta hero + breakdown (plan §9.4) -->
+      <div class="fu-card p-6 text-center space-y-3">
         <div :if={@rank_event}>
-          <div class="text-center space-y-1">
-            <div class={[
-              "fu-serif text-5xl leading-none",
-              @rank_event.delta >= 0 && "text-primary",
-              @rank_event.delta < 0 && "text-warning"
-            ]}>
-              {signed(@rank_event.delta)}
-            </div>
-            <div class="text-sm fu-ink-soft font-mono">
-              {f1(@rank_event.rank_before)} → {f1(@rank_event.rank_after)}
-            </div>
+          <div class="fu-divider">YOUR RANK</div>
+          <div class={[
+            "text-display leading-none mt-3",
+            @rank_event.delta >= 0 && "text-primary",
+            @rank_event.delta < 0 && "text-[var(--fu-danger)]"
+          ]}>
+            {signed(@rank_event.delta)}
+          </div>
+          <div class="text-mono fu-ink-soft mt-1">
+            {f1(@rank_event.rank_before)} → {f1(@rank_event.rank_after)}
           </div>
 
-          <button phx-click="toggle-breakdown" class="btn btn-sm btn-outline w-full mt-3">
-            {if @show_breakdown, do: "Hide derivation", else: "See full derivation"}
+          <button phx-click="toggle-breakdown" class="btn w-full mt-4">
+            {if @show_breakdown, do: "Hide breakdown ▴", else: "See breakdown ▾"}
           </button>
 
-          <div :if={@show_breakdown} class="mt-3 space-y-1 border-t border-neutral pt-3">
-            <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">
-              Every component (spec §2.9)
-            </div>
+          <div :if={@show_breakdown} class="mt-4 space-y-1 text-left">
             <div
               :for={{k, v} <- Enum.sort(@rank_event.breakdown)}
-              class="flex justify-between text-sm"
+              class={[
+                "flex justify-between text-meta",
+                is_number(v) && v == 0 && "fu-ink-dim"
+              ]}
             >
               <span class="fu-ink-soft">{humanize(k)}</span>
-              <span class={[
-                "font-mono",
-                is_number(v) && v >= 0 && "text-primary",
-                is_number(v) && v < 0 && "text-warning"
-              ]}>
-                {signed(v)}
-              </span>
+              <span class="text-mono">{signed(v)}</span>
             </div>
-            <div class="flex justify-between text-sm border-t border-neutral pt-2 mt-2">
-              <span class="fu-serif">Net delta</span>
-              <span class="font-mono">{signed(@rank_event.delta)}</span>
+            <div class="fu-divider">TOTAL</div>
+            <div class="flex justify-between text-meta font-bold">
+              <span>Total</span>
+              <span class="text-mono">{signed(@rank_event.delta)}</span>
             </div>
+            <p class="text-caption fu-ink-dim pt-2">
+              Every input is visible — this is the rank transparency commitment (spec §2.9).
+            </p>
           </div>
+
+          <button phx-click="dispute" class="fu-ink-soft text-meta mt-3">
+            Dispute
+          </button>
         </div>
 
-        <div :if={!@rank_event} class="text-sm fu-ink-soft">
+        <div :if={!@rank_event} class="fu-serif fu-ink-soft">
           Rank updates once results are finalized.
         </div>
-
-        <button phx-click="dispute" class="text-xs fu-ink-dim underline mt-2">
-          Dispute this
-        </button>
       </div>
     </Layouts.app>
     """

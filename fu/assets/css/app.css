@@ -176,3 +176,58 @@ html, body {
 /* Press feedback (plan §2.5) */
 button, .btn, a[role="button"] { transition: transform 50ms ease, filter 100ms ease; }
 button:active, .btn:active { transform: scale(0.98); }
+
+/* Section divider — "──── position ────" (plan §5.2, §7.2) */
+.fu-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fu-text-faint);
+  margin: 4px 0;
+}
+.fu-divider::before, .fu-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--fu-line);
+}
+
+/* Per-slot fill bar cell (position-fill widget, plan §6.4) */
+.slot-cell { width: 9px; height: 9px; border-radius: 2px; background: var(--fu-line); }
+.slot-cell.on { background: var(--fu-text); }
+.slot-cell.you { background: var(--fu-accent); }
+
+/* Skeleton shimmer (plan §11.2) — never spinners */
+.skeleton {
+  background: linear-gradient(90deg, var(--fu-bg-2) 25%, var(--fu-bg-elevated) 37%, var(--fu-bg-2) 63%);
+  background-size: 400% 100%;
+  animation: fu-shimmer 1.5s ease infinite;
+  border-radius: 6px;
+}
+@keyframes fu-shimmer { from { background-position: 100% 0 } to { background-position: 0 0 } }
+
+/* Accessibility: visible focus ring on every interactive element (plan §11.3) */
+a:focus-visible, button:focus-visible, [role="button"]:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--fu-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Bottom sheet (plan §7.6 chat, §8.4 group queue) */
+.fu-sheet {
+  position: fixed;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--fu-bg-elevated);
+  border-top: 1px solid var(--fu-line-strong);
+  border-radius: 1rem 1rem 0 0;
+  animation: fu-sheet-up 200ms ease-out;
+  z-index: 50;
+}
+@keyframes fu-sheet-up { from { transform: translate(-50%, 100%) } to { transform: translate(-50%, 0) } }

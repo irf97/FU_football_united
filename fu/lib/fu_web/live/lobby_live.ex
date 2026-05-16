@@ -201,102 +201,114 @@ defmodule FuWeb.LobbyLive do
     end
   end
 
+  defp avg_rank([]), do: 0
+
+  defp avg_rank(members) do
+    ranks = Enum.map(members, & &1.player.rank)
+    round(Enum.sum(ranks) / length(ranks))
+  end
+
+  defp rank_str(rank), do: :erlang.float_to_binary(rank * 1.0, decimals: 0)
+
+  defp mmss(seconds) when is_integer(seconds) and seconds >= 0 do
+    "#{div(seconds, 60)}:#{String.pad_leading("#{rem(seconds, 60)}", 2, "0")}"
+  end
+
+  defp mmss(_), do: "0:00"
+
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_player={@current_player} active={:browse}>
       <!-- Match header (spec §2.5) -->
-      <div class="fu-card p-5 space-y-2">
-        <div class="flex items-start justify-between">
+      <div class="fu-card p-5 space-y-3">
+        <div class="flex items-start justify-between gap-3">
           <div>
             <h1 class="text-h1">{@queue.field.name}</h1>
-            <div class="text-xs fu-ink-soft">{@queue.field.operator_name}</div>
+            <div class="text-meta fu-ink-soft">{@queue.field.operator_name}</div>
           </div>
           <span class={if @queue.rated, do: "fu-badge-rated", else: "fu-badge-casual"}>
             {if @queue.rated, do: "Rated", else: "Casual"}
           </span>
         </div>
-        <div class="flex items-center justify-between text-sm">
-          <span>{fmt_kickoff(@queue.scheduled_at)}</span>
-          <span class="font-mono text-xs fu-ink-soft">{@queue.format} · {@queue.formation}</span>
-        </div>
-        <div :if={@my_membership} class="text-sm fu-ink-soft">
-          You're on <span class="text-primary">Team {@my_membership.team}</span>
-          at <span class="font-mono">{@my_membership.declared_position}</span>.
-        </div>
-      </div>
-
-      <!-- Captain claim (spec §2.5, §4 Q5) -->
-      <div class="fu-card p-4 space-y-2">
         <div class="flex items-center justify-between">
-          <span class="text-xs fu-ink-dim font-mono uppercase tracking-wider">
-            Captaincy · {phase_label(@phase)}
-          </span>
-          <span :if={@phase != :random} class="font-mono text-xs fu-ink-soft">
-            {@remaining}s to next window
-          </span>
+          <span class="text-body">{fmt_kickoff(@queue.scheduled_at)}</span>
+          <span class="text-mono fu-ink-soft">{@queue.format} · {@queue.formation}</span>
         </div>
-        <button
-          :if={@can_claim?}
-          phx-click="claim-captain"
-          class="btn btn-sm btn-primary w-full"
-        >
-          Claim captain
-        </button>
-        <div :if={!@can_claim?} class="text-xs fu-ink-soft">
-          Not your window — captaincy resolves automatically by 4:00.
+        <div :if={@my_membership} class="text-meta fu-ink-soft">
+          You're on <span class="text-primary">Team {@my_membership.team}</span>
+          at <span class="text-mono">{@my_membership.declared_position}</span>.
         </div>
       </div>
 
-      <!-- Incoming swap request (mutual consent step 2) -->
-      <div :if={@incoming_swap} class="fu-card p-4 border-primary/40 space-y-2">
-        <div class="text-sm">
-          <span class="text-primary">{@incoming_swap.player.display_name}</span>
-          ({@incoming_swap.declared_position}) wants to swap positions with you.
+      <!-- FE06 — Captain claim widget (plan §7.4) -->
+      <.captain_widget
+        phase={@phase}
+        remaining={@remaining}
+        can_claim?={@can_claim?}
+        rosters={@rosters}
+      />
+
+      <!-- FE07 — Position swap (incoming request, mutual consent step 2) -->
+      <div :if={@incoming_swap} class="fu-sheet p-4 space-y-3">
+        <div class="text-h3">Position swap request</div>
+        <div class="border border-[var(--fu-line)] rounded-lg px-4 py-3 text-body">
+          <span class="font-medium">{@incoming_swap.player.display_name}</span>
+          <span class="text-meta fu-ink-soft">
+            ({@incoming_swap.declared_position})
+          </span>
+          wants to swap positions with you.
         </div>
         <div class="flex gap-2">
-          <button phx-click="swap-accept" class="btn btn-xs btn-primary">Accept</button>
-          <button phx-click="swap-decline" class="btn btn-xs btn-outline">Decline</button>
+          <button phx-click="swap-accept" class="btn btn-primary flex-1">Accept</button>
+          <button phx-click="swap-decline" class="btn btn-sm flex-1">Decline</button>
         </div>
       </div>
 
-      <!-- Two team rosters -->
-      <div class="grid grid-cols-2 gap-3">
+      <!-- FE05 — Roster (plan §7.3) -->
+      <div class="space-y-3">
         <.roster
-          :for={team <- ["A", "B"]}
-          team={team}
-          members={@rosters[team]}
-          me={@my_membership}
+          team_label="A"
+          members={@rosters["A"]}
+          current_player={@current_player}
+          my_team={@my_membership && @my_membership.team}
+        />
+        <div class="text-center fu-serif fu-ink-soft py-1">VS</div>
+        <.roster
+          team_label="B"
+          members={@rosters["B"]}
+          current_player={@current_player}
+          my_team={@my_membership && @my_membership.team}
         />
       </div>
 
-      <!-- Lobby chat (spec §2.5) -->
-      <div class="fu-card p-4 space-y-3">
-        <div class="flex gap-2">
+      <!-- FE08 — Lobby chat (spec §2.5, plan §7.6) -->
+      <div class="fu-card p-4 space-y-4">
+        <div class="flex gap-5 border-b border-[var(--fu-line)]">
           <button
             :for={{c, lbl} <- [{"team", "Team"}, {"match", "Match"}, {"group", "Group"}]}
             phx-click="chan"
             phx-value-c={c}
             class={[
-              "px-3 py-1.5 rounded-full text-xs font-mono border transition",
-              @chan == c && "border-primary text-primary",
-              @chan != c && "border-neutral fu-ink-soft"
+              "pb-2 -mb-px text-meta transition",
+              @chan == c && "text-base-content border-b border-[var(--fu-line-strong)]",
+              @chan != c && "fu-ink-soft"
             ]}
           >
             {lbl}
           </button>
         </div>
 
-        <div class="space-y-1 max-h-48 overflow-y-auto">
-          <div :if={@messages[@chan] == []} class="text-xs fu-ink-soft">
+        <div class="space-y-3 max-h-48 overflow-y-auto">
+          <div :if={@messages[@chan] == []} class="fu-serif fu-ink-soft text-meta">
             No messages yet — say hello.
           </div>
-          <div :for={m <- @messages[@chan]} class="text-sm">
-            <span class="text-primary font-semibold">{m.from}</span>
-            <span class="fu-ink-soft text-[10px] font-mono">
-              {Calendar.strftime(m.at, "%H:%M")}
-            </span>
-            <div class="fu-ink-soft">{m.body}</div>
+          <div :for={m <- @messages[@chan]} class="space-y-0.5">
+            <div class="flex items-baseline gap-2 text-meta fu-ink-soft">
+              <span class="font-medium">{m.from}</span>
+              <span class="text-mono">{Calendar.strftime(m.at, "%H:%M")}</span>
+            </div>
+            <div class="text-body">{m.body}</div>
           </div>
         </div>
 
@@ -307,47 +319,119 @@ defmodule FuWeb.LobbyLive do
             value={@draft}
             autocomplete="off"
             placeholder={"Message #{@chan}…"}
-            class="flex-1 bg-base-200 border border-neutral rounded px-3 py-1.5 text-sm"
+            class="flex-1 bg-base-200 border border-[var(--fu-line)] rounded px-3 py-1.5 text-body"
           />
-          <button type="submit" class="btn btn-sm btn-primary">Send</button>
+          <button type="submit" class="btn btn-primary btn-sm">Send</button>
         </form>
       </div>
     </Layouts.app>
     """
   end
 
-  attr :team, :string, required: true
+  # FE06 — captain-claim states driven by the existing phase / can_claim? assigns.
+  attr :phase, :atom, required: true
+  attr :remaining, :integer, required: true
+  attr :can_claim?, :boolean, required: true
+  attr :rosters, :map, required: true
+
+  defp captain_widget(assigns) do
+    captains =
+      assigns.rosters
+      |> Map.values()
+      |> List.flatten()
+      |> Enum.filter(& &1.is_captain)
+
+    assigns = assign(assigns, captains: captains)
+
+    ~H"""
+    <div class="fu-divider">CAPTAINCY · {phase_label(@phase)}</div>
+    <%= cond do %>
+      <% @captains != [] -> %>
+        <!-- state (4) / (5): resolved -->
+        <div class="fu-card p-4 space-y-2">
+          <div :for={c <- @captains} class="flex items-center gap-2 text-body">
+            <span class="text-primary" title="Captain">★</span>
+            <span class="font-medium">{c.player.display_name}</span>
+            <span class="text-meta fu-ink-soft">Team {c.team}</span>
+            <span :if={@phase == :random} class="text-meta fu-ink-soft">
+              · randomly assigned
+            </span>
+            <span :if={@phase != :random} class="text-meta fu-ink-soft">· ✓ claimed</span>
+          </div>
+        </div>
+      <% @can_claim? -> %>
+        <!-- state (2): open to me -->
+        <div class="fu-card p-4 border border-primary space-y-2">
+          <button phx-click="claim-captain" class="btn btn-primary w-full">
+            Claim captain
+          </button>
+        </div>
+      <% true -> %>
+        <!-- state (1): not yet open to me -->
+        <div class="fu-card p-4 border-2 border-dashed border-[var(--fu-line)] space-y-1">
+          <div class="text-mono fu-ink-soft">
+            Opens to you in {mmss(@remaining)}
+          </div>
+          <div class="text-meta fu-ink-dim">
+            Captaincy resolves automatically by 4:00.
+          </div>
+        </div>
+    <% end %>
+    """
+  end
+
+  # FE05 — one team's roster card.
+  attr :team_label, :string, required: true
   attr :members, :list, required: true
-  attr :me, :map, default: nil
+  attr :current_player, :map, required: true
+  attr :my_team, :string, default: nil
 
   defp roster(assigns) do
     ~H"""
-    <div class="fu-card p-3 space-y-2">
-      <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">
-        Team {@team} · {length(@members)}
+    <div class="fu-card divide-y divide-[var(--fu-line)]">
+      <div class="fu-divider">
+        TEAM {@team_label} · avg rank {avg_rank(@members)}
       </div>
       <div
         :for={m <- @members}
         class={[
-          "flex items-center gap-2 py-1.5 px-1 rounded",
-          @me && m.id == @me.id && "bg-base-200"
+          "flex items-center gap-3 px-4 py-3",
+          m.player.id == @current_player.id &&
+            "bg-[color-mix(in_oklab,var(--fu-accent)_8%,transparent)]"
         ]}
       >
-        <div class="size-8 rounded-full bg-base-200 border border-neutral grid place-items-center text-xs fu-serif fu-ink-soft shrink-0">
-          {String.first(m.player.display_name)}
+        <span class="text-mono fu-ink-soft w-6 shrink-0">
+          {m.player.jersey_number}
+        </span>
+        <div class="size-8 rounded-full overflow-hidden shrink-0">
+          <FuWeb.Avatars.avatar player={m.player} size={32} />
         </div>
         <div class="flex-1 min-w-0">
-          <div class="text-sm truncate">
-            {m.player.display_name}
-            <span :if={m.is_captain} class="text-primary" title="Captain">ⓒ</span>
-          </div>
-          <div class="text-[10px] fu-ink-soft font-mono">
-            #{m.player.jersey_number} · {m.declared_position} · {m.player.playstyle}
-            · rank {:erlang.float_to_binary(m.player.rank, decimals: 0)}
+          <div class="flex items-center gap-1.5">
+            <span class="text-body font-medium truncate">
+              {m.player.display_name}
+            </span>
+            <span :if={m.is_captain} class="text-primary" title="Captain">★</span>
+            <span
+              :if={m.player.id == @current_player.id}
+              class="bg-primary text-primary-content text-caption px-1.5 rounded"
+            >
+              you
+            </span>
           </div>
         </div>
+        <span class="text-meta fu-ink-soft shrink-0">{m.declared_position}</span>
+        <span class={[
+          "text-mono shrink-0",
+          m.player.rank > 75 && "text-primary"
+        ]}>
+          {rank_str(m.player.rank)}
+        </span>
         <button
-          :if={@me && m.team == @me.team && m.id != @me.id}
+          :if={
+            @my_team && m.team == @my_team &&
+              m.player.id != @current_player.id
+          }
           phx-click="swap-request"
           phx-value-id={m.id}
           class="pos-pill needs shrink-0"
