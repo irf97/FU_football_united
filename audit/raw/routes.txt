@@ -1,0 +1,19 @@
+  GET     /login                                 FuWeb.LoginLive :index
+  GET     /session/:token                        FuWeb.SessionController :create
+  DELETE  /session                               FuWeb.SessionController :delete
+  GET     /                                      FuWeb.HomeLive :index
+  GET     /browse                                FuWeb.BrowseLive :index
+  GET     /queue/:queue_id/chat                  FuWeb.QueueChatLive :index
+  GET     /lobby/:queue_id                       FuWeb.LobbyLive :index
+  GET     /postmatch/:queue_id                   FuWeb.PostMatchLive :index
+  GET     /profile                               FuWeb.ProfileLive :index
+  GET     /admin                                 FuWeb.AdminLive :index
+  GET     /dev/dashboard/css-:md5                Phoenix.LiveDashboard.Assets :css
+  GET     /dev/dashboard/js-:md5                 Phoenix.LiveDashboard.Assets :js
+  GET     /dev/dashboard                         Phoenix.LiveDashboard.PageLive :home
+  GET     /dev/dashboard/:page                   Phoenix.LiveDashboard.PageLive :page
+  GET     /dev/dashboard/:node/:page             Phoenix.LiveDashboard.PageLive :page
+  WS      /live/websocket                        Phoenix.LiveView.Socket
+  GET     /live/longpoll                         Phoenix.LiveView.Socket
+  POST    /live/longpoll                         Phoenix.LiveView.Socket
+

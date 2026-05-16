@@ -1,0 +1,57 @@
+lib/fu/queues.ex:20:  def create_queue(attrs) do
+lib/fu/queues.ex:43:  def get_queue!(id) do
+lib/fu/queues.ex:52:  def seconds_to_kickoff(%Queue{scheduled_at: at}),
+lib/fu/queues.ex:56:  def locked?(%Queue{} = q), do: seconds_to_kickoff(q) <= @lock_seconds
+lib/fu/queues.ex:64:  def fill_status(%Queue{} = q) do
+lib/fu/queues.ex:74:  def fill_ratio(%Queue{} = q) do
+lib/fu/queues.ex:82:  def needs_position?(%Queue{} = q, position) do
+lib/fu/queues.ex:106:  def browse(player, filters \\ %{}) do
+lib/fu/queues.ex:192:  def topic(queue_id), do: "queue:#{queue_id}"
+lib/fu/queues.ex:194:  def subscribe(queue_id),
+lib/fu/queues.ex:197:  def subscribe_all, do: Phoenix.PubSub.subscribe(Fu.PubSub, "queues")
+lib/fu/queues.ex:215:  def join(%Queue{} = queue, player, forced_position \\ nil) do
+lib/fu/queues.ex:252:  def leave(%Queue{} = queue, player) do
+lib/fu/queues.ex:275:  def join_group(%Queue{} = queue, members) do
+lib/fu/queues.ex:298:  def pick_position(%Queue{} = queue, player) do
+lib/fu/queues.ex:317:  def resolve_partial_fill(%Queue{} = queue) do
+lib/fu/queues.ex:349:  def joined_queue_ids(player) do
+lib/fu/queues.ex:359:  def due_for_resolution do
+lib/fu/queues/queue.ex:22:  def changeset(queue, attrs) do
+lib/fu/queues/queue.ex:30:  def states, do: @states
+lib/fu/queues/queue_membership.ex:17:  def changeset(m, attrs) do
+lib/fu/queues/queue_slot.ex:13:  def changeset(slot, attrs) do
+lib/fu/queues/resolver.ex:12:  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+lib/fu/queues/resolver.ex:15:  def init(_opts) do
+lib/fu/queues/resolver.ex:21:  def handle_info(:tick, state) do
+lib/fu/matching.ex:44:  def suggest(player, opts \\ []) do
+lib/fu/ranking.ex:74:  def finalize_match(queue_id) do
+lib/fu/ranking.ex:178:    own_def = own_count(tally, :defender, player_id)
+lib/fu/ranking.ex:179:    if own_mvp > 0 or own_def > 0, do: @w_own_vote, else: 0.0
+lib/fu/ranking.ex:246:  def record_no_show(player_id, queue_id) do
+lib/fu/ranking.ex:325:  def apply_decay do
+lib/fu/ranking.ex:407:  def history(player_id) do
+lib/fu/ranking.ex:416:  def event_for(player_id, queue_id) do
+lib/fu/ranking.ex:421:  def current_rank(player_id) do
+lib/fu/ranking.ex:431:  def file_dispute(player_id, attrs) do
+lib/fu/ranking.ex:442:  def disputes_for(player_id) do
+lib/fu/ranking.ex:455:  def resolve_dispute(id, resolution) do
+lib/fu/ranking.ex:470:  def clamp(x), do: min(@rank_max, max(@rank_min, x))
+lib/fu/ranking/decay_worker.ex:12:  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+lib/fu/ranking/decay_worker.ex:15:  def init(_opts) do
+lib/fu/ranking/decay_worker.ex:21:  def handle_info(:tick, state) do
+lib/fu/ranking/dispute.ex:27:  def changeset(dispute, attrs) do
+lib/fu/ranking/no_show.ex:20:  def changeset(no_show, attrs) do
+lib/fu/ranking/rank_event.ex:27:  def changeset(event, attrs) do
+lib/fu/voting.ex:28:  def categories, do: @categories
+lib/fu/voting.ex:42:  def cast(queue_id, voter_id, category, subject_id, opts \\ []) do
+lib/fu/voting.ex:55:  def skip(queue_id, voter_id, category) do
+lib/fu/voting.ex:79:  def voted?(queue_id, voter_id) do
+lib/fu/voting.ex:84:  def pending_categories(queue_id, voter_id) do
+lib/fu/voting.ex:101:  def voting_open?(queue_id) do
+lib/fu/voting.ex:116:  def skip_streak_delta(queue_id, player_id) do
+lib/fu/voting.ex:127:  def fully_skipped?(queue_id, player_id), do: skip_streak_delta(queue_id, player_id)
+lib/fu/voting.ex:151:  def tally(queue_id) do
+lib/fu/voting.ex:220:  def median([]), do: nil
+lib/fu/voting.ex:222:  def median(scores) do
+lib/fu/voting/vote.ex:19:  def changeset(vote, attrs) do
+lib/fu/voting/vote.ex:28:  def categories, do: @categories

@@ -1,0 +1,37 @@
+lib/fu_web/live/admin_live.ex:26:  def handle_event("filter", %{"f" => f}, socket),
+lib/fu_web/live/admin_live.ex:29:  def handle_event("toggle-suspend", %{"id" => id}, socket) do
+lib/fu_web/live/browse_live.ex:20:  def handle_event("join", %{"id" => id}, socket) do
+lib/fu_web/live/browse_live.ex:32:  def handle_event("leave", %{"id" => id}, socket) do
+lib/fu_web/live/browse_live.ex:43:  def handle_event("toggle", %{"key" => key}, socket) do
+lib/fu_web/live/browse_live.ex:50:  def handle_event("time", %{"window" => w}, socket) do
+lib/fu_web/live/browse_live.ex:59:  def handle_event("format", %{"fmt" => fmt}, socket) do
+lib/fu_web/live/home_live.ex:52:  def handle_event("accept-friend", %{"id" => id}, socket) do
+lib/fu_web/live/home_live.ex:57:  def handle_event("create-group", _, socket) do
+lib/fu_web/live/home_live.ex:62:  def handle_event("add-to-group", %{"id" => pid}, socket) do
+lib/fu_web/live/home_live.ex:73:  def handle_event("set-pos", %{"slot" => slot, "pos" => pos}, socket) do
+lib/fu_web/live/home_live.ex:86:  def handle_event("toggle-fill", _, socket) do
+lib/fu_web/live/lobby_live.ex:103:  def handle_event("claim-captain", _, socket) do
+lib/fu_web/live/lobby_live.ex:116:  def handle_event("chan", %{"c" => c}, socket) when c in @channels,
+lib/fu_web/live/lobby_live.ex:119:  def handle_event("draft", %{"body" => body}, socket),
+lib/fu_web/live/lobby_live.ex:122:  def handle_event("send", %{"body" => body}, socket) do
+lib/fu_web/live/lobby_live.ex:137:  def handle_event("swap-request", %{"id" => to_mid}, socket) do
+lib/fu_web/live/lobby_live.ex:159:  def handle_event("swap-accept", _, socket) do
+lib/fu_web/live/lobby_live.ex:173:  def handle_event("swap-decline", _, socket),
+lib/fu_web/live/login_live.ex:16:  def handle_event("send", %{"phone" => phone}, socket) do
+lib/fu_web/live/login_live.ex:27:  def handle_event("verify", %{"code" => code}, socket) do
+lib/fu_web/live/login_live.ex:38:  def handle_event("show-admin", _, socket),
+lib/fu_web/live/login_live.ex:41:  def handle_event("admin-login", %{"password" => pw}, socket) do
+lib/fu_web/live/login_live.ex:56:  def handle_event("back", _, socket),
+lib/fu_web/live/post_match_live.ex:57:  def handle_event("vote", %{"category" => cat, "subject" => sid}, socket) do
+lib/fu_web/live/post_match_live.ex:64:  def handle_event("vote-keeper", %{"score" => s}, socket) do
+lib/fu_web/live/post_match_live.ex:77:  def handle_event("set-keeper", %{"score" => s}, socket),
+lib/fu_web/live/post_match_live.ex:80:  def handle_event("skip", %{"category" => cat}, socket) do
+lib/fu_web/live/post_match_live.ex:85:  def handle_event("skip-all", _, socket) do
+lib/fu_web/live/post_match_live.ex:92:  def handle_event("toggle-breakdown", _, socket),
+lib/fu_web/live/post_match_live.ex:95:  def handle_event("dispute", _, socket) do
+lib/fu_web/live/profile_live.ex:32:  def handle_event("preview", %{"player" => attrs}, socket) do
+lib/fu_web/live/profile_live.ex:46:  def handle_event("save", %{"player" => attrs}, socket) do
+lib/fu_web/live/profile_live.ex:60:  def handle_event("add-window", %{"win" => w}, socket) do
+lib/fu_web/live/profile_live.ex:67:  def handle_event("del-window", %{"id" => id}, socket) do
+lib/fu_web/live/queue_chat_live.ex:38:  def handle_event("send", %{"body" => body}, socket) do
+lib/fu_web/live/queue_chat_live.ex:53:  def handle_event("join", _params, socket) do

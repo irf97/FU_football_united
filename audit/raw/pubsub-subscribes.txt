@@ -1,0 +1,4 @@
+lib/fu/queues.ex:195:    do: Phoenix.PubSub.subscribe(Fu.PubSub, topic(queue_id))
+lib/fu/queues.ex:197:  def subscribe_all, do: Phoenix.PubSub.subscribe(Fu.PubSub, "queues")
+lib/fu/queue_chat.ex:23:    do: Phoenix.PubSub.subscribe(Fu.PubSub, topic(queue_id))
+lib/fu_web/live/lobby_live.ex:26:      Phoenix.PubSub.subscribe(Fu.PubSub, lobby_topic(queue.id))
