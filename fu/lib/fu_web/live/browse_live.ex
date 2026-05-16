@@ -182,6 +182,14 @@ defmodule FuWeb.BrowseLive do
             Join {if @card.locked, do: "(commit now)", else: "queue"}
           </button>
       <% end %>
+
+      <.link
+        :if={@joined and queued_count(@card) >= Fu.QueueChat.min_members()}
+        navigate={~p"/queue/#{@card.queue.id}/chat"}
+        class="block text-center text-xs text-secondary mt-1"
+      >
+        💬 Queue chat ({queued_count(@card)})
+      </.link>
     </div>
     """
   end
@@ -206,6 +214,9 @@ defmodule FuWeb.BrowseLive do
     </button>
     """
   end
+
+  defp queued_count(card),
+    do: card.fill |> Map.values() |> Enum.map(& &1.filled) |> Enum.sum()
 
   defp fill_full?(%{filled: f, capacity: c}), do: f >= c
   defp fill_full?(_), do: false
