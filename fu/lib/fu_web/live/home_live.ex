@@ -140,24 +140,28 @@ defmodule FuWeb.HomeLive do
       <%= if @queue_count > 0 do %>
         <.link
           navigate={~p"/browse"}
+          aria-label="Find a match"
           class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
         >
-          ⚡ QUEUE — {if @needing > 0,
+          <span aria-hidden="true" class="mr-2">⚡</span>
+          QUEUE — {if @needing > 0,
             do: "#{@needing} need your spot",
             else: "#{@queue_count} open nearby"}
         </.link>
       <% else %>
         <.link
           navigate={~p"/profile"}
+          aria-label="Set availability to find matches"
           class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
         >
-          ⚡ QUEUE — set availability
+          <span aria-hidden="true" class="mr-2">⚡</span>
+          QUEUE — set availability
         </.link>
       <% end %>
 
       <!-- Position quick-edit -->
       <div class="fu-card p-4 space-y-3">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Position</div>
+        <div class="fu-divider">Position</div>
         <.pos_row
           label="Primary"
           slot="primary"
@@ -172,25 +176,32 @@ defmodule FuWeb.HomeLive do
         />
         <button
           phx-click="toggle-fill"
-          class={["btn btn-sm w-full", @player.fill_mode && "btn-primary", !@player.fill_mode && "btn-outline"]}
+          aria-pressed={to_string(@player.fill_mode)}
+          class={[
+            "btn btn-outline w-full min-h-[44px]",
+            @player.fill_mode && "border-base-content text-base-content"
+          ]}
         >
-          Fill mode {if @player.fill_mode, do: "on", else: "off"}
+          {if @player.fill_mode, do: "✓ Fill mode on", else: "Fill mode off"}
           <span class="fu-ink-soft text-xs">· primary + any open position</span>
         </button>
       </div>
 
       <!-- Auto-match suggestions (spec §2.6 — "can I play soon?") -->
       <div class="fu-card p-4">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider mb-2">
-          Suggested for you
-        </div>
-        <div :if={@suggestions == []} class="text-sm fu-ink-soft">
-          Add availability windows in your profile so we can match you.
+        <div class="fu-divider">Suggested for you</div>
+        <div :if={@suggestions == []} class="py-2 space-y-3">
+          <p class="fu-serif fu-ink-soft">
+            We can't see you yet — tell us when you play.
+          </p>
+          <.link navigate={~p"/profile"} class="btn btn-outline btn-sm min-h-[44px] w-full">
+            Set your availability →
+          </.link>
         </div>
         <.link
           :for={c <- @suggestions}
           navigate={~p"/browse"}
-          class="flex items-center justify-between py-2 border-b border-neutral last:border-0"
+          class="flex items-center justify-between min-h-[44px] py-2 border-b border-[var(--fu-line)] last:border-0"
         >
           <span class="text-sm">{c.field.name}</span>
           <span class="text-xs fu-ink-soft font-mono">
@@ -201,35 +212,35 @@ defmodule FuWeb.HomeLive do
 
       <!-- Friends & group (spec §2.12) -->
       <div class="fu-card p-4 space-y-3">
-        <div class="text-xs fu-ink-dim font-mono uppercase tracking-wider">Friends</div>
+        <div class="fu-divider">Friends</div>
 
-        <div :if={@pending != []} class="space-y-1">
+        <div :if={@pending != []} class="space-y-2">
           <div
             :for={f <- @pending}
-            class="flex items-center justify-between text-sm"
+            class="flex items-center justify-between gap-3 text-sm"
           >
-            <span>{f.requester.display_name} wants to connect</span>
+            <span class="min-w-0 truncate">{f.requester.display_name} wants to connect</span>
             <button
               phx-click="accept-friend"
               phx-value-id={f.id}
-              class="btn btn-xs btn-primary"
+              class="btn btn-sm btn-outline min-h-[44px] shrink-0"
             >
               Accept
             </button>
           </div>
         </div>
 
-        <div class="text-sm">
-          <span :if={@friends == []} class="fu-ink-soft">No friends yet.</span>
-          <span :if={@friends != []} class="fu-ink-soft">
-            {@friends |> Enum.map(& &1.display_name) |> Enum.join(", ")}
-          </span>
+        <p :if={@friends == []} class="fu-serif fu-ink-soft">
+          No teammates yet — share your link to bring someone.
+        </p>
+        <div :if={@friends != []} class="text-sm fu-ink-soft">
+          {@friends |> Enum.map(& &1.display_name) |> Enum.join(", ")}
         </div>
 
         <div class="text-xs fu-ink-dim font-mono break-all">invite: {@invite}</div>
 
         <%= if @group do %>
-          <div class="pt-2 border-t border-neutral space-y-2">
+          <div class="pt-2 border-t border-[var(--fu-line)] space-y-2">
             <div class="text-sm">
               Group · {length(@group_members)}/8 —
               <span class="fu-serif fu-ink-soft">
@@ -239,19 +250,20 @@ defmodule FuWeb.HomeLive do
             <div class="text-xs fu-ink-soft">
               {@group_members |> Enum.map(& &1.display_name) |> Enum.join(", ")}
             </div>
-            <div :if={@friends != []} class="flex flex-wrap gap-1">
+            <div :if={@friends != []} class="flex flex-wrap gap-2">
               <button
                 :for={fr <- addable(@friends, @group_members)}
                 phx-click="add-to-group"
                 phx-value-id={fr.id}
-                class="pos-pill needs"
+                aria-label={"Add #{fr.display_name} to group"}
+                class="btn btn-outline btn-sm min-h-[44px]"
               >
                 + {fr.display_name}
               </button>
             </div>
           </div>
         <% else %>
-          <button phx-click="create-group" class="btn btn-sm btn-outline w-full">
+          <button phx-click="create-group" class="btn btn-outline btn-sm min-h-[44px] w-full">
             Create a group to queue with friends
           </button>
         <% end %>
@@ -276,15 +288,17 @@ defmodule FuWeb.HomeLive do
     ~H"""
     <div class="flex items-center gap-2">
       <span class="text-sm fu-ink-soft w-20">{@label}</span>
-      <div class="flex gap-1 flex-1">
+      <div class="flex gap-1.5 flex-1">
         <button
           :for={pos <- @positions}
           phx-click="set-pos"
           phx-value-slot={@slot}
           phx-value-pos={pos}
           disabled={pos in @disabled}
+          aria-pressed={to_string(pos == @current)}
+          aria-label={"#{@label} position #{pos}"}
           class={[
-            "pos-pill flex-1",
+            "pos-pill flex-1 min-h-[44px] flex items-center justify-center",
             pos == @current && "full",
             pos in @disabled && "opacity-30"
           ]}
