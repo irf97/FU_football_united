@@ -70,7 +70,19 @@
   --fu-accent: #C5FF3D;
   --fu-danger: #FF6B5A;
   --fu-warning: #F4B860;
+
+  /* Motion tokens — compositor-only (transform/opacity), short, calm.
+     One scale, used everywhere, so transitions feel like one system. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);   /* gentle ease-out */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-1: 90ms;    /* press / micro */
+  --dur-2: 180ms;   /* hover / state */
+  --dur-3: 280ms;   /* entrance / view */
 }
+
+/* Native page-to-page crossfade for LiveView navigation — browser-driven,
+   zero JS, zero runtime cost; silently ignored where unsupported. */
+@view-transition { navigation: auto; }
 
 html, body {
   background:
@@ -79,8 +91,21 @@ html, body {
   color: var(--fu-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  /* Better ragged edges + no single-word last lines, no JS, no reflow cost */
+  text-wrap: pretty;
 }
+
+/* Headings never strand a lone word; numerals never jitter as they change. */
+.text-display, .text-h1, .text-h2, .text-h3 { text-wrap: balance; }
+.text-display { letter-spacing: -0.02em; }
+.text-mono, .text-caption, .form-cell, .pos-pill, .slot-cell,
+.fu-badge-rated, .fu-badge-casual { font-variant-numeric: tabular-nums; }
+
+/* Constrain long editorial/empty-state copy to a readable measure. */
+.fu-prose { max-width: 62ch; }
 
 /* Editorial italic serif — empty states, brand line, human moments only */
 .fu-serif { font-family: var(--font-serif); font-style: italic; letter-spacing: -0.01em; }
@@ -173,9 +198,67 @@ html, body {
   font-size: 12px; font-weight: 600;
 }
 
-/* Press feedback (plan §2.5) */
-button, .btn, a[role="button"] { transition: transform 50ms ease, filter 100ms ease; }
-button:active, .btn:active { transform: scale(0.98); }
+/* ── Motion system ───────────────────────────────────────────────
+   Everything below animates ONLY transform/opacity (compositor —
+   no layout, no paint, no JS). All of it is gated on
+   prefers-reduced-motion so it costs literally nothing when the
+   user (or a weak device) opts out. */
+
+button, .btn, a[role="button"], a.fu-card, summary {
+  transition: transform var(--dur-1) var(--ease), opacity var(--dur-2) var(--ease);
+}
+.fu-card { transition: border-color var(--dur-2) var(--ease); }
+.fu-tabbar a, .pos-pill, input, select, textarea {
+  transition: color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease),
+              opacity var(--dur-2) var(--ease);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Press: tactile, instant-feeling */
+  button:active, .btn:active, a[role="button"]:active { transform: scale(0.97); }
+
+  /* Interactive cards gain a hairline lift + brighter edge (transform
+     + border-color only — both cheap; never animate box-shadow). */
+  a.fu-card:hover, button.fu-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--fu-line-strong);
+  }
+
+  /* One orchestrated entrance: each top-level block of the screen
+     rises + fades once on mount, lightly staggered. Runs per mount,
+     ≤280ms, GPU-only — imperceptible cost, big perceived fluency. */
+  main > * {
+    animation: fu-rise var(--dur-3) var(--ease) backwards;
+  }
+  main > *:nth-child(1) { animation-delay: 0ms; }
+  main > *:nth-child(2) { animation-delay: 40ms; }
+  main > *:nth-child(3) { animation-delay: 80ms; }
+  main > *:nth-child(4) { animation-delay: 120ms; }
+  main > *:nth-child(5) { animation-delay: 160ms; }
+  main > *:nth-child(n+6) { animation-delay: 200ms; }
+
+  /* Flash toasts ease in instead of snapping */
+  [id^="flash"], #flash-group > * { animation: fu-fade var(--dur-2) var(--ease) backwards; }
+
+  /* Native LiveView nav crossfade — calm dissolve, no slide */
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation-duration: var(--dur-3); }
+}
+
+@keyframes fu-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fu-fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* Hard opt-out: zero motion, zero cost. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* Section divider — "──── position ────" (plan §5.2, §7.2) */
 .fu-divider {
