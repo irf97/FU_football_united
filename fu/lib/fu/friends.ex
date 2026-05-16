@@ -65,6 +65,54 @@ defmodule Fu.Friends do
     |> Repo.all()
   end
 
+  @doc "Pending requests `player` has sent that aren't accepted yet."
+  def pending_outgoing(%Player{id: pid}) do
+    from(f in Friendship,
+      where: f.requester_id == ^pid and f.status == "pending",
+      order_by: [desc: f.inserted_at],
+      preload: [:addressee]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Sends a friend request to whoever owns `phone` (spec §2.12 "Adding
+  friends" — phone-number match). Returns `{:ok, friendship}` or
+  `{:error, :not_found | :self | :already_friends | :already_requested}`.
+  """
+  def request_by_phone(%Player{} = requester, phone) do
+    norm = phone |> to_string() |> String.replace(~r/[^\d+]/, "")
+
+    case Repo.get_by(Player, phone: norm) do
+      nil ->
+        {:error, :not_found}
+
+      %Player{} = addressee ->
+        cond do
+          addressee.id == requester.id ->
+            {:error, :self}
+
+          friends?(requester, addressee) ->
+            {:error, :already_friends}
+
+          true ->
+            case request_friend(requester, addressee) do
+              {:ok, f} -> {:ok, f}
+              {:error, %Ecto.Changeset{}} -> {:error, :already_requested}
+              other -> other
+            end
+        end
+    end
+  end
+
+  @doc "Declines/cancels a pending friend request (removes the row)."
+  def decline_friend(id) when is_integer(id) do
+    case Repo.get(Friendship, id) do
+      nil -> {:error, :not_found}
+      %Friendship{} = f -> Repo.delete(f)
+    end
+  end
+
   @doc "Is there an accepted friendship between `a` and `b` (either direction)?"
   def friends?(%Player{id: a}, %Player{id: b}) do
     from(f in Friendship,

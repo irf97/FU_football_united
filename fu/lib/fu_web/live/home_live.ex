@@ -24,6 +24,7 @@ defmodule FuWeb.HomeLive do
       suggestions: Matching.suggest(player),
       friends: Friends.list_friends(player),
       pending: Friends.pending_incoming(player),
+      outgoing: Friends.pending_outgoing(player),
       group: group,
       group_members: group && Groups.members(group),
       invite: Friends.invite_link(player),
@@ -48,9 +49,30 @@ defmodule FuWeb.HomeLive do
 
   defp pad_form(form), do: form ++ List.duplicate("", max(5 - length(form), 0))
 
+  defp friend_error(:not_found), do: "No player with that number yet."
+  defp friend_error(:self), do: "That's your own number."
+  defp friend_error(:already_friends), do: "You're already friends."
+  defp friend_error(:already_requested), do: "Request already pending."
+  defp friend_error(_), do: "Couldn't send the request."
+
   @impl true
+  def handle_event("add-friend", %{"phone" => phone}, socket) do
+    case Friends.request_by_phone(socket.assigns.player, phone) do
+      {:ok, _} ->
+        {:noreply, socket |> put_flash(:info, "Friend request sent.") |> load()}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, friend_error(reason))}
+    end
+  end
+
   def handle_event("accept-friend", %{"id" => id}, socket) do
     Friends.accept_friend(String.to_integer(id))
+    {:noreply, socket |> put_flash(:info, "Friend added.") |> load()}
+  end
+
+  def handle_event("decline-friend", %{"id" => id}, socket) do
+    Friends.decline_friend(String.to_integer(id))
     {:noreply, load(socket)}
   end
 
@@ -214,24 +236,68 @@ defmodule FuWeb.HomeLive do
       <div class="fu-card p-4 space-y-3">
         <div class="fu-divider">Friends</div>
 
+        <.form for={%{}} phx-submit="add-friend" class="flex gap-2">
+          <input
+            type="tel"
+            name="phone"
+            placeholder="Add by phone — +316…"
+            autocomplete="off"
+            aria-label="Friend's phone number"
+            class="input input-bordered input-sm flex-1 bg-base-200 min-h-[44px]"
+            required
+          />
+          <button type="submit" class="btn btn-sm btn-outline min-h-[44px] shrink-0">
+            Add
+          </button>
+        </.form>
+
         <div :if={@pending != []} class="space-y-2">
+          <div class="text-caption fu-ink-dim">Requests</div>
           <div
             :for={f <- @pending}
-            class="flex items-center justify-between gap-3 text-sm"
+            class="flex items-center justify-between gap-2 text-sm"
           >
             <span class="min-w-0 truncate">{f.requester.display_name} wants to connect</span>
+            <div class="flex gap-1 shrink-0">
+              <button
+                phx-click="accept-friend"
+                phx-value-id={f.id}
+                class="btn btn-sm btn-outline min-h-[44px]"
+              >
+                Accept
+              </button>
+              <button
+                phx-click="decline-friend"
+                phx-value-id={f.id}
+                aria-label={"Decline #{f.requester.display_name}"}
+                class="btn btn-sm btn-ghost min-h-[44px]"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div :if={@outgoing != []} class="space-y-1">
+          <div class="text-caption fu-ink-dim">Sent</div>
+          <div
+            :for={f <- @outgoing}
+            class="flex items-center justify-between gap-2 text-sm fu-ink-soft"
+          >
+            <span class="min-w-0 truncate">{f.addressee.display_name}</span>
             <button
-              phx-click="accept-friend"
+              phx-click="decline-friend"
               phx-value-id={f.id}
-              class="btn btn-sm btn-outline min-h-[44px] shrink-0"
+              aria-label={"Cancel request to #{f.addressee.display_name}"}
+              class="text-caption fu-ink-dim"
             >
-              Accept
+              pending · cancel
             </button>
           </div>
         </div>
 
         <p :if={@friends == []} class="fu-serif fu-ink-soft">
-          No teammates yet — share your link to bring someone.
+          No teammates yet — add a number above or share your link.
         </p>
         <div :if={@friends != []} class="text-sm fu-ink-soft">
           {@friends |> Enum.map(& &1.display_name) |> Enum.join(", ")}
