@@ -13,7 +13,11 @@ defmodule FuWeb.BrowseLive do
   defp reload(socket) do
     player = socket.assigns.current_player
     cards = Queues.browse(player, socket.assigns.filters)
-    assign(socket, cards: cards, joined: Queues.joined_queue_ids(player))
+    assign(socket,
+      cards: cards,
+      joined: Queues.joined_queue_ids(player),
+      locked: Queues.locked_queue_ids(player)
+    )
   end
 
   @impl true
@@ -22,10 +26,31 @@ defmodule FuWeb.BrowseLive do
 
     case Queues.join(q, socket.assigns.current_player) do
       {:ok, m} ->
-        {:noreply, socket |> put_flash(:info, "Joined as #{m.declared_position}.") |> reload()}
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           "Joined as #{Fu.Accounts.sub_label(socket.assigns.current_player, m.declared_position)}."
+         )
+         |> reload()}
 
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, join_error(reason))}
+    end
+  end
+
+  def handle_event("lock", %{"id" => id}, socket) do
+    q = Queues.get_queue!(id)
+
+    case Queues.lock_in(q, socket.assigns.current_player) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Locked in — you're committed to this match.")
+         |> reload()}
+
+      {:error, _} ->
+        {:noreply, socket |> put_flash(:error, "Couldn't lock in.") |> reload()}
     end
   end
 
@@ -33,11 +58,23 @@ defmodule FuWeb.BrowseLive do
     q = Queues.get_queue!(id)
 
     case Queues.leave(q, socket.assigns.current_player) do
-      :ok -> {:noreply, socket |> put_flash(:info, "Left the queue.") |> reload()}
-      {:error, :locked} -> {:noreply, put_flash(socket, :error, "Locked — you're committed (spec §2.4).")}
-      {:error, _} -> {:noreply, reload(socket)}
+      :ok ->
+        {:noreply, socket |> put_flash(:info, "Left the queue.") |> reload()}
+
+      {:penalised, tier, until} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "You bailed after locking in — #{ban_label(tier)} ban (until #{fmt_until(until)}).")
+         |> reload()}
+
+      {:error, _} ->
+        {:noreply, reload(socket)}
     end
   end
+
+  defp ban_label(:day), do: "1-day"
+  defp ban_label(:week), do: "1-week"
+  defp fmt_until(dt), do: Calendar.strftime(dt, "%a %d %b %H:%M")
 
   @impl true
   def handle_event("toggle", %{"key" => key}, socket) do
@@ -120,6 +157,7 @@ defmodule FuWeb.BrowseLive do
         :for={c <- @cards}
         card={c}
         joined={MapSet.member?(@joined, c.queue.id)}
+        locked={MapSet.member?(@locked, c.queue.id)}
       />
     </Layouts.app>
     """
@@ -127,6 +165,7 @@ defmodule FuWeb.BrowseLive do
 
   attr :card, :map, required: true
   attr :joined, :boolean, default: false
+  attr :locked, :boolean, default: false
 
   defp queue_card(assigns) do
     ~H"""
@@ -138,6 +177,31 @@ defmodule FuWeb.BrowseLive do
         <span class={if @card.rated, do: "fu-badge-rated", else: "fu-badge-casual"}>
           {if @card.rated, do: "RATED", else: "CASUAL"}
         </span>
+        <span class="ml-auto text-base-content font-bold tabular-nums">
+          <span :if={@card.avg_rank}>
+            ★ {:erlang.float_to_binary(@card.avg_rank, decimals: 0)} ·
+          </span>
+          {fill_totals(@card.fill)} players
+        </span>
+      </div>
+
+      <!-- Who's in & what they play (no avatars) -->
+      <div
+        :if={queued_in(@card) != []}
+        class="flex flex-wrap gap-x-3 gap-y-1.5 text-caption fu-ink-soft -mt-2"
+      >
+        <span :for={m <- queued_in(@card)} class="inline-flex items-center gap-1">
+          <span class={["pos-pill", m.locked_at && "full"]}>
+            {Fu.Accounts.sub_label(m.player, m.declared_position)}
+          </span>
+          <span class="truncate max-w-[6rem]">
+            {m.player.display_name |> String.split() |> hd()}
+          </span>
+        </span>
+      </div>
+
+      <div :if={queued_in(@card) != []} class="text-caption fu-ink-soft -mt-1">
+        🔒 {Queues.locked_count(@card.queue)} locked in — match is on once every slot is locked
       </div>
 
       <div>
@@ -148,52 +212,86 @@ defmodule FuWeb.BrowseLive do
       </div>
 
       <!-- Position-by-position fill (spec §2.2, plan §6.4) -->
-      <.position_fill fill={@card.fill} needs_me={@card.needs_my_position} />
-
-      <div class="text-meta fu-ink-soft">
-        <span :if={@card.avg_rank}>
-          avg rank {:erlang.float_to_binary(@card.avg_rank, decimals: 0)} ·
-        </span>
-        {fill_totals(@card.fill)} players
-      </div>
+      <.position_fill fill={@card.fill} />
 
       <div class="flex items-center justify-between gap-3">
         <span class={["text-mono", lock_class(@card)]}>{lock_label(@card)}</span>
 
-        <%= cond do %>
-          <% @joined and @card.locked -> %>
-            <.link navigate={~p"/lobby/#{@card.queue.id}"} class="btn btn-primary btn-sm">
-              Open lobby →
-            </.link>
-          <% @joined -> %>
-            <button
-              phx-click="leave"
-              phx-value-id={@card.queue.id}
-              class="btn btn-sm btn-outline border-neutral fu-ink-soft"
+        <div class="flex items-center gap-2">
+          <%= if @joined do %>
+            <.link
+              navigate={~p"/queue/#{@card.queue.id}/chat"}
+              class="btn btn-sm btn-outline border-neutral"
+              aria-label="Open queue chatroom"
             >
-              Leave queue
+              💬 Chat
+            </.link>
+          <% else %>
+            <button
+              type="button"
+              disabled
+              title="Join the queue to unlock the chatroom"
+              class="btn btn-sm btn-outline border-[var(--fu-line)] fu-ink-dim opacity-40 cursor-not-allowed"
+            >
+              💬 Chat
             </button>
-          <% true -> %>
-            <button phx-click="join" phx-value-id={@card.queue.id} class="btn btn-primary btn-sm">
-              Join {if @card.locked, do: "(commit now)", else: "queue"}
-            </button>
-        <% end %>
-      </div>
+          <% end %>
 
-      <.link
-        :if={queued_count(@card) >= Fu.QueueChat.min_members()}
-        navigate={~p"/queue/#{@card.queue.id}/chat"}
-        class="flex items-center justify-between text-meta fu-ink-soft hover:text-base-content transition-colors pt-1"
-      >
-        <span>Queue chatroom</span>
-        <span class="text-mono fu-ink-dim">{queued_count(@card)}</span>
-      </.link>
+          <%= cond do %>
+            <% @locked -> %>
+              <span class="text-meta font-bold text-[var(--fu-accent)] px-2">✓ Locked in</span>
+              <button
+                phx-click="leave"
+                phx-value-id={@card.queue.id}
+                data-confirm="Bail after locking in? You'll be banned — 1 day if it's >24h before kickoff, 1 week if within 24h."
+                class="btn btn-sm btn-ghost text-[var(--fu-danger)]"
+                title="Leaving now bans you"
+              >
+                Bail
+              </button>
+              <.link
+                navigate={~p"/lobby/#{@card.queue.id}"}
+                class="btn btn-primary btn-sm"
+              >
+                Lobby →
+              </.link>
+            <% @joined and @card.locked -> %>
+              <button
+                phx-click="lock"
+                phx-value-id={@card.queue.id}
+                class="btn btn-primary btn-sm"
+                title="Commit — leaving after this bans you"
+              >
+                🔒 Lock in
+              </button>
+            <% @joined -> %>
+              <button
+                phx-click="lock"
+                phx-value-id={@card.queue.id}
+                class="btn btn-primary btn-sm"
+                title="Commit — leaving after this bans you"
+              >
+                🔒 Lock in
+              </button>
+              <button
+                phx-click="leave"
+                phx-value-id={@card.queue.id}
+                class="btn btn-sm btn-outline border-neutral fu-ink-soft"
+              >
+                Leave
+              </button>
+            <% true -> %>
+              <button phx-click="join" phx-value-id={@card.queue.id} class="btn btn-primary btn-sm">
+                Join
+              </button>
+          <% end %>
+        </div>
+      </div>
     </div>
     """
   end
 
   attr :fill, :map, required: true
-  attr :needs_me, :boolean, default: false
 
   defp position_fill(assigns) do
     ~H"""
@@ -209,12 +307,6 @@ defmodule FuWeb.BrowseLive do
             class={["slot-cell", i <= @fill[pos].filled && "on"]}
           />
         </div>
-        <span
-          :if={@needs_me and not fill_full?(@fill[pos])}
-          class="text-caption text-primary"
-        >
-          NEEDS YOU
-        </span>
       </div>
     </div>
     """
@@ -241,12 +333,6 @@ defmodule FuWeb.BrowseLive do
     """
   end
 
-  defp queued_count(card),
-    do: card.fill |> Map.values() |> Enum.map(& &1.filled) |> Enum.sum()
-
-  defp fill_full?(%{filled: f, capacity: c}), do: f >= c
-  defp fill_full?(_), do: false
-
   defp fill_count_class(%{filled: f, capacity: c}) when f >= c, do: "fu-ink-dim"
   defp fill_count_class(_), do: "text-warning"
 
@@ -259,6 +345,13 @@ defmodule FuWeb.BrowseLive do
     "#{filled}/#{total}"
   end
 
+  # Queued members of a card (player preloaded by Queues.browse), join order.
+  defp queued_in(card) do
+    card.queue.memberships
+    |> Enum.filter(&(&1.status == "queued"))
+    |> Enum.sort_by(& &1.id)
+  end
+
   defp lock_class(%{locked: true}), do: "text-warning"
 
   defp lock_class(%{seconds_to_lock: s}) when is_integer(s) and s > 0 and s < 10_800,
@@ -267,14 +360,7 @@ defmodule FuWeb.BrowseLive do
   defp lock_class(_), do: "fu-ink-soft"
 
   defp time_bucket(dt) do
-    today = Date.utc_today()
-    d = DateTime.to_date(dt)
-
-    cond do
-      d == today -> "TONIGHT"
-      d == Date.add(today, 1) -> "TOMORROW"
-      true -> Calendar.strftime(dt, "%a %H:%M") |> String.upcase()
-    end
+    Calendar.strftime(dt, "%a %d %b · %H:%M") |> String.upcase()
   end
 
   defp fmt_km(km) when is_number(km), do: "#{:erlang.float_to_binary(km, decimals: 1)} km"

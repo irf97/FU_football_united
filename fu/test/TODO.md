@@ -17,11 +17,15 @@ P0 shipped this pass: `resolver_test`, `ranking_test` (+StreamData props),
 - Friends list ops (`Friends.request_friend/accept/list/pending`).
 - Chat message ordering (`QueueChat`, `lobby_live` chat channels).
 
-## Deferred (PARTIAL/MISSING per AUDIT — not worth testing yet)
-- Post-match voting *flow* (no in-app trigger: `complete_match` seed-only).
-- `Ranking.finalize_match` *trigger* (seed-only) — the math is P0-tested;
-  the wiring is an AUDIT blocker, not a test gap.
-- `Ranking.record_no_show` (dead code, zero callers).
-- Live match surface (MISSING).
-- LiveView flow tests (login→home, home→browse→join, lobby claim):
-  scaffold `conn_case` ready; add once auth-session test helper exists.
+## Shipped 2026-05-17 (were deferred, now WIRED + tested)
+- Friend-group queue join — `group_queue_test.exs` (HomeLive "Queue this group").
+- OTP hardening — `accounts_otp_hardening_test.exs`, `sms_test.exs`.
+- Live match surface + captain pause — `matches_clock_test.exs`,
+  `match_live_test.exs` (kickoff/pause/resume/elapsed + LiveView flow).
+- 7v7 rated — `positions_test.exs`, `ranking_test.exs`.
+
+## Still deferred
+- `Ranking.record_no_show` (dead code, zero callers) — no caller to test.
+- Voting aggregation with skips / DecayWorker month boundary (P1 above).
+- LiveView flow tests for login→home, browse→join (auth helper now exists
+  via `log_in_player/2`; add when touching those surfaces).

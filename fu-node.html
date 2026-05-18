@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Football United — Solid Node: Full Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#0A0908;--bg2:#14110F;--card:#1C1815;--ink:#F4F0E8;--muted:#8A857C;--faint:#56524B;
+    --line:rgba(244,240,232,.09);--line2:rgba(244,240,232,.16);--lime:#C5FF3D;--danger:#FF6B5A;--warn:#F4B860;--info:#6BAEFF;
+    --serif:"Instrument Serif",Georgia,serif;--sans:"Schibsted Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:radial-gradient(ellipse 70% 45% at 50% -8%,rgba(197,255,61,.05),transparent 60%),var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .shell{display:grid;grid-template-columns:248px 1fr;max-width:1240px;margin:0 auto;gap:44px;padding:0 30px}
+  nav{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:34px 0;border-right:1px solid var(--line)}
+  nav .brand{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--lime)}
+  nav .sub{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);margin-bottom:20px}
+  nav a{display:block;font-size:12px;color:var(--muted);text-decoration:none;padding:4px 0 4px 12px;border-left:2px solid transparent}
+  nav a:hover{color:var(--ink);border-left-color:var(--lime)}
+  nav .grp{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin:16px 0 4px 12px}
+  main{padding:50px 0 130px;min-width:0}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.3rem,5.2vw,3.5rem);line-height:1.06;letter-spacing:-.02em;margin:.4rem 0 1rem;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.5rem,3vw,2.05rem);letter-spacing:-.01em;margin:0 0 .2rem;scroll-margin-top:18px}
+  h3{font-size:13.5px;font-weight:700;color:var(--ink);margin:16px 0 6px}
+  section{padding:42px 0;border-bottom:1px solid var(--line)}
+  .sec-no{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;color:var(--lime);margin-bottom:9px}
+  p{color:#D8D3C8;font-size:.99rem;margin:.65rem 0}
+  p.lead{font-size:1.14rem;color:var(--ink)}
+  strong{color:var(--ink);font-weight:600}em{color:var(--lime);font-style:normal}
+  code{font-family:var(--mono);font-size:.83em;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#cfe89a}
+  table{width:100%;border-collapse:collapse;margin:13px 0;font-size:.86rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  td{color:#D2CDC2}td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+  td.n{font-family:var(--mono);color:var(--lime);font-size:12px;white-space:nowrap}
+  .tier{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid var(--line2);color:var(--muted)}
+  .t-mvp{border-color:var(--lime);color:var(--lime)}.t-hard{border-color:var(--info);color:var(--info)}.t-opt{border-color:var(--faint);color:var(--faint)}
+  .callout{border-left:2px solid var(--lime);background:linear-gradient(90deg,rgba(197,255,61,.05),transparent 70%);padding:15px 20px;margin:16px 0;border-radius:0 10px 10px 0}
+  .callout.warn{border-color:var(--warn);background:linear-gradient(90deg,rgba(244,184,96,.06),transparent 70%)}
+  .callout .h{font-weight:700;color:var(--ink);font-size:13px;margin-bottom:3px}
+  .callout p{font-size:.93rem;margin:.25rem 0}
+  ul.clean{list-style:none;margin:7px 0}
+  ul.clean li{position:relative;padding-left:20px;margin:5px 0;font-size:.95rem;color:#D8D3C8}
+  ul.clean li::before{content:"";position:absolute;left:3px;top:9px;width:6px;height:1px;background:var(--lime)}
+  ul.clean li strong{color:var(--ink)}
+  .ascii{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.5;color:#bcd989;white-space:pre;margin:14px 0}
+  .kernel{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:16px 0}
+  .kernel>div{background:var(--bg);padding:18px}
+  .kernel .p{font-family:var(--mono);font-size:11px;color:var(--lime);letter-spacing:.06em;margin-bottom:6px}
+  .kernel h3{margin:0 0 5px}.kernel p{font-size:.88rem;margin:.2rem 0;color:var(--muted)}
+  .kernel .ex{border-color:var(--warn)}.kernel .ex .p{color:var(--warn)}
+  footer{padding:44px 0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  @media(max-width:900px){.shell{grid-template-columns:1fr;gap:0}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:18px 0}nav a{display:inline-block;border-left:0}.kernel{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav>
+    <div class="brand">Football United</div>
+    <div class="sub">Solid Node · Full Architecture</div>
+    <a href="#kernel">00 · Canonical Kernel</a>
+    <a href="#overview">01 · Overview &amp; classes</a>
+    <a href="#baseline">02 · Production baseline</a>
+    <div class="grp">Genesis &amp; Identity</div>
+    <a href="#bootstrap">L1 · Bootstrap</a>
+    <a href="#provisioning">L2 · Provisioning</a>
+    <a href="#keys">L7 · Auth / Keys</a>
+    <div class="grp">State &amp; Schema</div>
+    <a href="#config">L3 · Config mgmt</a>
+    <a href="#storage">L5 · Storage layers</a>
+    <a href="#schema">L17 · Schema registry</a>
+    <a href="#backup">L6 · Backup / recovery</a>
+    <div class="grp">Network &amp; Time</div>
+    <a href="#discovery">L4 · Service discovery</a>
+    <a href="#time">L11 · Time / clock</a>
+    <div class="grp">Trust &amp; Safety</div>
+    <a href="#policy">L8 · Policy engine</a>
+    <a href="#sandbox">L9 · Sandboxing</a>
+    <a href="#abuse">L10 · Rate / abuse</a>
+    <a href="#threat">L24 · Threat model</a>
+    <a href="#legal">L22 · Legal / safety</a>
+    <div class="grp">Extensibility</div>
+    <a href="#plugins">L18 · Plugin system</a>
+    <a href="#ai">L19 · Local AI ops</a>
+    <div class="grp">Operations</div>
+    <a href="#power">L12 · Power</a>
+    <a href="#hw">L13 · Hardware health</a>
+    <a href="#update">L14 · Update pipeline</a>
+    <a href="#obs">L15 · Observability</a>
+    <a href="#admin">L20 · Admin console</a>
+    <div class="grp">Fleet &amp; Quality</div>
+    <a href="#fleet">L21 · Manufacturing</a>
+    <a href="#testing">L16 · Testing</a>
+    <a href="#docs">L23 · Documentation</a>
+    <div class="grp">Closing</div>
+    <a href="#open">14 · Honest open notes</a>
+  </nav>
+  <main>
+
+  <header>
+    <div class="kicker">P2P launch · the complete node specification</div>
+    <h1>The Solid Node,<br />in full.</h1>
+    <p class="lead">Twenty-five operational layers resting on one conceptual kernel. This supersedes the earlier node sketch: it is the complete architecture for a Football United peer that boots itself, proves who it is, governs what it accepts, forgets on purpose, survives a venue with no human, and updates without a cloud.</p>
+    <div class="callout warn">
+      <div class="h">Standing context</div>
+      <p>The Elixir/Phoenix codebase is the <strong>simulator, oracle and conformance suite</strong>. The live runtime is Rust per the baseline (§02). The trust/sync algorithm is the validated v3 mesh model (<code>fu-dossier.html</code> §10–11). Two device classes throughout: <strong>phone clients</strong> (PWA projection) and <strong>solid nodes</strong> (this spec).</p>
+    </div>
+  </header>
+
+  <!-- ============ KERNEL ============ -->
+  <section id="kernel">
+    <div class="sec-no">00 — The Canonical Kernel</div>
+    <h2>Everything reduces to six primitives.</h2>
+    <p>The IrfTek reduction: the system is not a pile of features, it is <strong>Object + Authority + Propagation + Projection + Anchor</strong> — and the piece that was always implicit, now promoted to first-class: <strong>Expiry</strong>. Every layer below is an implementation of one or more of these. If a layer can't be expressed in the kernel, it doesn't belong on the node.</p>
+    <div class="kernel">
+      <div><div class="p">PRIM · 1</div><h3>Object</h3><p>The atomic, immutable, content-addressed unit of state — an event/record. Everything that exists is an Object with a hash.</p></div>
+      <div><div class="p">PRIM · 2</div><h3>Authority</h3><p>Who may assert an Object — Ed25519 signatures, persona/device keys, capability tokens, the witness rule. Trust = verifiable authorship.</p></div>
+      <div><div class="p">PRIM · 3</div><h3>Propagation</h3><p>How Objects move — proximity gossip, subject-directed relay, replication scope. The v3 routing model lives here.</p></div>
+      <div><div class="p">PRIM · 4</div><h3>Projection</h3><p>How Objects fold into a view — the PWA, the rank, the lobby. Read models; never authoritative themselves.</p></div>
+      <div><div class="p">PRIM · 5</div><h3>Anchor</h3><p>What binds an Object to reality — proof-of-proximity (NFC), signed time, the witness median, content hashes. The grounding against forgery.</p></div>
+      <div class="ex"><div class="p">PRIM · 6 — NEW</div><h3>Expiry</h3><p>Every Object knows its own lifetime: TTL, acquaintance lapse, checkpoint compaction, revocation. The system is <em>bounded and forgetful by design</em>, not by accident.</p></div>
+    </div>
+    <div class="callout">
+      <div class="h">Why Expiry is the keystone</div>
+      <p>The v3 result — flat O(network) storage, ~100% delivery — only holds because state expires: TTL eviction, acquaintance decay, checkpoint compaction. The earlier append-only model (v1) drowned precisely because nothing expired (the Scuttlebutt blow-up). Making Expiry a kernel primitive is the formal statement of what made the network actually scale. It is not a cleanup chore; it is load-bearing.</p>
+    </div>
+  </section>
+
+  <section id="overview">
+    <div class="sec-no">01 — Overview &amp; device classes</div>
+    <h2>Phones project; nodes hold.</h2>
+    <table>
+      <thead><tr><th>Class</th><th>What</th><th>Runs</th><th>Mesh role</th></tr></thead>
+      <tbody>
+        <tr><td>Phone client</td><td>Transient, battery-bound player device</td><td>PWA projection · libp2p/WebRTC · local store</td><td>Soft participant: gossip, NFC handshake, play</td></tr>
+        <tr><td>Solid node</td><td>Hardened always-on Linux peer — venue box / super-peer / appliance</td><td>This entire spec</td><td>Stable witness + relay backbone; durable Anchor</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><div class="h">The orphan problem is now answered two ways</div><p>(1) Protocol: the acquaintance→provisional-witness fix is implemented &amp; re-validated — orphan recoverability up to 90.5% @10k. (2) Topology: a venue node is an always-on witness for whoever shows up. Together these cover the gap; the honest residual (~10% at scale) is the tail that never accrues sustained acquaintances.</p></div>
+  </section>
+
+  <section id="baseline">
+    <div class="sec-no">02 — Best production baseline</div>
+    <h2>The committed stack.</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Choice</th><th>Kernel primitive</th></tr></thead>
+      <tbody>
+        <tr><td class="n">Gateway</td><td>Caddy / NGINX</td><td>Projection (serve), Abuse (limits)</td></tr>
+        <tr><td class="n">Supervision</td><td>systemd</td><td>(availability — host ring)</td></tr>
+        <tr><td class="n">Runtime</td><td>Rust</td><td>all six — the kernel executor</td></tr>
+        <tr><td class="n">Memory</td><td>SQLite WAL</td><td>Object (durable), Expiry (checkpoint)</td></tr>
+        <tr><td class="n">Events</td><td>NATS JetStream</td><td>Propagation (local), Expiry (stream TTL)</td></tr>
+        <tr><td class="n">Static</td><td>IPFS</td><td>Object (immutable, content-addressed)</td></tr>
+        <tr><td class="n">Peer spread</td><td>libp2p / WebRTC</td><td>Propagation (wide)</td></tr>
+        <tr><td class="n">Signing</td><td>Ed25519</td><td>Authority + Anchor</td></tr>
+        <tr><td class="n">Sandbox</td><td>WASM</td><td>(safe extensibility)</td></tr>
+        <tr><td class="n">Policy</td><td>OPA / Cedar-style (Rust)</td><td>Authority (authorisation)</td></tr>
+        <tr><td class="n">Observability</td><td>OpenTelemetry / Vector</td><td>(self-perception)</td></tr>
+        <tr><td class="n">Updates</td><td>Mender / RAUC</td><td>(lifecycle)</td></tr>
+        <tr><td class="n">Projection</td><td>HTML / PWA</td><td>Projection</td></tr>
+        <tr><td class="n">Cognition</td><td>Local AI runtime</td><td>(optional — see L19)</td></tr>
+      </tbody>
+    </table>
+    <div class="ascii">  phones ⇄ BLE/NFC/WebRTC ─▶ libp2p ─▶┌──────── Rust runtime (the kernel) ────────┐
+  WireGuard (admin only) ───────────────▶│ Object·Authority·Propagation·Projection · │
+                                         │ Anchor·Expiry  │ NATS JetStream bus       │
+            Caddy ─ TLS / PWA / admin ───┤ OPA policy · WASM sandbox · Ed25519 verify │
+            Vector ◀─ OTel ──────────────┤                                            │
+            SQLite WAL + snapshots ◀─────┘  IPFS (immutable)   Mender/RAUC (A/B)       │
+                       ▲ supervised by systemd · time by signed-NTP · powered w/ UPS  ─┘</div>
+  </section>
+
+  <!-- ============ GENESIS & IDENTITY ============ -->
+  <section id="bootstrap">
+    <div class="sec-no">L1 — Bootstrap</div>
+    <h2>From bare metal to a claimed node.</h2>
+    <ul class="clean">
+      <li><strong>First-node install flow</strong> — flash → boot → self-test → derive node keypair → await admin claim.</li>
+      <li><strong>Genesis seed package</strong> — a signed bundle of default schemas, root trust anchors, kernel config; the node refuses to run without a verified genesis.</li>
+      <li><strong>Default schemas</strong> — the Object/event types the domain needs on day zero (queue, membership, rank event, attestation).</li>
+      <li><strong>First admin / persona claim</strong> — an unclaimed node is inert; the first signed claim binds an operator persona and issues the local trust root.</li>
+      <li><strong>Factory reset</strong> — wipe state &amp; keys back to genesis, leaving hardware identity (L21) intact; an explicit, signed, irreversible action.</li>
+    </ul>
+    <p><em>Kernel:</em> Authority is established here; genesis is the first Anchor.</p>
+  </section>
+
+  <section id="provisioning">
+    <div class="sec-no">L2 — Provisioning</div>
+    <h2>Enrolling devices &amp; personas.</h2>
+    <ul class="clean">
+      <li><strong>Device enrollment</strong> — a device presents hardware identity (L21); the node issues a scoped local certificate.</li>
+      <li><strong>QR / NFC pairing</strong> — out-of-band channel carries the public key + a short-lived enrolment capability; NFC tap = proof-of-proximity, the strongest pairing.</li>
+      <li><strong>Key generation</strong> — keys are generated on-device, never transmitted; only public material + signed CSR-equivalents move.</li>
+      <li><strong>Role assignment</strong> — player / captain / operator / venue-node, expressed as capability tokens (L7), not ambient roles.</li>
+      <li><strong>Local certificate issue</strong> — short-lived, renewable, revocable (L7 revocation lists).</li>
+    </ul>
+  </section>
+
+  <section id="keys">
+    <div class="sec-no">L7 — Auth / Keys</div>
+    <h2>Ed25519 all the way down.</h2>
+    <table>
+      <thead><tr><th>Concept</th><th>Definition</th><th>Kernel</th></tr></thead>
+      <tbody>
+        <tr><td>Device key</td><td>Per-hardware keypair, sealed (TPM where present)</td><td>Authority</td></tr>
+        <tr><td>Persona key</td><td>The human's portable identity; survives device loss via recovery (L6)</td><td>Authority</td></tr>
+        <tr><td>Capability token</td><td>Signed, scoped, expiring grant ("may act as captain of queue X until T")</td><td>Authority + Expiry</td></tr>
+        <tr><td>Signed events</td><td>Every Object carries an Ed25519 signature; unverifiable = dropped, never relayed</td><td>Object + Anchor</td></tr>
+        <tr><td>Revocation lists</td><td>Signed, gossiped tombstones for compromised keys/tokens; bounded &amp; expiring</td><td>Authority + Expiry</td></tr>
+      </tbody>
+    </table>
+    <p><em>This is the self-sovereign identity the launch review flagged as missing — concretely specified.</em></p>
+  </section>
+
+  <!-- ============ STATE & SCHEMA ============ -->
+  <section id="config">
+    <div class="sec-no">L3 — Config management</div>
+    <h2>Versioned, defaulted, reversible.</h2>
+    <ul class="clean">
+      <li><strong>YAML configs</strong> with strict schema validation at load; an invalid config never takes effect.</li>
+      <li><strong>Versioned manifests</strong> — each config is a signed Object; history is the lineage.</li>
+      <li><strong>Schema migration</strong> — forward migrations are explicit, signed, and idempotent.</li>
+      <li><strong>Safe defaults</strong> — every key has a conservative default; a missing key is never fatal.</li>
+      <li><strong>Config rollback</strong> — revert to the last-good signed manifest, mirroring the A/B update story (L14).</li>
+    </ul>
+  </section>
+
+  <section id="storage">
+    <div class="sec-no">L5 — Storage layers</div>
+    <h2>Truth, analytics, immutability — separated.</h2>
+    <table>
+      <thead><tr><th>Store</th><th>Holds</th><th>Tier</th></tr></thead>
+      <tbody>
+        <tr><td>SQLite WAL</td><td><strong>Truth</strong> — the bounded event store + signed checkpoints, crash-safe</td><td><span class="tier t-mvp">MVP</span></td></tr>
+        <tr><td>DuckDB</td><td><strong>Analytics</strong> — read-only OLAP over exported events; never authoritative</td><td><span class="tier t-opt">Optional</span></td></tr>
+        <tr><td>IPFS</td><td><strong>Immutable objects</strong> — app bundle, schemas, large signed assets</td><td><span class="tier t-hard">Hardened</span></td></tr>
+        <tr><td>FS snapshots</td><td>Point-in-time rootfs/state snapshots for disaster restore</td><td><span class="tier t-hard">Hardened</span></td></tr>
+        <tr><td>WAL backups</td><td>Rolling encrypted WAL copies (feeds L6)</td><td><span class="tier t-mvp">MVP</span></td></tr>
+      </tbody>
+    </table>
+    <p><em>Kernel:</em> SQLite/IPFS = Object; checkpoints/snapshots = Expiry made durable; DuckDB = Projection (analytics is a read model).</p>
+  </section>
+
+  <section id="schema">
+    <div class="sec-no">L17 — Schema registry</div>
+    <h2>Objects have governed types.</h2>
+    <ul class="clean">
+      <li><strong>Semantic object types</strong> — every Object declares its type; the registry is the authority on shape.</li>
+      <li><strong>Domain &amp; event schemas</strong> — queue, membership, rank event, attestation, tactics — versioned independently.</li>
+      <li><strong>Version lineage</strong> — schemas are signed Objects; their history is the migration graph.</li>
+      <li><strong>Compatibility rules</strong> — readers accept N and N−1; unknown future schemas are quarantined, not crashed (ties to L24 poisoned-schema).</li>
+    </ul>
+  </section>
+
+  <section id="backup">
+    <div class="sec-no">L6 — Backup / recovery</div>
+    <h2>You can lose the box, not the persona.</h2>
+    <ul class="clean">
+      <li><strong>Local encrypted export</strong> — age-encrypted state + persona key bundle.</li>
+      <li><strong>USB &amp; home-vault backup</strong> — offline media and a trusted home node as cold stores.</li>
+      <li><strong>Persona restore</strong> — re-derive a persona on a new device from the encrypted bundle + recovery secret; rank is re-witnessed by the network, not trusted from the backup alone.</li>
+      <li><strong>Node disaster restore</strong> — rootfs snapshot + WAL replay + genesis re-verify → a venue box rebuilt from cold media.</li>
+    </ul>
+    <div class="callout warn"><div class="h">Honest</div><p>A restored persona's <em>rank</em> must be re-anchored by witnesses (Anchor primitive) — a backup cannot self-assert reputation, or it becomes a forgery vector.</p></div>
+  </section>
+
+  <!-- ============ NETWORK & TIME ============ -->
+  <section id="discovery">
+    <div class="sec-no">L4 — Service discovery</div>
+    <h2>Local-first, no cloud registry.</h2>
+    <ul class="clean">
+      <li><strong>mDNS / Avahi + DNS-SD</strong> — zero-config same-LAN discovery (<code>fu-node-&lt;id&gt;.local</code>).</li>
+      <li><strong>CoreDNS</strong> — tiny on-node resolver for stable internal names, upstream-independent.</li>
+      <li><strong>Semantic node registry</strong> — nodes gossip a signed, expiring self-description (role, schemas, capacity); the registry is itself mesh state, not a server.</li>
+      <li><strong>Node discovery</strong> — mDNS for first contact; libp2p for the wider relay mesh.</li>
+    </ul>
+  </section>
+
+  <section id="time">
+    <div class="sec-no">L11 — Time / clock</div>
+    <h2>Ordering without a global clock.</h2>
+    <ul class="clean">
+      <li><strong>Local NTP</strong> for wall-clock sanity; <strong>monotonic clocks</strong> for intervals (the match clock, TTLs).</li>
+      <li><strong>Signed timestamps</strong> — time assertions are Anchored; an unsigned "when" is untrusted.</li>
+      <li><strong>Drift tolerance</strong> — bounded skew accepted; events outside the window are quarantined (ties to L24 replay).</li>
+      <li><strong>Event ordering rules</strong> — content-addressed causal ordering, not wall-clock ties; Expiry decisions use monotonic time, never a peer's claimed clock.</li>
+    </ul>
+  </section>
+
+  <!-- ============ TRUST & SAFETY ============ -->
+  <section id="policy">
+    <div class="sec-no">L8 — Policy engine</div>
+    <h2>Authorisation is data, not code.</h2>
+    <ul class="clean">
+      <li><strong>OPA / Cedar-style policy</strong> (Rust-native) — "may this signed action, by this capability, on this Object, be accepted?"</li>
+      <li><strong>Action rules</strong> — domain guards as policy: only-captain-edits-tactics, locked-leave-incurs-penalty, sub-position-never-reaches-matchmaking. These move from scattered code to one auditable place.</li>
+      <li><strong>Conflict rules</strong> — deterministic resolution for concurrent Objects (witness median, last-writer-by-causal-order).</li>
+      <li><strong>Safety guardrails</strong> — hard refusals (minor mode, export/delete) the runtime cannot override.</li>
+    </ul>
+    <p><em>Kernel:</em> the policy engine is the executable form of Authority.</p>
+  </section>
+
+  <section id="sandbox">
+    <div class="sec-no">L9 — Sandboxing</div>
+    <h2>Nothing untrusted runs unfenced.</h2>
+    <table>
+      <thead><tr><th>Boundary</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>WASM sandbox</td><td>All plugins/domain modules (L18) — capability-gated, no ambient I/O</td></tr>
+        <tr><td>seccomp</td><td>Syscall filter on the runtime &amp; helpers</td></tr>
+        <tr><td>AppArmor</td><td>Mandatory access profiles per service</td></tr>
+        <tr><td>Containers</td><td>Process/filesystem isolation between subsystems</td></tr>
+      </tbody>
+    </table>
+    <p>Untrusted plugin isolation is the default posture: a plugin gets a typed Object stream and a capability, nothing else.</p>
+  </section>
+
+  <section id="abuse">
+    <div class="sec-no">L10 — Rate limiting / abuse control</div>
+    <h2>Cost &amp; trust, not just throttles.</h2>
+    <ul class="clean">
+      <li><strong>Gateway limits</strong> (Caddy/NGINX) and <strong>NATS limits</strong> on the local bus.</li>
+      <li><strong>Peer scoring</strong> — libp2p gossip scoring; misbehaving peers are down-ranked and shunned.</li>
+      <li><strong>Spam quarantine</strong> — suspect Objects held, not relayed, pending witness corroboration.</li>
+      <li><strong>Proof-of-work (optional)</strong> — a cost on cheap actions when under flood.</li>
+      <li><strong>Trust decay</strong> — reputation/acquaintance lapses without reinforcement (this <em>is</em> the Expiry primitive applied to trust — already in v3).</li>
+    </ul>
+  </section>
+
+  <section id="threat">
+    <div class="sec-no">L24 — Threat model</div>
+    <h2>Name the adversary, then the defence.</h2>
+    <table>
+      <thead><tr><th>Threat</th><th>Defence</th></tr></thead>
+      <tbody>
+        <tr><td>Fake node</td><td>Signed genesis + enrolment; unknown keys carry no Authority</td></tr>
+        <tr><td>Replay attack</td><td>Content-addressing + signed time + drift window (L11)</td></tr>
+        <tr><td>Proximity spoof</td><td>NFC short-range handshake; witness corroboration of co-presence</td></tr>
+        <tr><td>Malicious plugin</td><td>WASM sandbox + capability gating (L9)</td></tr>
+        <tr><td>Stolen wristband/device</td><td>Revocation lists (L7) + persona ≠ device key separation</td></tr>
+        <tr><td>Poisoned schema</td><td>Schema registry compatibility quarantine (L17)</td></tr>
+        <tr><td>Hostile domain flood</td><td>Peer scoring + quarantine + optional PoW + trust decay (L10)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="legal">
+    <div class="sec-no">L22 — Legal / safety</div>
+    <h2>Ownership is local by construction.</h2>
+    <ul class="clean">
+      <li><strong>Local data ownership</strong> — a persona's data lives on their device; there is no central store to subpoena or breach.</li>
+      <li><strong>Consent rules</strong> — proximity sharing is opt-in per encounter tier (stranger/acquaintance/friend), enforced by policy (L8).</li>
+      <li><strong>Child / minor modes</strong> — a hard guardrail class: restricted discovery, no public projection.</li>
+      <li><strong>Public / private domain boundary</strong> — Objects carry a visibility scope; Projection (L4 PWA) must honour it.</li>
+      <li><strong>Export / delete controls</strong> — the persona can export everything (L6) and tombstone their data (an Expiry assertion the network honours).</li>
+    </ul>
+    <div class="callout warn"><div class="h">Honest</div><p>P2P shifts the legal posture from "we hold your data safely" to "you hold your own data" — strong for privacy, but minor-protection, abuse recourse and lawful deletion across a gossip network are genuinely hard and unsolved at the policy layer. Flagged, not closed.</p></div>
+  </section>
+
+  <!-- ============ EXTENSIBILITY ============ -->
+  <section id="plugins">
+    <div class="sec-no">L18 — Plugin system</div>
+    <h2>The domain is a set of signed modules.</h2>
+    <ul class="clean">
+      <li><strong>Domain modules</strong> — matchmaking, ranking, tactics shipped as versioned WASM plugins, not baked into the kernel.</li>
+      <li><strong>Signed plugins</strong> — only plugins with a verified manifest (cosign, §L7) load.</li>
+      <li><strong>Permissioned execution</strong> — each plugin declares the Object types &amp; capabilities it needs; the policy engine grants or refuses.</li>
+      <li><strong>UI projection plugins</strong> — Projection surfaces are pluggable too; the PWA is one projection, not the only possible one.</li>
+    </ul>
+  </section>
+
+  <section id="ai">
+    <div class="sec-no">L19 — Local AI ops</div>
+    <h2>The robot's culture &amp; voice — make it fun.</h2>
+    <p>The job is now defined. Solid nodes are physical robots living at venues — there will be <em>many</em> of them, and they should have <strong>character</strong>. Local AI gives each node a personality and a voice: it greets the regulars, hypes the match, ribs the loser, narrates the lock-in countdown, has opinions about formations. Many robots, many personalities, one shared culture. Fun is a feature, not a side effect.</p>
+    <ul class="clean">
+      <li><strong>Persona registry</strong> — each node carries a signed persona profile (voice, temperament, catchphrases, local lore); personas are versioned Objects, swappable, and gossip a little so a city's robots feel like a crew, not clones.</li>
+      <li><strong>Model registry + quantized models</strong> — small on-device speech/language models, signed, content-addressed, version-pinned; runs offline on appliance-class hardware.</li>
+      <li><strong>Voice I/O</strong> — local wake/greet + TTS; speech never leaves the node (privacy by construction, §L22).</li>
+      <li><strong>Prompt templates &amp; local evals</strong> — personality is templated &amp; versioned; evals gate a persona update before it ships to the fleet (L14).</li>
+      <li><strong>Memory compaction</strong> — an Expiry application: a robot remembers regulars and recent banter within a bounded window, then forgets — it does not hoard a transcript of everyone forever.</li>
+      <li><strong>Fallback rule engine</strong> — every AI path has a deterministic non-AI fallback (canned lines); a model failure makes the robot terse, never broken. The node never <em>depends</em> on cognition to function.</li>
+    </ul>
+    <div class="callout"><div class="h">Guardrails still apply</div><p>The AI is still a fenced WASM-class plugin (L9) under policy (L8): no authority over Objects, capability-gated, bounded memory, deterministic fallback. It shapes <em>experience</em>, never <em>truth</em> — a robot's banter cannot move a rank or confirm a match. Minor-mode (L22) constrains voice/persona accordingly.</p></div>
+  </section>
+
+  <!-- ============ OPERATIONS ============ -->
+  <section id="power">
+    <div class="sec-no">L12 — Power management</div>
+    <h2>Survive the outage; sip when idle.</h2>
+    <ul class="clean">
+      <li><strong>UPS / battery</strong> with state telemetry; brown-out → checkpoint &amp; graceful shutdown before data loss.</li>
+      <li><strong>Low-power modes</strong> &amp; <strong>wake schedules</strong> for venue boxes that only matter on match nights.</li>
+      <li><strong>Radio duty cycling</strong> — BLE/Wi-Fi-Aware scan/advertise on a schedule to balance discovery vs. battery.</li>
+      <li><strong>Graceful shutdown</strong> — systemd stop hooks flush WAL, sign a clean-shutdown marker.</li>
+    </ul>
+  </section>
+
+  <section id="hw">
+    <div class="sec-no">L13 — Hardware health</div>
+    <h2>The body reports.</h2>
+    <p>Temperature · disk wear (SMART) · battery cycles · radio signal quality · antenna status · hardware watchdog. All emitted as OTel signals (L15); thresholds raise events the admin console (L20) surfaces and the policy engine can act on (e.g., shed radio load when thermal).</p>
+  </section>
+
+  <section id="update">
+    <div class="sec-no">L14 — Update pipeline</div>
+    <h2>Signed, A/B, reversible, offline-capable.</h2>
+    <ul class="clean">
+      <li><strong>Signed releases</strong> + <strong>firmware version registry</strong> — every image is a signed Object with lineage.</li>
+      <li><strong>A/B updates + rollback</strong> — atomic slot switch; no health beat → bootloader reverts.</li>
+      <li><strong>Staged rollout</strong> — canary ring over WireGuard; halt on OTel regression.</li>
+      <li><strong>Offline update via USB</strong> — a venue with no uplink updates from signed media; signature, not connectivity, is the gate.</li>
+    </ul>
+    <p>The PWA projection updates separately (IPFS / service-worker), per the two-class rule.</p>
+  </section>
+
+  <section id="obs">
+    <div class="sec-no">L15 — Observability</div>
+    <h2>OpenTelemetry + Vector.</h2>
+    <table>
+      <thead><tr><th>Signal</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td>Health / queue</td><td>liveness, watchdog, queue depth, locked-vs-soft, bail penalties</td></tr>
+        <tr><td>Mesh</td><td>peer count, witness coverage, store size/growth, reconcile p95, relay hops</td></tr>
+        <tr><td>Storage</td><td>WAL size, checkpoint age, snapshot status, content-hash failures</td></tr>
+        <tr><td>System</td><td>temp, disk wear, power state, radio quality</td></tr>
+      </tbody>
+    </table>
+    <p>Vector buffers locally, forwards over WireGuard when reachable; offline nodes back-fill on reconnect. Prometheus optional for pull-based fleets.</p>
+  </section>
+
+  <section id="admin">
+    <div class="sec-no">L20 — Admin console</div>
+    <h2>The whole node, one page.</h2>
+    <p>Local, WireGuard-only, read-mostly; every action a signed operation. Panels: node status · peer status · domain status · keys &amp; capabilities · updates &amp; slot · backups · logs · permissions/policy. This is Projection over operational Objects — the same kernel, a different view.</p>
+  </section>
+
+  <!-- ============ FLEET & QUALITY ============ -->
+  <section id="fleet">
+    <div class="sec-no">L21 — Manufacturing / fleet</div>
+    <h2>Identity is born at the factory.</h2>
+    <ul class="clean">
+      <li><strong>Device serials + hardware identity</strong> — sealed at manufacture (TPM/secure element where present).</li>
+      <li><strong>Secure provisioning</strong> — factory injects only public trust anchors + a unique device key; no shared secrets across the fleet.</li>
+      <li><strong>Factory test + firmware flashing</strong> — automated bring-up test, signed first image.</li>
+      <li><strong>Certification profile</strong> — a node attests its build/profile; the network can require a minimum profile to grant venue-node Authority.</li>
+    </ul>
+  </section>
+
+  <section id="testing">
+    <div class="sec-no">L16 — Testing</div>
+    <h2>Adversarial by default.</h2>
+    <ul class="clean">
+      <li><strong>Simulation harness + fake nodes</strong> — the existing Elixir mesh sims (v1→v3) are the conformance oracle; the Rust runtime must reproduce their invariants.</li>
+      <li><strong>Radio chaos tests</strong> — drop, delay, partition, asymmetric links.</li>
+      <li><strong>Conflict tests</strong> — concurrent Objects, witness disagreement, healed partitions.</li>
+      <li><strong>Offline/online + hostile-peer tests</strong> — every L24 threat has a reproducing test.</li>
+    </ul>
+  </section>
+
+  <section id="docs">
+    <div class="sec-no">L23 — Documentation</div>
+    <h2>Five guides + the model.</h2>
+    <p>Operator guide · developer guide · schema guide · recovery guide · hardware install guide — plus the threat model (L24) and this architecture. The existing doc family (<code>fu-dossier</code> / <code>fu-spec</code> / <code>fu-features</code> / <code>fu-dashboard</code> / <code>fu-network-pitch</code>) is the application/spec corpus; this node spec is the operational corpus. Both trace to the kernel.</p>
+  </section>
+
+  <section id="open">
+    <div class="sec-no">14 — Honest open notes</div>
+    <h2>What's specified vs. what's still hard.</h2>
+    <ul class="clean">
+      <li><strong>This is specification, not running code.</strong> 25 layers defined; the Rust runtime, real radios, and protocol-grade crypto are still the build. The sim proved the <em>model</em>; this proves the <em>plan</em>.</li>
+      <li><strong>Expiry-as-primitive is the real contribution here</strong> — it formalises why v3 scaled. Adopt it as the invariant the Rust runtime is tested against (nothing unbounded, ever).</li>
+      <li><strong>Legal/minor/deletion across a gossip mesh is unsolved</strong> at the policy layer (L22). Strong privacy posture, hard compliance edges. Do not claim closed.</li>
+      <li><strong>Friendless bootstrap — now substantially closed in the model.</strong> The acquaintance→provisional-witness fix is implemented &amp; re-validated in the sim: orphan recoverability <strong>100% @100, 80.7% @1k, 90.5% @10k</strong> (storage/coverage/payload unchanged). Honest residual: ~10% of orphans at scale still never accrue ≥2 sustained acquaintances and remain unrecoverable — venue nodes (§01) cover most of that tail, but it is mitigated, not zero.</li>
+      <li><strong>Local AI now has a defined job</strong> (L19): the robot's persona &amp; voice — fenced, optional, fallback-backed, no authority over truth.</li>
+      <li><strong>Decisions still needed:</strong> phone client (PWA vs native for radio/background), persona recovery UX, and the certification-profile threshold for granting venue-node Authority.</li>
+    </ul>
+    <div class="callout"><div class="h">Bottom line</div><p>The node now has a complete architecture and a kernel that explains <em>why</em> each layer exists. The next real deliverables remain: close the friendless-bootstrap gap in the sim, add true signature/identity semantics to the model so it's a faithful protocol reference, then the Rust runtime against these invariants.</p></div>
+  </section>
+
+  <footer>Football United · Solid Node Full Architecture · 25 layers on a 6-primitive kernel · supersedes the prior node sketch</footer>
+  </main>
+</div>
+</body>
+</html>

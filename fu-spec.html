@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Football United — Functional Specification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#0A0908;--bg2:#14110F;--ink:#F4F0E8;--muted:#8A857C;--faint:#56524B;
+    --line:rgba(244,240,232,.09);--line2:rgba(244,240,232,.16);--lime:#C5FF3D;--danger:#FF6B5A;--warn:#F4B860;
+    --serif:"Instrument Serif",Georgia,serif;--sans:"Schibsted Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:radial-gradient(ellipse 70% 45% at 50% -8%,rgba(197,255,61,.05),transparent 60%),var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+  .shell{display:grid;grid-template-columns:230px 1fr;max-width:1180px;margin:0 auto;gap:46px;padding:0 30px}
+  nav{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:38px 0;border-right:1px solid var(--line)}
+  nav .brand{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--lime)}
+  nav .sub{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:24px}
+  nav a{display:block;font-size:12.5px;color:var(--muted);text-decoration:none;padding:5px 0 5px 12px;border-left:2px solid transparent}
+  nav a:hover{color:var(--ink);border-left-color:var(--lime)}
+  main{padding:54px 0 130px;min-width:0}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.4rem,5.5vw,3.7rem);line-height:1.06;letter-spacing:-.02em;margin:.4rem 0 1rem;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3.2vw,2.2rem);letter-spacing:-.01em;margin:0 0 .2rem;scroll-margin-top:20px}
+  h3{font-size:1rem;font-weight:700;margin:1.6rem 0 .4rem;color:var(--ink)}
+  section{padding:48px 0;border-bottom:1px solid var(--line)}
+  .sec-no{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--lime);margin-bottom:10px}
+  p{color:#D8D3C8;font-size:1.0rem;margin:.7rem 0}
+  p.lead{font-size:1.16rem;color:var(--ink)}
+  strong{color:var(--ink);font-weight:600}
+  em{color:var(--lime);font-style:normal}
+  code{font-family:var(--mono);font-size:.85em;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#cfe89a}
+  .req{list-style:none;margin:.7rem 0;padding:0;counter-reset:r}
+  .req>li{position:relative;padding:10px 0 10px 64px;border-bottom:1px solid var(--line);color:#D8D3C8;font-size:.98rem}
+  .req>li::before{counter-increment:r;content:attr(data-id);position:absolute;left:0;top:10px;font-family:var(--mono);font-size:11px;color:var(--lime);letter-spacing:.04em}
+  .req .must{color:var(--ink);font-weight:700}
+  .req .may{color:var(--warn);font-weight:700}
+  .callout{border-left:2px solid var(--lime);background:linear-gradient(90deg,rgba(197,255,61,.05),transparent 70%);padding:16px 20px;margin:20px 0;border-radius:0 10px 10px 0}
+  .callout.warn{border-color:var(--warn);background:linear-gradient(90deg,rgba(244,184,96,.06),transparent 70%)}
+  .callout p{margin:.3rem 0;font-size:.96rem}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  td{color:#D2CDC2}td:first-child{color:var(--ink);font-weight:600}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  footer{padding:46px 0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  @media(max-width:900px){.shell{grid-template-columns:1fr;gap:0}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:22px 0}nav a{display:inline-block;border-left:0}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav>
+    <div class="brand">Football United</div>
+    <div class="sub">Functional Spec · v2</div>
+    <a href="#scope">1 · Scope &amp; terms</a>
+    <a href="#auth">2 · Identity &amp; auth</a>
+    <a href="#profile">3 · Profile &amp; positions</a>
+    <a href="#queues">4 · Queues &amp; matchmaking</a>
+    <a href="#lock">5 · Lock-in &amp; penalties</a>
+    <a href="#lobby">6 · Lobby &amp; captain</a>
+    <a href="#tactics">7 · Tactics</a>
+    <a href="#match">8 · Live match</a>
+    <a href="#postmatch">9 · Post-match &amp; voting</a>
+    <a href="#ranking">10 · Ranking engine</a>
+    <a href="#social">11 · Friends, groups, chat</a>
+    <a href="#admin">12 · Admin</a>
+    <a href="#nfr">13 · Non-functional</a>
+    <a href="#network">14 · Network (P2P) spec</a>
+    <a href="#oos">15 · Out of scope</a>
+  </nav>
+  <main>
+
+  <header>
+    <div class="kicker">Normative · MUST / SHOULD / MAY · reflects the built behaviour</div>
+    <h1>Functional<br />Specification.</h1>
+    <p class="lead">What Football United does, stated as testable requirements. This is the behavioural contract — the architecture and current state live in <code>fu-dossier.html</code>; this document is the <em>spec</em>. Each clause is numbered for traceability to tests.</p>
+  </header>
+
+  <section id="scope">
+    <div class="sec-no">1 — Scope &amp; terms</div>
+    <h2>What this covers.</h2>
+    <p>FU is matchmaking for amateur/pickup football: discover or be matched to a game on a real pitch, fill exact positions, get balanced teams, play rated, settle results by peer vote, and carry an inspectable rank. "MUST" = required and test-locked; "SHOULD" = expected; "MAY" = optional/configurable.</p>
+    <table>
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Queue</td><td>A scheduled match slot at a field with a format &amp; per-position capacity. State: <code>open → locked → confirmed → completed/cancelled</code>.</td></tr>
+        <tr><td>Soft join</td><td>Membership <code>status:"queued"</code>, not committed ("interested").</td></tr>
+        <tr><td>Lock-in</td><td>A commitment (<code>locked_at</code> set). Leaving afterwards is penalised (§5).</td></tr>
+        <tr><td>Main position</td><td>GK / DEF / MID / FWD — the only vocabulary the matchmaking engine uses.</td></tr>
+        <tr><td>Sub-position</td><td>A display variant of a main (e.g. CB, CDM, ST). Never reaches matchmaking.</td></tr>
+        <tr><td>Witness</td><td>(Network spec) a friend who replicates and vouches for your rank.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="auth">
+    <div class="sec-no">2 — Identity &amp; authentication</div>
+    <h2>Phone OTP, abuse-resistant.</h2>
+    <ol class="req">
+      <li data-id="2.1"><span class="must">MUST</span> authenticate via phone one-time code; a player record is created on first successful verification.</li>
+      <li data-id="2.2"><span class="must">MUST</span> rate-limit code requests to <span class="num">5 per phone per 15 minutes</span>; excess returns a rate-limited error.</li>
+      <li data-id="2.3"><span class="must">MUST</span> cap verification attempts at <span class="num">5</span> per active code; on the cap the code is burned and a new one is required. Consumed codes MUST NOT be replayable.</li>
+      <li data-id="2.4"><span class="must">MUST</span> deliver codes through a pluggable adapter (<code>Fu.SMS.Adapter</code>); the default logs. A real provider MUST be configured before production.</li>
+      <li data-id="2.5"><span class="may">MAY</span> expose an admin login gate; in this build it is a shared password and is explicitly not production auth.</li>
+    </ol>
+  </section>
+
+  <section id="profile">
+    <div class="sec-no">3 — Profile &amp; positions</div>
+    <h2>Identity is display; the engine speaks the main 4.</h2>
+    <ol class="req">
+      <li data-id="3.1"><span class="must">MUST</span> let a player set: display name, an optional bold <strong>nickname</strong> shown above it, <strong>nation</strong> (from a curated list, shown with a flag), and <strong>birthdate</strong> (age is derived, never stored as a number).</li>
+      <li data-id="3.2"><span class="must">MUST</span> let a player set a <strong>default sub-position per main</strong> (Defender/Midfield/Forward; GK has no variant). Each sub MUST belong to its own main; cross-main values are rejected.</li>
+      <li data-id="3.3"><span class="must">MUST</span> derive nothing in matchmaking from a sub-position. Quotas, fill, balance and matching MUST only ever read GK/DEF/MID/FWD. (Test-locked invariant.)</li>
+      <li data-id="3.4"><span class="must">MUST</span> display the chosen sub-position wherever a position is shown to a human (home card, profile, lobby/match/post-match rosters, browse list), falling back to the main label when unset.</li>
+      <li data-id="3.5"><span class="must">MUST</span> let a player compose an avatar (legend → face/hair, kit → colours/pattern, jersey colour, number) with a live preview.</li>
+      <li data-id="3.6"><span class="may">MAY</span> let a player choose a UI theme; the choice persists per device.</li>
+      <li data-id="3.7"><span class="must">MUST</span> let a player declare availability windows used by auto-match.</li>
+    </ol>
+  </section>
+
+  <section id="queues">
+    <div class="sec-no">4 — Queues &amp; matchmaking</div>
+    <h2>Two journeys: ASAP vs organized.</h2>
+    <ol class="req">
+      <li data-id="4.1"><span class="must">MUST</span> provide a <strong>Quick-match</strong> surface that actively searches and surfaces eligible immediate matches ("pops"), soonest kickoff first, each showing distance and average rating so the player can decline. Accepting a pop <strong>MUST</strong> both join and lock-in (§5).</li>
+      <li data-id="4.2"><span class="must">MUST</span> provide a <strong>Browse</strong> surface listing scheduled queues with per-position fill, who is queued and what they play, region/time/format/rated filters, and lock progress.</li>
+      <li data-id="4.3"><span class="must">MUST</span> assign each joiner a main position from their preferences (primary → secondary → fill-mode any open); reject when no slot fits.</li>
+      <li data-id="4.4"><span class="must">MUST</span> let a friend-group queue as an atomic unit — all members placed or none.</li>
+      <li data-id="4.5"><span class="must">MUST</span> rate only <span class="num">8v8 and 7v7</span>; other formats are casual. Formation quotas are doubled across both teams.</li>
+      <li data-id="4.6"><span class="must">MUST</span> open a persistent per-queue chatroom once ≥ the minimum members have joined; non-members may read, members may post.</li>
+      <li data-id="4.7"><span class="may">MAY</span> assume all fields are owned — there is no external booking gate on confirmation.</li>
+    </ol>
+  </section>
+
+  <section id="lock">
+    <div class="sec-no">5 — Lock-in &amp; bail penalties</div>
+    <h2>Commitment, and the cost of breaking it.</h2>
+    <ol class="req">
+      <li data-id="5.1"><span class="must">MUST</span> treat joining as soft ("interested"). A soft member <strong>MUST</strong> be able to leave freely with no penalty.</li>
+      <li data-id="5.2"><span class="must">MUST</span> let a player explicitly <strong>lock in</strong> (a commitment). Accepting a quick-match pop is equivalent to locking in.</li>
+      <li data-id="5.3"><span class="must">MUST</span> confirm a queue the instant every quota slot is filled by <strong>locked</strong> members (fast path) — independent of any timer.</li>
+      <li data-id="5.4"><span class="must">MUST</span>, at the lock deadline, force-lock everyone still merely queued (timer expiry = lock-in), then resolve: confirm / extend once (30 min) / cancel.</li>
+      <li data-id="5.5"><span class="must">MUST</span> allow a locked player to leave ("bail"), but it <strong>MUST</strong> ban them:
+        <table style="margin-top:8px">
+          <thead><tr><th>When they bail</th><th>Ban</th></tr></thead>
+          <tbody>
+            <tr><td>More than 24h before kickoff</td><td class="num">1 day</td></tr>
+            <tr><td>Within 24h of kickoff</td><td class="num">1 week</td></tr>
+          </tbody>
+        </table>
+      </li>
+      <li data-id="5.6"><span class="must">MUST</span> stack the ban onto any existing suspension (never shorten it) and surface the ban end time to the player. The bail action MUST require explicit confirmation.</li>
+      <li data-id="5.7"><span class="must">MUST</span> record a semantic event for both free leaves and penalised bails.</li>
+    </ol>
+    <div class="callout warn"><p><strong>Rationale.</strong> Lock-in makes "match is good to go" meaningful. Bailing is allowed because real life happens, but it is costly and escalates the closer to kickoff — protecting the other 15 people who committed.</p></div>
+  </section>
+
+  <section id="lobby">
+    <div class="sec-no">6 — Lobby &amp; captaincy</div>
+    <h2>Teams, captains, swaps.</h2>
+    <ol class="req">
+      <li data-id="6.1"><span class="must">MUST</span> auto-balance a confirmed queue into Team A / Team B; balancing MUST terminate for every format.</li>
+      <li data-id="6.2"><span class="must">MUST</span> resolve captaincy by a sequenced claim window (keeper priority → top-ranked → open → random fallback) with automatic resolution by a deadline.</li>
+      <li data-id="6.3"><span class="must">MUST</span> support mutual-consent position swaps within a team.</li>
+      <li data-id="6.4"><span class="must">MUST</span> show live lock progress and let an un-locked member lock in, and a locked member bail (§5).</li>
+      <li data-id="6.5"><span class="should">SHOULD</span> provide ephemeral team/match/group chat in the lobby.</li>
+    </ol>
+  </section>
+
+  <section id="tactics">
+    <div class="sec-no">7 — Tactics</div>
+    <h2>Captain manages; the squad previews.</h2>
+    <ol class="req">
+      <li data-id="7.1"><span class="must">MUST</span> let the captain of a team set that team's <strong>formation</strong>, <strong>style</strong>, and a free-text instruction note (≤ 280 chars).</li>
+      <li data-id="7.2"><span class="must">MUST</span> reject any tactics edit by a non-captain, or by a captain editing the other team (<code>{:error,:not_captain}</code>) — enforced in the context, test-locked.</li>
+      <li data-id="7.3"><span class="must">MUST</span> show every other squad member a live, read-only preview plus a position-grouped lineup board.</li>
+      <li data-id="7.4"><span class="should">SHOULD</span> default to a sensible formation/style so a preview always exists.</li>
+    </ol>
+  </section>
+
+  <section id="match">
+    <div class="sec-no">8 — Live match</div>
+    <h2>Synced clock, captain-run.</h2>
+    <ol class="req">
+      <li data-id="8.1"><span class="must">MUST</span> provide an in-play screen with a clock synced across all participants via the match topic.</li>
+      <li data-id="8.2"><span class="must">MUST</span> restrict kickoff, pause, resume and the final whistle to the captain; everyone else sees state read-only.</li>
+      <li data-id="8.3"><span class="must">MUST</span> exclude paused time from elapsed played time.</li>
+      <li data-id="8.4"><span class="must">MUST</span>, on the final whistle, record the score, complete the match, finalize ranks, and route to post-match — idempotently (re-submission never double-applies).</li>
+    </ol>
+  </section>
+
+  <section id="postmatch">
+    <div class="sec-no">9 — Post-match &amp; voting</div>
+    <h2>Soft signals.</h2>
+    <ol class="req">
+      <li data-id="9.1"><span class="must">MUST</span> open a peer-voting window (MVP / best defender / keeper score) for <span class="num">24h</span> after match end.</li>
+      <li data-id="9.2"><span class="must">MUST</span> let a player skip; two consecutive full skips trigger a one-time rank penalty (§10).</li>
+      <li data-id="9.3"><span class="must">MUST</span> weight opponent-cast recognition above own-team recognition.</li>
+    </ol>
+  </section>
+
+  <section id="ranking">
+    <div class="sec-no">10 — Ranking engine</div>
+    <h2>Deterministic, inspectable, append-only.</h2>
+    <ol class="req">
+      <li data-id="10.1"><span class="must">MUST</span> write one append-only rank event per participant per rated match, carrying a breakdown of every weighted component.</li>
+      <li data-id="10.2"><span class="must">MUST</span> be idempotent — re-finalizing a match never moves ranks twice.</li>
+      <li data-id="10.3"><span class="must">MUST</span> never mutate a past event; corrections are append-only amendments (disputes).</li>
+      <li data-id="10.4"><span class="must">MUST</span> clamp rank to <span class="num">[30.0, 100.0]</span>; new players start 50.0.</li>
+      <li data-id="10.5"><span class="must">MUST</span> apply the weight table:</li>
+    </ol>
+    <table>
+      <thead><tr><th>Component</th><th>Weight</th></tr></thead>
+      <tbody>
+        <tr><td>Outcome</td><td class="num">win +1.5 · draw +0.3 · loss −0.8</td></tr>
+        <tr><td>Goal / assist</td><td class="num">+0.6 / +0.4 each</td></tr>
+        <tr><td>Opponent MVP / defender</td><td class="num">+2.0 / +1.6</td></tr>
+        <tr><td>Own-team MVP/defender</td><td class="num">+0.6 flat</td></tr>
+        <tr><td>Opponent keeper score (GK)</td><td class="num">(median−5)×0.3, ±1.5</td></tr>
+        <tr><td>Skip penalty</td><td class="num">−10 (2nd consecutive)</td></tr>
+        <tr><td>No-show</td><td class="num">−15; 2nd/60d → −15 + 14d suspend</td></tr>
+        <tr><td>Decay</td><td class="num">0.3/idle week → 50 after 90d idle</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="social">
+    <div class="sec-no">11 — Friends, groups, chat</div>
+    <h2>The social graph.</h2>
+    <ol class="req">
+      <li data-id="11.1"><span class="must">MUST</span> support friend requests by phone, accept/decline, cancel, and an invite link.</li>
+      <li data-id="11.2"><span class="must">MUST</span> let a player form a friend-group and queue it as a unit (§4.4); only the leader picks the queue.</li>
+      <li data-id="11.3"><span class="must">MUST</span> persist queue chatroom messages so late joiners read back.</li>
+    </ol>
+  </section>
+
+  <section id="admin">
+    <div class="sec-no">12 — Admin</div>
+    <h2>Operator console.</h2>
+    <ol class="req">
+      <li data-id="12.1"><span class="must">MUST</span> gate <code>/admin</code> behind the admin credential.</li>
+      <li data-id="12.2"><span class="must">MUST</span> list players with status (idle / in-queue / in-match), specs and avatars, and allow suspension.</li>
+    </ol>
+  </section>
+
+  <section id="nfr">
+    <div class="sec-no">13 — Non-functional</div>
+    <h2>Quality attributes.</h2>
+    <ol class="req">
+      <li data-id="13.1"><span class="must">MUST</span> keep all participant screens in lock-step via PubSub; the server is authoritative (no optimistic success shown for unconfirmed actions).</li>
+      <li data-id="13.2"><span class="must">MUST</span> keep the rank ledger deterministic and reproducible from events alone.</li>
+      <li data-id="13.3"><span class="must">MUST</span> ship with an automated test suite; every load-bearing invariant (matchmaking-vocabulary, captain-guard, lock/penalty, OTP abuse, rank idempotence) MUST be test-locked.</li>
+      <li data-id="13.4"><span class="should">SHOULD</span> use only GPU-composited motion, gate it on reduced-motion, and reserve the lime accent for moments that land.</li>
+      <li data-id="13.5"><span class="should">SHOULD</span> degrade gracefully offline where the architecture allows (see §14).</li>
+    </ol>
+  </section>
+
+  <section id="network">
+    <div class="sec-no">14 — Network (P2P) specification</div>
+    <h2>The server-less direction (research-grade).</h2>
+    <p>This section specifies the target proximity-trust model. It is validated in deterministic simulation to 10k users; it is <strong>not</strong> field-implemented. It is normative for the intended design, not for the current shipped build.</p>
+    <ol class="req">
+      <li data-id="14.1"><span class="must">MUST</span> distribute state peer-to-peer; a device persistently replicates its friend graph and transiently caches proximity peers on a TTL.</li>
+      <li data-id="14.2"><span class="must">MUST</span> keep per-device storage O(network), not O(history) — updated state with a bounded recent window + checkpoint, not an unbounded log.</li>
+      <li data-id="14.3"><span class="must">MUST</span> derive a player's canonical rank as the median of their <strong>witnesses'</strong> view — never the player's own copy. A lone node MUST NOT be able to forge it; only the whole witnessing group colluding can.</li>
+      <li data-id="14.4"><span class="must">MUST</span> relay a held record toward the subject's witnesses (subject-directed relay) and share instantly with co-present friends; it MUST NOT blind-flood strangers' data.</li>
+      <li data-id="14.5"><span class="should">SHOULD</span> use NFC as the high-trust handshake and BLE/Wi-Fi-Aware for bulk relay; steady-state exchange SHOULD fit an NFC tap.</li>
+      <li data-id="14.6"><span class="may">MAY</span> promote sustained acquaintances to provisional witnesses to solve the friendless-bootstrap gap (open problem).</li>
+    </ol>
+  </section>
+
+  <section id="oos">
+    <div class="sec-no">15 — Out of scope / open</div>
+    <h2>Explicitly not specified yet.</h2>
+    <ol class="req">
+      <li data-id="15.1">Synthesising a brand-new match from solo queuers (current quick-match selects existing eligible queues).</li>
+      <li data-id="15.2">Push/interstitial when a queue confirms while the player is on another screen.</li>
+      <li data-id="15.3">Self-sovereign keypair identity and real BLE/NFC transport (prerequisite for §14 in production).</li>
+      <li data-id="15.4">Real SMS provider and secret-stored admin credential (launch-critical, not yet built).</li>
+      <li data-id="15.5">Format downgrade (e.g. 8v8→7v7) at the lock deadline — current behaviour is confirm / extend-once / cancel.</li>
+    </ol>
+  </section>
+
+  <footer>Football United · Functional Specification · normative · traceable to the test suite</footer>
+  </main>
+</div>
+</body>
+</html>

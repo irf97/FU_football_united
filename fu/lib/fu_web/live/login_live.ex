@@ -19,6 +19,10 @@ defmodule FuWeb.LoginLive do
         # v1: there is no SMS gateway, so surface the code for the demo.
         {:noreply, assign(socket, step: :code, phone: phone, error: nil, dev_code: code)}
 
+      {:error, :rate_limited} ->
+        {:noreply,
+         assign(socket, error: "Too many codes requested. Wait a few minutes and try again.")}
+
       _ ->
         {:noreply, assign(socket, error: "Enter a valid phone number.")}
     end
@@ -29,6 +33,13 @@ defmodule FuWeb.LoginLive do
       {:ok, player} ->
         token = PlayerAuth.login_token(player.id)
         {:noreply, redirect(socket, to: ~p"/session/#{token}")}
+
+      {:error, :locked} ->
+        {:noreply,
+         assign(socket,
+           step: :phone,
+           error: "Too many wrong attempts. Request a new code."
+         )}
 
       {:error, _} ->
         {:noreply, assign(socket, error: "Wrong or expired code.")}

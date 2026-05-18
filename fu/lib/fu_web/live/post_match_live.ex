@@ -251,7 +251,7 @@ defmodule FuWeb.PostMatchLive do
             >
               <span class="text-body">{m.player.display_name}</span>
               <span class="flex items-center gap-2 text-meta">
-                <span class="pos-pill">{m.declared_position}</span>
+                <span class="pos-pill">{Fu.Accounts.sub_label(m.player, m.declared_position)}</span>
                 <span class="text-mono fu-ink-soft">{f1(m.player.rank)}</span>
               </span>
             </button>
@@ -273,7 +273,7 @@ defmodule FuWeb.PostMatchLive do
             >
               <span class="text-body">{m.player.display_name}</span>
               <span class="flex items-center gap-2 text-meta">
-                <span class="pos-pill">{m.declared_position}</span>
+                <span class="pos-pill">{Fu.Accounts.sub_label(m.player, m.declared_position)}</span>
                 <span class="text-mono fu-ink-soft">{f1(m.player.rank)}</span>
               </span>
             </button>

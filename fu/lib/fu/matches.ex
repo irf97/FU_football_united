@@ -148,6 +148,70 @@ defmodule Fu.Matches do
     end
   end
 
+  ## --- In-play clock + captain pause (spec §2.7, AUDIT #12) ---
+
+  @doc """
+  Kicks off the match clock for a confirmed queue (idempotent). Returns
+  `{:error, :not_confirmed}` if the queue hasn't been confirmed, otherwise
+  `{:ok, result}` with `started_at` stamped (never re-stamped).
+  """
+  def kickoff(queue_id) do
+    queue = Queues.get_queue!(queue_id)
+    result = get_or_create_result(queue_id)
+
+    cond do
+      result.started_at -> {:ok, result}
+      queue.state != "confirmed" -> {:error, :not_confirmed}
+      true -> update_result(result, %{started_at: now()})
+    end
+  end
+
+  @doc "Captain pauses the running clock (idempotent while paused)."
+  def pause(queue_id) do
+    result = get_or_create_result(queue_id)
+
+    if result.started_at && is_nil(result.paused_at) && is_nil(result.completed_at) do
+      update_result(result, %{paused_at: now()})
+    else
+      {:ok, result}
+    end
+  end
+
+  @doc "Captain resumes a paused clock, banking the paused span (idempotent)."
+  def resume(queue_id) do
+    result = get_or_create_result(queue_id)
+
+    case result.paused_at do
+      nil ->
+        {:ok, result}
+
+      paused_at ->
+        banked = result.pause_seconds + max(DateTime.diff(now(), paused_at), 0)
+        update_result(result, %{paused_at: nil, pause_seconds: banked})
+    end
+  end
+
+  @doc "Is the match clock currently paused?"
+  def paused?(%MatchResult{paused_at: nil}), do: false
+  def paused?(%MatchResult{}), do: true
+
+  @doc """
+  Seconds of *played* time at `now`: wall time since kickoff minus the banked
+  paused span minus any in-progress pause. `0` before kickoff; never negative.
+  """
+  def elapsed_seconds(%MatchResult{started_at: nil}, _now), do: 0
+
+  def elapsed_seconds(%MatchResult{} = r, %DateTime{} = now) do
+    in_pause = if r.paused_at, do: max(DateTime.diff(now, r.paused_at), 0), else: 0
+    max(DateTime.diff(now, r.started_at) - r.pause_seconds - in_pause, 0)
+  end
+
+  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
+
+  defp update_result(%MatchResult{} = result, attrs) do
+    result |> MatchResult.changeset(attrs) |> Repo.update()
+  end
+
   ## --- Helpers ---
 
   # Team ("A"/"B") the player is on for this queue, or nil if unknown.

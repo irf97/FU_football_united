@@ -9,11 +9,12 @@ missing. "MISSING" = no implementation/surface.
 
 ## Summary
 
-- Features **WIRED: 15 / 17** _(break #1 fixed → 13 & 14 reachable; 15 done
-  earlier; 16 Balance fixed)_
-- Features **PARTIAL: 1 / 17** _(6 — friend-group *queue join* still has no
-  UI caller; 13/14 carry only minor non-blocking caveats)_
-- Features **MISSING: 1 / 17** _(12 — live in-play UI + captain pause)_
+- Features **WIRED: 17 / 17** _(2026-05-17: #6 friend-group queue join wired
+  via HomeLive "Queue this group"; #12 live in-play UI + captain pause built
+  as `/match/:queue_id` MatchLive; #1 OTP hardened — rate-limit + verify cap
+  + pluggable SMS adapter)_
+- Features **PARTIAL: 0 / 17**
+- Features **MISSING: 0 / 17**
 - Integration breaks: **4 identified; #1 (match-lifecycle) and #4
   (Balance loop) RESOLVED; #2/#3 remain (no-show dead code, group-queue UI)**
 - PubSub integrity: **clean** (no dead broadcasts, no dead subscribers)
@@ -33,22 +34,22 @@ isolation; nothing triggers them in the running product.
 
 | # | Feature | Status | Evidence | Gap |
 |---|---|---|---|---|
-| 1 | Phone-OTP login + session | WIRED | `login_live.ex:16,27` → `accounts.ex:16` (`request_otp`) / `:35` (`verify_otp`) → `Repo.insert` + `sms.ex:8`; session via `session_controller.ex` + `player_auth.ex` | `Fu.SMS` is a log stub; **no rate-limit** on `request_otp`; **no attempt cap / lockout** on `verify_otp` (replay *is* blocked via `consumed_at` `accounts.ex:51`). Deploy blockers. |
+| 1 | Phone-OTP login + session | WIRED **(hardened 2026-05-17)** | `login_live.ex` → `accounts.ex` `request_otp` (rate-limited: 5/phone/15min → `{:error, :rate_limited}`) / `verify_otp` (attempt cap 5 → code burned, `{:error, :locked}`); SMS via pluggable `Fu.SMS` adapter (`Fu.SMS.Adapter` behaviour, default `Fu.SMS.LogAdapter`, real provider config-swappable); session via `session_controller.ex` + `player_auth.ex` | Deploy blockers cleared. TDD: `accounts_otp_hardening_test.exs`, `sms_test.exs`. Remaining: ship a real SMS adapter + secret-store the admin password before production. |
 | 2 | Profile setup | WIRED | `profile_live.ex:46` save → `accounts.ex:78` `update_profile` → `Repo.update`; availability `:97/:103`; preview `:32` | — |
 | 3 | Queue browser + filters | WIRED | `browse_live.ex:43/50/59` toggle/time/format → `queues.ex:106` `browse/2` (time/pos/format/distance filters) | — |
 | 4 | Position-fill widget | WIRED | `queues.ex:64` `fill_status/1`, `:82` `needs_position?`; rendered in `browse_live.ex` queue card | — |
 | 5 | Join queue (individual) | WIRED | `browse_live.ex:20` join → `queues.ex:215` `join/3` → `Repo` + `broadcast/2` (`queues.ex:200`) | — |
-| 6 | Join queue (friend group ≤8) | **PARTIAL** | `home_live.ex:58` `Groups.create_group`, `:65` `Groups.add_member` wired; `groups.ex` `queue_as_group` exists | **No LiveView calls `Groups.queue_as_group`** — a group can be formed but never queued into a match from the UI (only `phase2_smoke.exs` exercises it). |
+| 6 | Join queue (friend group ≤8) | **WIRED (2026-05-17)** | `home_live.ex` `group_queues/3` lists fitting queues for the leader → "Queue this group" button → `handle_event("queue-group")` → `Groups.queue_as_group/2` → `Queues.join_group/2`. Non-fitting queues are filtered out. | TDD: `group_queue_test.exs` (fitting queue queues the group; non-fitting shows no button). Only the group leader sees the controls (spec §2.12). |
 | 7 | T-3h lock + partial-fill | WIRED | `application.ex:15` `Fu.Queues.Resolver` supervised → `resolver.ex:21` tick → `queues.ex:359` `due_for_resolution` + `:317` `resolve_partial_fill` → `Repo` + broadcast. Idempotent via `state == "open"` filter (`queues.ex:362`). | No 8v8→7v7 format *downgrade* (spec §2.4 as implemented = confirm/extend-once/cancel only — matches `fu-mvp-spec`; the frontend-plan's downgrade example is not in the canonical spec). |
 | 8 | Lobby rosters + avg rank | WIRED (8v8 only) | `lobby_live.ex:13` mount → `Balance.assign_teams` + `Balance.rosters` (`:46`) | Inherits Integration break #4: `Balance.assign_teams` hangs for non-8v8 → `LobbyLive.mount` hangs for any non-8v8 confirmed queue. |
 | 9 | Sequenced captain claim | WIRED | `lobby.ex:34` `claim_phase` (keeper60→ranked120→free240→random), `:59` `eligible_to_claim?`, `:78` `claim_captain` → `Repo`; `lobby_live.ex:103` handler, `:69` 1s tick → `random_assign` (`lobby.ex:96`) | Lobby-open anchor approximated by `queue.updated_at` (`lobby.ex:45`, documented). `claim_phase/2` takes injectable `now` → testable. |
 | 10 | Position swap (mutual consent) | WIRED | `lobby_live.ex:137` swap-request → PubSub `{:swap_request}` → `:159` swap-accept → `lobby.ex:116` `swap_positions` `Repo.transaction` (same-team guard `:121`) | — |
 | 11 | Lobby chat (3 channels) | WIRED | `lobby_live.ex:10` `@channels ~w(team match group)`, `:122` send → broadcast `{:chat}` → `:85` `handle_info` | Ephemeral (in-assigns + PubSub, not persisted) — per spec §2.5 this is acceptable. |
-| 12 | Live match UI + captain pause | **MISSING** | No `MatchLive`, no `/match*` route (`audit/raw/routes.txt`), no "pause" handler anywhere (`audit/raw/handle-events.txt`) | Entire surface absent. This is also where match-score entry would live (see Integration break #1). |
+| 12 | Live match UI + captain pause | **WIRED (2026-05-17)** | `/match/:queue_id` → `MatchLive`: synced clock from `MatchResult` (`started_at`/`paused_at`/`pause_seconds`), `Matches.kickoff`/`pause`/`resume`/`elapsed_seconds`; captain-only controls + final-whistle `submit_result` → `/postmatch`; PubSub `match:<id>` keeps all screens in lock-step. Reached from `LobbyLive` "Enter live match →" when confirmed. | TDD: `matches_clock_test.exs` (kickoff/pause/resume/elapsed math), `match_live_test.exs` (captain controls, non-captain read-only, final whistle → postmatch). |
 | 13 | Post-match voting (skip, penalty) | WIRED _(PARTIAL → fixed via break #1)_ | Voting handlers + tally as before; **now reachable**: captain `LobbyLive` "Final score" → `Matches.submit_result/3` → `complete_match` sets `votes_close_at` → `voting_open?` true → `post_match_live` voting runs. | Minor: 3 categories (`mvp/defender/keeper`) with own/opp via a flag vs spec's nominal "4" — modelling choice, not a break. |
 | 14 | Rank system (Ranking + Decay) | WIRED _(PARTIAL → fixed via break #1)_ | `finalize_match` now has a real production caller: `LobbyLive submit-result → Matches.submit_result/3 → Ranking.finalize_match` (TDD: `matches_submit_test.exs`, `lobby_submit_test.exs`). Deterministic/idempotent/transactional as before; `DecayWorker` WIRED. | Remaining minor: `ranking.ex:246` `record_no_show` still has zero callers (dead); `post_match_live.ex` dispute handler still swallows errors via try/rescue. Neither blocks the rank loop. |
 | 15 | Friends list + invite + requests | WIRED _(PARTIAL → **completed**)_ | `home_live.ex` add-friend form → `Friends.request_by_phone/2`; accept-friend & decline-friend → `accept_friend`/`decline_friend`; incoming/outgoing/list/invite all rendered. `Friends` context extended (`request_by_phone`, `decline_friend`, `pending_outgoing`). | Was: no send-request UI. Now full add/invite/accept/decline/cancel, 5 green DB tests (`test/fu/friends_test.exs`). |
-| 16 | Multi-format (5v5–11v11, rated 8v8) | WIRED _(PARTIAL in P2 → **fixed**)_ | `positions.ex` formats; `queues.ex:20`; `ranking.ex:136` rated branch; `balance.ex` `feasibility_swaps/4` now terminates all formats (suite green incl. 7v7) | Was a non-8v8 `Balance.assign_teams` infinite-loop; fixed (strict-progress + fuel cap, Irfan-approved). Integration break #4 RESOLVED. |
+| 16 | Multi-format (5v5–11v11, rated **8v8 + 7v7**) | WIRED _(PARTIAL in P2 → **fixed**; rated set updated 2026-05-17)_ | `positions.ex` `rated?/1` now `format in ~w(8v8 7v7)` (user decision); `queues.ex:23` forces `rated` from it; `ranking.ex:136` rated branch unchanged (honors the flag); `balance.ex` `feasibility_swaps/4` terminates all formats | TDD: `positions_test.exs`, `ranking_test.exs` ("7v7 IS rated"). Non-8v8 infinite-loop fixed earlier (strict-progress + fuel cap). No automatic 8v8→7v7 *downgrade* path (canonical spec §2.4 = confirm/extend/cancel; not requested). |
 | 17 | Admin surface (password-gated) | WIRED | `login_live.ex:38` show-admin / `:41` admin-login (pw check) → `Admin.ensure_admin_player` → token; `/admin` route → `admin_live.ex` (`:26` filter, `:29` toggle-suspend → `Admin.toggle_suspend`) | Shared hardcoded password in source (`login_live.ex`) — acceptable demo gate, not real auth (already flagged in `STACK.md`). |
 
 ## PubSub integrity

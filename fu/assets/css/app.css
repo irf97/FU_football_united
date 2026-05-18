@@ -47,6 +47,108 @@
   --noise: 0;
 }
 
+/* Midnight — deep indigo canvas, lime soul preserved. */
+@plugin "../vendor/daisyui-theme" {
+  name: "midnight";
+  color-scheme: "dark";
+  --color-base-100: #15182B;
+  --color-base-200: #0F1120;
+  --color-base-300: #080912;
+  --color-base-content: #E6E8F4;
+  --color-primary: #C5FF3D;
+  --color-primary-content: #080912;
+  --color-secondary: #5A5F7A;
+  --color-secondary-content: #E6E8F4;
+  --color-accent: #C5FF3D;
+  --color-accent-content: #080912;
+  --color-neutral: #242846;
+  --color-neutral-content: #E6E8F4;
+  --color-info: #6BAEFF;
+  --color-info-content: #04121f;
+  --color-success: #C5FF3D;
+  --color-success-content: #080912;
+  --color-warning: #F4B860;
+  --color-warning-content: #1a1205;
+  --color-error: #FF6B5A;
+  --color-error-content: #1A0A08;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Pitch — floodlit grass; accent lifts a touch off the green. */
+@plugin "../vendor/daisyui-theme" {
+  name: "pitch";
+  color-scheme: "dark";
+  --color-base-100: #123524;
+  --color-base-200: #0C2519;
+  --color-base-300: #07160F;
+  --color-base-content: #EAF5E6;
+  --color-primary: #D7FF6B;
+  --color-primary-content: #07160F;
+  --color-secondary: #5C7A60;
+  --color-secondary-content: #EAF5E6;
+  --color-accent: #D7FF6B;
+  --color-accent-content: #07160F;
+  --color-neutral: #1E4631;
+  --color-neutral-content: #EAF5E6;
+  --color-info: #6BAEFF;
+  --color-info-content: #04121f;
+  --color-success: #D7FF6B;
+  --color-success-content: #07160F;
+  --color-warning: #F4B860;
+  --color-warning-content: #1a1205;
+  --color-error: #FF6B5A;
+  --color-error-content: #1A0A08;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Daylight — warm paper; accent darkens to a readable grass lime. */
+@plugin "../vendor/daisyui-theme" {
+  name: "light";
+  color-scheme: "light";
+  --color-base-100: #FFFFFF;
+  --color-base-200: #EFEADD;
+  --color-base-300: #F6F1E6;
+  --color-base-content: #1A1715;
+  --color-primary: #5C8A00;
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #8A847A;
+  --color-secondary-content: #1A1715;
+  --color-accent: #5C8A00;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #D8D1C2;
+  --color-neutral-content: #1A1715;
+  --color-info: #2F6FB0;
+  --color-info-content: #FFFFFF;
+  --color-success: #5C8A00;
+  --color-success-content: #FFFFFF;
+  --color-warning: #B5781A;
+  --color-warning-content: #FFFFFF;
+  --color-error: #C8412F;
+  --color-error-content: #FFFFFF;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
@@ -78,6 +180,51 @@
   --dur-1: 90ms;    /* press / micro */
   --dur-2: 180ms;   /* hover / state */
   --dur-3: 280ms;   /* entrance / view */
+}
+
+/* Per-theme design tokens. :root above stays the Dark default (also used by
+   "system"/no data-theme). Each theme keeps the lime soul; only the canvas,
+   ink and lines move. */
+[data-theme="midnight"] {
+  --fu-bg: #080912;
+  --fu-bg-2: #0F1120;
+  --fu-bg-elevated: #15182B;
+  --fu-line: rgba(230, 232, 244, 0.09);
+  --fu-line-strong: rgba(230, 232, 244, 0.18);
+  --fu-text: #E6E8F4;
+  --fu-text-muted: #7A7F9C;
+  --fu-text-faint: #444963;
+  --fu-accent: #C5FF3D;
+  --fu-danger: #FF6B5A;
+  --fu-warning: #F4B860;
+}
+
+[data-theme="pitch"] {
+  --fu-bg: #07160F;
+  --fu-bg-2: #0C2519;
+  --fu-bg-elevated: #123524;
+  --fu-line: rgba(234, 245, 230, 0.10);
+  --fu-line-strong: rgba(234, 245, 230, 0.20);
+  --fu-text: #EAF5E6;
+  --fu-text-muted: #7C9A80;
+  --fu-text-faint: #45624C;
+  --fu-accent: #D7FF6B;
+  --fu-danger: #FF6B5A;
+  --fu-warning: #F4B860;
+}
+
+[data-theme="light"] {
+  --fu-bg: #F6F1E6;
+  --fu-bg-2: #EFEADD;
+  --fu-bg-elevated: #FFFFFF;
+  --fu-line: rgba(26, 23, 21, 0.12);
+  --fu-line-strong: rgba(26, 23, 21, 0.24);
+  --fu-text: #1A1715;
+  --fu-text-muted: #6E675C;
+  --fu-text-faint: #A8A192;
+  --fu-accent: #5C8A00;
+  --fu-danger: #C8412F;
+  --fu-warning: #B5781A;
 }
 
 /* Native page-to-page crossfade for LiveView navigation — browser-driven,
@@ -152,7 +299,13 @@ html, body {
   border: 1px solid var(--fu-line);
   color: var(--fu-text-muted);
 }
-.pos-pill.full { border-color: var(--fu-line-strong); color: var(--fu-text-faint); }
+/* Selected pill — the lime "moment that lands", same as a W form-cell. */
+.pos-pill.full {
+  background: var(--fu-accent);
+  border-color: var(--fu-accent);
+  color: var(--fu-bg);
+  font-weight: 700;
+}
 .pos-pill.needs { border-color: var(--fu-warning); color: var(--fu-warning); }
 
 /* Rated 8v8 badge — a moment that lands → lime. Casual → quiet. */

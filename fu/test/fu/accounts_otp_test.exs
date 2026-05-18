@@ -44,12 +44,11 @@ defmodule Fu.AccountsOtpTest do
     assert p1.id == p2.id
   end
 
-  @tag :documents_gap
-  test "AUDIT GAP: request_otp has no rate limit (see audit/test-findings.md)" do
-    # Documents shipped behaviour, not desired behaviour: unbounded OTP
-    # requests all succeed (SMS-bomb / DB-fill vector). Flagged, not fixed.
-    for _ <- 1..25, do: assert({:ok, _} = Accounts.request_otp(@phone))
+  test "AUDIT #1 FIXED: request_otp is rate-limited (no SMS-bomb / DB-fill)" do
+    results = for _ <- 1..25, do: Accounts.request_otp(@phone)
+    assert {:error, :rate_limited} in results
+
     count = Repo.aggregate(from(o in OtpCode, where: o.phone == ^@phone), :count, :id)
-    assert count >= 25
+    assert count < 25, "rate limiter must cap stored codes well under the request count"
   end
 end

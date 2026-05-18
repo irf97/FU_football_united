@@ -24,11 +24,18 @@ defmodule FuWeb.QueueChatLive do
   defp load(socket) do
     qid = socket.assigns.queue.id
     player = socket.assigns.current_player
+    queue = Queues.get_queue!(qid)
+
+    queued =
+      queue.memberships
+      |> Enum.filter(&(&1.status == "queued"))
+      |> Enum.sort_by(& &1.id)
 
     assign(socket,
+      queue: queue,
       messages: QueueChat.list_messages(qid),
-      roster: QueueChat.members(qid),
-      members: QueueChat.member_count(qid),
+      queued: queued,
+      members: length(queued),
       open?: QueueChat.available?(qid),
       can_post?: QueueChat.member?(qid, player.id)
     )
@@ -88,43 +95,62 @@ defmodule FuWeb.QueueChatLive do
           </div>
         </div>
 
-        <!-- Participant roster (everyone in the queue) -->
-        <div class="fu-divider mt-3">In the queue</div>
-        <div class="flex gap-3 overflow-x-auto pb-3 border-b border-[var(--fu-line)]">
-          <div :for={pl <- @roster} class="flex flex-col items-center gap-1 w-14 shrink-0">
-            <div class="size-12 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden">
-              <Avatars.avatar player={pl} size={44} />
+        <!-- Body: the roster hugs the left, top→down, until the composer -->
+        <div class="flex flex-1 min-h-0 mt-3 gap-3">
+          <aside class="w-32 sm:w-40 shrink-0 overflow-y-auto border-r border-[var(--fu-line)] pr-2">
+            <div class="fu-divider">In queue</div>
+            <div class="divide-y divide-[var(--fu-line)]">
+              <div
+                :for={m <- @queued}
+                class={[
+                  "flex items-center gap-2 py-2",
+                  m.player_id == @current_player.id && "text-primary"
+                ]}
+              >
+                <div class="size-7 rounded-full bg-base-200 border border-neutral grid place-items-center overflow-hidden shrink-0">
+                  <Avatars.avatar player={m.player} size={26} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs truncate">
+                    {m.player.display_name |> String.split() |> hd()}
+                  </div>
+                  <div class="text-[10px] font-mono fu-ink-soft">
+                    {Fu.Accounts.sub_label(m.player, m.declared_position)}
+                  </div>
+                </div>
+              </div>
             </div>
-            <span class={[
-              "text-[10px] truncate w-full text-center",
-              pl.id == @current_player.id && "text-primary",
-              pl.id != @current_player.id && "fu-ink-soft"
-            ]}>
-              {pl.display_name |> String.split() |> hd()}
-            </span>
+          </aside>
+
+          <div class="flex-1 min-w-0 flex flex-col">
+            <%= if @open? do %>
+              <div
+                id="chat-log"
+                phx-hook="ChatScroll"
+                class="flex-1 overflow-y-auto py-4 space-y-1 pr-1"
+              >
+                <div :if={@messages == []} class="text-center fu-serif fu-ink-soft text-meta py-8">
+                  No messages yet — say hi 👋
+                </div>
+                <.bubble
+                  :for={m <- @messages}
+                  mine={m.player_id == @current_player.id}
+                  author={m.player}
+                  body={m.body}
+                  at={m.inserted_at}
+                />
+              </div>
+            <% else %>
+              <div class="flex-1 grid place-items-center text-center fu-serif fu-ink-soft text-meta px-6">
+                Chatroom opens once {QueueChat.min_members()}+ players have joined.<br />
+                Currently {@members}.
+              </div>
+            <% end %>
           </div>
         </div>
 
+        <!-- Composer: full width; the roster above stops at this input box -->
         <%= if @open? do %>
-          <!-- Scrollback -->
-          <div
-            id="chat-log"
-            phx-hook="ChatScroll"
-            class="flex-1 overflow-y-auto py-4 space-y-1 pr-1"
-          >
-            <div :if={@messages == []} class="text-center fu-serif fu-ink-soft text-meta py-8">
-              No messages yet — say hi 👋
-            </div>
-            <.bubble
-              :for={m <- @messages}
-              mine={m.player_id == @current_player.id}
-              author={m.player}
-              body={m.body}
-              at={m.inserted_at}
-            />
-          </div>
-
-          <!-- Composer -->
           <%= if @can_post? do %>
             <.form for={%{}} phx-submit="send" class="flex gap-2 pt-2 border-t border-[var(--fu-line)]">
               <input
@@ -145,11 +171,6 @@ defmodule FuWeb.QueueChatLive do
               <button phx-click="join" class="btn btn-sm btn-primary">Join queue</button>
             </div>
           <% end %>
-        <% else %>
-          <div class="flex-1 grid place-items-center text-center fu-serif fu-ink-soft text-meta px-6">
-            Chatroom opens once {QueueChat.min_members()}+ players have joined.<br />
-            Currently {@members}.
-          </div>
         <% end %>
       </div>
     </Layouts.app>

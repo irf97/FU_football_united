@@ -97,9 +97,44 @@ defmodule FuWeb.LobbyLive do
 
   def handle_info(:swap_done, socket), do: {:noreply, reload(socket)}
 
-  ## --- captain ---
+  ## --- lock-in (commitment) ---
 
   @impl true
+  def handle_event("lock-in", _, socket) do
+    case Fu.Queues.lock_in(socket.assigns.queue, socket.assigns.current_player) do
+      {:ok, _} ->
+        # lock_in already broadcasts {:queue_changed, id} on the queue topic
+        # the lobby is subscribed to — teammates' counts refresh from that.
+        {:noreply, socket |> put_flash(:info, "Locked in — you're committed.") |> reload()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Couldn't lock in.")}
+    end
+  end
+
+  def handle_event("bail", _, socket) do
+    case Fu.Queues.leave(socket.assigns.queue, socket.assigns.current_player) do
+      {:penalised, tier, until} ->
+        label = if tier == :week, do: "1-week", else: "1-day"
+
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           "You bailed after locking in — #{label} ban until #{Calendar.strftime(until, "%a %d %b %H:%M")}."
+         )
+         |> push_navigate(to: ~p"/browse")}
+
+      :ok ->
+        {:noreply, socket |> put_flash(:info, "Left the queue.") |> push_navigate(to: ~p"/browse")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Couldn't leave.")}
+    end
+  end
+
+  ## --- captain ---
+
   def handle_event("claim-captain", _, socket) do
     case Lobby.claim_captain(socket.assigns.queue, socket.assigns.current_player) do
       {:ok, _m} ->
@@ -260,9 +295,43 @@ defmodule FuWeb.LobbyLive do
         </div>
         <div :if={@my_membership} class="text-meta fu-ink-soft">
           You're on <span class="text-primary">Team {@my_membership.team}</span>
-          at <span class="text-mono">{@my_membership.declared_position}</span>.
+          at <span class="text-mono">{Fu.Accounts.sub_label(@my_membership.player, @my_membership.declared_position)}</span>.
+        </div>
+        <div class="flex items-center justify-between gap-3 pt-1">
+          <span class="text-caption fu-ink-soft">
+            🔒 {Fu.Queues.locked_count(@queue)} locked in
+          </span>
+          <div :if={@my_membership && @my_membership.locked_at} class="flex items-center gap-3">
+            <span class="text-meta font-bold text-[var(--fu-accent)]">✓ You're locked in</span>
+            <button
+              phx-click="bail"
+              data-confirm="Bail after locking in? You'll be banned — 1 day if it's >24h before kickoff, 1 week if within 24h."
+              class="btn btn-xs btn-ghost text-[var(--fu-danger)]"
+              title="Leaving now bans you"
+            >
+              Bail
+            </button>
+          </div>
+          <button
+            :if={@my_membership && is_nil(@my_membership.locked_at)}
+            phx-click="lock-in"
+            class="btn btn-primary btn-sm min-h-[44px]"
+            title="Commit — leaving after this bans you"
+          >
+            🔒 Lock in
+          </button>
         </div>
       </div>
+
+      <!-- Confirmed → the match is live: everyone moves to the in-play
+           surface (synced clock + captain pause, spec §2.7). -->
+      <.link
+        :if={@queue.state == "confirmed"}
+        navigate={~p"/match/#{@queue.id}"}
+        class="btn btn-primary w-full min-h-[44px]"
+      >
+        Enter live match →
+      </.link>
 
       <!-- Captain-only: record the final score (AUDIT #1 — the in-app
            match-completion trigger). spec §2.5: the captain issues the
@@ -315,7 +384,7 @@ defmodule FuWeb.LobbyLive do
         <div class="border border-[var(--fu-line)] rounded-lg px-4 py-3 text-body">
           <span class="font-medium">{@incoming_swap.player.display_name}</span>
           <span class="text-meta fu-ink-soft">
-            ({@incoming_swap.declared_position})
+            ({Fu.Accounts.sub_label(@incoming_swap.player, @incoming_swap.declared_position)})
           </span>
           wants to swap positions with you.
         </div>
@@ -480,7 +549,7 @@ defmodule FuWeb.LobbyLive do
             </span>
           </div>
         </div>
-        <span class="text-meta fu-ink-soft shrink-0">{m.declared_position}</span>
+        <span class="text-meta fu-ink-soft shrink-0">{Fu.Accounts.sub_label(m.player, m.declared_position)}</span>
         <span class={[
           "text-mono shrink-0",
           m.player.rank > 75 && "text-primary"

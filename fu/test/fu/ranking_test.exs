@@ -46,8 +46,8 @@ defmodule Fu.RankingTest do
       end
     end
 
-    test "unrated format earns zero rated points (spec §2.11 — only 8v8 rated)" do
-      q = queue_fixture(format: "7v7", fill: :all)
+    test "unrated format earns zero rated points (5v5 — not in rated set)" do
+      q = queue_fixture(format: "5v5", fill: :all)
       {:ok, _} = Balance.assign_teams(q.id)
       Matches.record_score(q.id, 3, 0)
       Matches.complete_match(q.id)
@@ -58,6 +58,17 @@ defmodule Fu.RankingTest do
         assert e.breakdown["goals"] == 0.0
         assert e.delta == 0.0
       end
+    end
+
+    test "7v7 IS rated — earns non-zero outcome points (user decision 2026-05-17)" do
+      q = queue_fixture(format: "7v7", fill: :all)
+      {:ok, _} = Balance.assign_teams(q.id)
+      Matches.record_score(q.id, 3, 0)
+      Matches.complete_match(q.id)
+      {:ok, events} = Ranking.finalize_match(q.id)
+
+      assert Enum.any?(events, &(&1.breakdown["outcome"] != 0.0)),
+             "a rated 7v7 must move ranks via the outcome component"
     end
   end
 

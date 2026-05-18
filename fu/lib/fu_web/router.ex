@@ -40,9 +40,11 @@ defmodule FuWeb.Router do
     live_session :authenticated,
       on_mount: [{FuWeb.PlayerAuth, :require_authenticated}] do
       live "/", HomeLive, :index
+      live "/queue", MatchmakingLive, :index
       live "/browse", BrowseLive, :index
       live "/queue/:queue_id/chat", QueueChatLive, :index
       live "/lobby/:queue_id", LobbyLive, :index
+      live "/match/:queue_id", MatchLive, :index
       live "/postmatch/:queue_id", PostMatchLive, :index
       live "/profile", ProfileLive, :index
       live "/admin", AdminLive, :index

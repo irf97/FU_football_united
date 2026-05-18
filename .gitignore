@@ -12,3 +12,6 @@ fu/priv/static/assets/
 # Local dev
 *.log
 .DS_Store
+
+# Claude local settings
+.claude/settings.local.json

@@ -51,6 +51,23 @@ defmodule Fu.Matching do
     |> Enum.take(limit)
   end
 
+  @doc """
+  Auto-queue "pops" — every queue the player can *accept right now*: open or
+  in-lock, not already joined, with a slot their position prefs (or fill
+  mode) can take, region-filtered. Best-first by the same scorer as
+  `suggest/2`. Unlike `suggest/2` this ignores availability windows: the
+  player explicitly pressed QUEUE, so we actively hunt anything that fits.
+  """
+  def pops(player) do
+    joined = Fu.Queues.joined_queue_ids(player)
+
+    player
+    |> Fu.Queues.browse()
+    |> Enum.reject(&MapSet.member?(joined, &1.queue.id))
+    |> Enum.filter(&Fu.Queues.pick_position(&1.queue, player))
+    |> Enum.sort_by(&score(&1, player), :desc)
+  end
+
   # Total card score for `player` (spec §2.6). Higher is a better suggestion.
   defp score(card, player) do
     needs_primary(card) +

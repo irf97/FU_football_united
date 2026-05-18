@@ -266,25 +266,104 @@ defmodule Fu.Queues do
     end
   end
 
-  @doc "Leaves a queue. Allowed only in the open period (spec §2.4)."
+  @doc """
+  Leaves a queue.
+
+    * **Soft** (not locked) → free: `:ok`, no penalty.
+    * **Locked** (committed) → you may still bail, but it bans you:
+      `{:penalised, :day, until}` if more than 24h before kickoff,
+      `{:penalised, :week, until}` if within 24h. The ban stacks onto any
+      existing suspension.
+
+  `{:error, :not_member}` if not queued.
+  """
   def leave(%Queue{} = queue, player) do
-    cond do
-      locked?(queue) ->
-        {:error, :locked}
+    case Repo.get_by(QueueMembership, queue_id: queue.id, player_id: player.id, status: "queued") do
+      nil ->
+        {:error, :not_member}
 
-      true ->
-        case Repo.get_by(QueueMembership, queue_id: queue.id, player_id: player.id, status: "queued") do
-          nil ->
-            {:error, :not_member}
+      %QueueMembership{locked_at: nil} = m ->
+        {:ok, _} = m |> QueueMembership.changeset(%{status: "left"}) |> Repo.update()
+        broadcast(queue.id, :queue_changed)
+        Fu.Events.record("player.leave_queue", %{player_id: player.id, queue_id: queue.id})
+        :ok
 
-          m ->
-            {:ok, _} = m |> QueueMembership.changeset(%{status: "left"}) |> Repo.update()
-            broadcast(queue.id, :queue_changed)
-            Fu.Events.record("player.leave_queue", %{player_id: player.id, queue_id: queue.id})
-            :ok
-        end
+      m ->
+        {:ok, _} = m |> QueueMembership.changeset(%{status: "left"}) |> Repo.update()
+
+        {tier, days} =
+          if seconds_to_kickoff(queue) <= 24 * 3600, do: {:week, 7}, else: {:day, 1}
+
+        until = Fu.Accounts.suspend_for(Fu.Accounts.get_player!(player.id), days)
+        broadcast(queue.id, :queue_changed)
+
+        Fu.Events.record("player.bail_locked", %{
+          player_id: player.id,
+          queue_id: queue.id,
+          penalty: tier
+        })
+
+        {:penalised, tier, until}
     end
   end
+
+  ## --- Soft join → hard lock (commitment) ---
+
+  @doc """
+  Locks `player` into `queue` — a commitment. Idempotent. The instant every
+  quota slot is filled by *locked* members the queue confirms itself (fast
+  path, no Resolver tick needed). `{:error, :not_member}` if not queued.
+  """
+  def lock_in(%Queue{} = queue, player) do
+    case Repo.get_by(QueueMembership, queue_id: queue.id, player_id: player.id, status: "queued") do
+      nil ->
+        {:error, :not_member}
+
+      %QueueMembership{locked_at: t} = m when not is_nil(t) ->
+        {:ok, m}
+
+      m ->
+        {:ok, m2} = m |> QueueMembership.changeset(%{locked_at: now()}) |> Repo.update()
+        broadcast(queue.id, :queue_changed)
+        Fu.Events.record("player.lock_in", %{player_id: player.id, queue_id: queue.id})
+        maybe_confirm(queue.id)
+        {:ok, m2}
+    end
+  end
+
+  @doc "Force-locks every still-queued member (lock deadline / timer expiry)."
+  def lock_all_queued(%Queue{} = queue) do
+    now = now()
+
+    from(m in QueueMembership,
+      where: m.queue_id == ^queue.id and m.status == "queued" and is_nil(m.locked_at)
+    )
+    |> Repo.update_all(set: [locked_at: now, updated_at: now])
+
+    get_queue!(queue.id)
+  end
+
+  # Confirm the moment every quota slot is satisfied by LOCKED members.
+  defp maybe_confirm(queue_id) do
+    q = get_queue!(queue_id)
+
+    if q.state in ["open", "locked"] and all_quotas_locked?(q) do
+      set_state(q, "confirmed")
+    else
+      {:noop, q}
+    end
+  end
+
+  defp all_quotas_locked?(%Queue{} = q) do
+    counts =
+      q.memberships
+      |> Enum.filter(&(&1.status == "queued" and not is_nil(&1.locked_at)))
+      |> Enum.frequencies_by(& &1.declared_position)
+
+    Enum.all?(q.slots, fn s -> Map.get(counts, s.position, 0) >= s.capacity end)
+  end
+
+  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
 
   @doc """
   Atomic group join (spec §2.12): all members fit their positions or none
@@ -334,6 +413,9 @@ defmodule Fu.Queues do
     * keeper missing or `> 2` slots empty → `:cancelled`
   """
   def resolve_partial_fill(%Queue{} = queue) do
+    # Lock deadline reached → everyone still merely queued is force-locked
+    # in (timer expiry == commitment), then we resolve on that.
+    queue = lock_all_queued(queue)
     fs = fill_status(queue)
     empty = fn pos -> max(fs[pos].capacity - fs[pos].filled, 0) end
 
@@ -373,6 +455,23 @@ defmodule Fu.Queues do
     )
     |> Repo.all()
     |> MapSet.new()
+  end
+
+  @doc "Set of queue ids the player is locked in (committed)."
+  def locked_queue_ids(player) do
+    from(m in QueueMembership,
+      where:
+        m.player_id == ^player.id and m.status == "queued" and not is_nil(m.locked_at),
+      select: m.queue_id
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc "How many queued members of `queue` are locked in (committed)."
+  def locked_count(%Queue{} = queue) do
+    queue.memberships
+    |> Enum.count(&(&1.status == "queued" and not is_nil(&1.locked_at)))
   end
 
   @doc "Queues whose lock window has arrived but are still `open` (driver for the Resolver)."

@@ -3,7 +3,8 @@ defmodule Fu.Positions do
   Formation -> position quota engine (spec §2.2, §2.11).
 
   A formation is a `"GK-DEF-MID-FWD"` string describing one team. Quotas are
-  doubled to cover both teams in a match. Only 8v8 is rated (spec §2.11).
+  doubled to cover both teams in a match. 8v8 and 7v7 are rated
+  (spec §2.11 + user decision 2026-05-17); see `rated?/1`.
   """
 
   @positions ~w(GK DEF MID FWD)
@@ -17,8 +18,71 @@ defmodule Fu.Positions do
     "11v11" => "1-4-4-2"
   }
 
-  @doc "All valid positions."
+  # Per-position sub-positions — DISPLAY/PREFERENCE METADATA ONLY.
+  # Stored as the standard football abbreviation; intentionally NOT
+  # referenced by quotas/fill/balance/matching (see PositionDetailTest).
+  @subs %{
+    "GK" => [{"GK", "Goalkeeper"}],
+    "DEF" => [
+      {"LB", "Left Back"},
+      {"CB", "Centre Back"},
+      {"RB", "Right Back"},
+      {"LWB", "Left Wing-Back"},
+      {"RWB", "Right Wing-Back"},
+      {"SW", "Sweeper"}
+    ],
+    "MID" => [
+      {"CDM", "Defensive Mid"},
+      {"CM", "Central Mid"},
+      {"CAM", "Attacking Mid"},
+      {"LM", "Left Mid"},
+      {"RM", "Right Mid"}
+    ],
+    "FWD" => [
+      {"LW", "Left Wing"},
+      {"RW", "Right Wing"},
+      {"SS", "Second Striker"},
+      {"CF", "Centre Forward"},
+      {"ST", "Striker"}
+    ]
+  }
+
+  @group_labels %{
+    "GK" => "Goalkeeper",
+    "DEF" => "Defenders",
+    "MID" => "Midfielders",
+    "FWD" => "Forwards"
+  }
+
+  @doc "All valid positions (the matchmaking vocabulary)."
   def positions, do: @positions
+
+  @doc "Full sub-position map: main position => `[{abbr, name}]`."
+  def subs, do: @subs
+
+  @doc "Sub-positions `[{abbr, name}]` valid for a main position (non-matchmaking)."
+  def subs_for(position), do: Map.get(@subs, position, [])
+
+  @doc "Just the sub-position abbreviations valid for a main position."
+  def sub_abbrs(position), do: subs_for(position) |> Enum.map(&elem(&1, 0))
+
+  @doc "Every sub-position abbreviation (for changeset validation)."
+  def all_subs do
+    @subs |> Map.values() |> List.flatten() |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+  end
+
+  @doc "Optgroup label for a main position."
+  def group_label(position), do: Map.get(@group_labels, position, position)
+
+  @sub_to_main (for {main, subs} <- @subs, {abbr, _name} <- subs, into: %{}, do: {abbr, main})
+
+  @doc """
+  The main matchmaking position (GK/DEF/MID/FWD) a sub-position belongs to,
+  or `nil`. This is how the engine still only ever sees the main 4 — it's
+  derived from the player's sub choice, never typed in.
+  """
+  def main_of(sub) when sub in [nil, ""], do: nil
+  def main_of(sub), do: Map.get(@sub_to_main, sub)
 
   @doc "All supported match formats."
   def formats, do: Map.keys(@default_formations)
@@ -26,8 +90,13 @@ defmodule Fu.Positions do
   @doc "Default formation string for a format."
   def default_formation(format), do: Map.get(@default_formations, format, "1-3-3-1")
 
-  @doc "Only 8v8 contributes to the official rating (spec §2.11)."
-  def rated?(format), do: format == "8v8"
+  @rated_formats ~w(8v8 7v7)
+
+  @doc """
+  Rated formats contribute to the official rating: 8v8 (spec §2.11) and 7v7
+  (user decision 2026-05-17 — both are competitive enough to rate).
+  """
+  def rated?(format), do: format in @rated_formats
 
   @doc """
   Per-position capacity across BOTH teams for a formation, e.g.

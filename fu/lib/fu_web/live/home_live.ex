@@ -27,9 +27,22 @@ defmodule FuWeb.HomeLive do
       outgoing: Friends.pending_outgoing(player),
       group: group,
       group_members: group && Groups.members(group),
+      group_queues: group_queues(group, player, cards),
       invite: Friends.invite_link(player),
       form: recent_form(player)
     )
+  end
+
+  # Browsable queues the whole group can be slotted into as a unit
+  # (spec §2.12). Only the leader picks the queue, so only they see them.
+  defp group_queues(nil, _player, _cards), do: []
+
+  defp group_queues(%{leader_id: leader_id}, %{id: pid}, _cards)
+       when leader_id != pid,
+       do: []
+
+  defp group_queues(group, _player, cards) do
+    Enum.filter(cards, &Groups.fits_queue?(group, &1.queue))
   end
 
   # Last 5 rated matches as W/L/D, newest first — derived from the
@@ -91,6 +104,27 @@ defmodule FuWeb.HomeLive do
     end
   end
 
+  def handle_event("queue-group", %{"queue_id" => qid}, socket) do
+    queue = Queues.get_queue!(String.to_integer(qid))
+
+    case Groups.queue_as_group(socket.assigns.group, queue) do
+      {:ok, _memberships} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Group queued — see you on the pitch.")
+         |> load()}
+
+      {:error, :group_does_not_fit} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Your group no longer fits that queue.")
+         |> load()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Couldn't queue the group.")}
+    end
+  end
+
   @impl true
   def handle_event("set-pos", %{"slot" => slot, "pos" => pos}, socket) do
     attrs =
@@ -117,69 +151,79 @@ defmodule FuWeb.HomeLive do
     <Layouts.app flash={@flash} current_player={@player} active={:home}>
       <!-- Player card — the hero (frontend plan §5.3). Rank is NOT lime;
            lime is reserved for moments that land. -->
-      <.link navigate={~p"/profile"} class="block fu-card p-6">
-        <div class="flex items-start justify-between">
-          <div>
+      <.link navigate={~p"/profile"} class="block fu-card p-5">
+        <div class="flex items-center gap-4">
+          <div class="size-20 rounded-2xl bg-base-200 ring-1 ring-[var(--fu-line-strong)] grid place-items-center overflow-hidden shrink-0">
+            <FuWeb.Avatars.avatar player={@player} size={76} />
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <div class="text-h2 font-bold leading-tight truncate">
+              {if @player.nickname in [nil, ""], do: @player.display_name, else: @player.nickname}
+            </div>
+            <div
+              :if={@player.nickname not in [nil, ""]}
+              class="text-meta fu-ink-soft truncate -mt-0.5"
+            >
+              {@player.display_name}
+            </div>
+            <div class="text-meta mt-1">
+              <span class="font-bold text-[var(--fu-accent)]">
+                {Fu.Accounts.sub_label(@player, @player.primary_position)}
+              </span>
+              <span class="fu-ink-soft">
+                · {(@player.secondary_position &&
+                  Fu.Accounts.sub_label(@player, @player.secondary_position)) ||
+                  "—"}{if @player.fill_mode, do: " · fill"}
+              </span>
+            </div>
+          </div>
+
+          <div class="text-right shrink-0">
             <div class="text-display leading-none">
               {:erlang.float_to_binary(@player.rank, decimals: 0)}
             </div>
-            <div class="text-caption fu-ink-soft mt-1">rank</div>
-          </div>
-          <div class="size-14 rounded-full bg-base-200 ring-1 ring-[var(--fu-line-strong)] grid place-items-center overflow-hidden">
-            <FuWeb.Avatars.avatar player={@player} size={52} />
+            <div class="text-caption fu-ink-soft">RANK</div>
           </div>
         </div>
 
-        <div class="mt-5">
-          <div class="text-h3">{@player.display_name}</div>
-          <div class="text-meta fu-ink-soft">
-            {@player.primary_position} · {@player.secondary_position || "—"}{if @player.fill_mode,
-              do: " · fill"}
+        <div class="mt-4 pt-4 border-t border-[var(--fu-line)] flex items-center justify-between gap-3">
+          <div class="text-meta fu-ink-soft min-w-0 truncate">
+            <span :if={Fu.Accounts.age(@player)}>{Fu.Accounts.age(@player)} yrs</span>
+            <span :if={Fu.Accounts.age(@player) && @player.nation}>·</span>
+            <span :if={@player.nation}>{Fu.Nations.flag(@player.nation)} {@player.nation}</span>
+            <span
+              :if={is_nil(Fu.Accounts.age(@player)) && is_nil(@player.nation)}
+              class="fu-ink-dim"
+            >
+              add age & nation →
+            </span>
           </div>
-        </div>
-
-        <div class="flex gap-1.5 mt-4">
-          <div
-            :for={r <- pad_form(@form)}
-            class={[
-              "form-cell",
-              r == "W" && "form-w",
-              r == "L" && "form-l",
-              r == "D" && "form-d",
-              r == "" && "border border-[var(--fu-line)]"
-            ]}
-          >
-            {r}
+          <div class="flex gap-1.5 shrink-0">
+            <div
+              :for={r <- pad_form(@form)}
+              class={[
+                "form-cell",
+                r == "W" && "form-w",
+                r == "L" && "form-l",
+                r == "D" && "form-d",
+                r == "" && "border border-[var(--fu-line)]"
+              ]}
+            >
+              {r}
+            </div>
           </div>
-        </div>
-
-        <div class="fu-serif text-meta fu-ink-dim mt-5">
-          Born to play · since {@player.inserted_at.year}
         </div>
       </.link>
 
-      <!-- Queue button — the single most pressable thing (plan §5.4) -->
-      <%= if @queue_count > 0 do %>
-        <.link
-          navigate={~p"/browse"}
-          aria-label="Find a match"
-          class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
-        >
-          <span aria-hidden="true" class="mr-2">⚡</span>
-          QUEUE — {if @needing > 0,
-            do: "#{@needing} need your spot",
-            else: "#{@queue_count} open nearby"}
-        </.link>
-      <% else %>
-        <.link
-          navigate={~p"/profile"}
-          aria-label="Set availability to find matches"
-          class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
-        >
-          <span aria-hidden="true" class="mr-2">⚡</span>
-          QUEUE — set availability
-        </.link>
-      <% end %>
+      <!-- Auto-queue — press and we hunt a match for you (spec §2.6) -->
+      <.link
+        navigate={~p"/queue"}
+        aria-label="Auto-queue for a match"
+        class="flex h-14 items-center justify-center rounded-xl bg-primary text-primary-content font-semibold text-base active:bg-primary/90"
+      >
+        <span aria-hidden="true" class="mr-2">⚡</span> QUEUE
+      </.link>
 
       <!-- Position quick-edit -->
       <div class="fu-card p-4 space-y-3">
@@ -187,12 +231,14 @@ defmodule FuWeb.HomeLive do
         <.pos_row
           label="Primary"
           slot="primary"
+          player={@player}
           current={@player.primary_position}
           disabled={[]}
         />
         <.pos_row
           label="Secondary"
           slot="secondary"
+          player={@player}
           current={@player.secondary_position}
           disabled={[@player.primary_position]}
         />
@@ -327,6 +373,24 @@ defmodule FuWeb.HomeLive do
                 + {fr.display_name}
               </button>
             </div>
+
+            <div :if={@group.leader_id == @player.id} class="pt-2 space-y-1.5">
+              <div class="text-caption fu-ink-dim">Queue this group</div>
+              <p :if={@group_queues == []} class="fu-serif fu-ink-soft text-sm">
+                No nearby queue fits all {length(@group_members)} of you right now.
+              </p>
+              <button
+                :for={c <- @group_queues}
+                id={"queue-group-#{c.queue.id}"}
+                phx-click="queue-group"
+                phx-value-queue_id={c.queue.id}
+                aria-label={"Queue group into #{c.field.name}"}
+                class="btn btn-primary btn-sm min-h-[44px] w-full justify-between"
+              >
+                <span class="truncate">{c.field.name}</span>
+                <span class="font-mono text-xs opacity-80">{c.format}</span>
+              </button>
+            </div>
           </div>
         <% else %>
           <button phx-click="create-group" class="btn btn-outline btn-sm min-h-[44px] w-full">
@@ -345,6 +409,7 @@ defmodule FuWeb.HomeLive do
 
   attr :label, :string, required: true
   attr :slot, :string, required: true
+  attr :player, :map, required: true
   attr :current, :string, default: nil
   attr :disabled, :list, default: []
 
@@ -369,7 +434,7 @@ defmodule FuWeb.HomeLive do
             pos in @disabled && "opacity-30"
           ]}
         >
-          {pos}
+          {Fu.Accounts.sub_label(@player, pos)}
         </button>
       </div>
     </div>

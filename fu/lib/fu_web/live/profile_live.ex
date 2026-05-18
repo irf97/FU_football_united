@@ -6,7 +6,6 @@ defmodule FuWeb.ProfileLive do
   alias FuWeb.Avatars
 
   @days ~w(Mon Tue Wed Thu Fri Sat Sun)
-  @playstyles ~w(Aggressive Possession Counter Defensive Box-to-box Playmaker Finisher)
 
   @impl true
   def mount(_params, _session, socket) do
@@ -20,7 +19,7 @@ defmodule FuWeb.ProfileLive do
     |> assign(:player, p)
     |> assign(:preview, p)
     |> assign(:days, @days)
-    |> assign(:playstyles, @playstyles)
+    |> assign(:nations, Fu.Nations.names())
     |> assign(:legends, Avatars.legends())
     |> assign(:kits, Avatars.kits())
     |> assign(:form, to_form(Accounts.change_profile(p)))
@@ -80,10 +79,29 @@ defmodule FuWeb.ProfileLive do
         <div class="size-14 rounded-full bg-base-200 ring-1 ring-[var(--fu-line-strong)] grid place-items-center overflow-hidden">
           <Avatars.avatar player={@preview} size={52} />
         </div>
-        <div class="flex-1">
-          <div class="text-h3">{@player.display_name}</div>
-          <div class="text-meta fu-ink-soft">
-            {@player.primary_position} · {@player.secondary_position || "—"}
+        <div class="flex-1 min-w-0">
+          <div :if={@player.nickname not in [nil, ""]} class="text-h3 font-bold truncate">
+            {@player.nickname}
+          </div>
+          <div class={[
+            "truncate",
+            (@player.nickname not in [nil, ""] && "text-meta fu-ink-soft") || "text-h3"
+          ]}>
+            {@player.display_name}
+          </div>
+          <div class="text-meta">
+            <span class="font-bold text-[var(--fu-accent)]">
+              {Fu.Accounts.sub_label(@player, @player.primary_position)}
+            </span>
+            <span class="fu-ink-soft">
+              · {(@player.secondary_position &&
+                Fu.Accounts.sub_label(@player, @player.secondary_position)) || "—"}</span>
+            <span :if={Fu.Accounts.age(@player)} class="fu-ink-soft">
+              · {Fu.Accounts.age(@player)}
+            </span>
+            <span :if={@player.nation} class="fu-ink-soft">
+              · {Fu.Nations.flag(@player.nation)} {@player.nation}
+            </span>
           </div>
         </div>
         <div class="text-right">
@@ -96,15 +114,38 @@ defmodule FuWeb.ProfileLive do
 
       <.form for={@form} phx-submit="save" phx-change="preview" class="fu-card p-5 space-y-4">
         <div class="fu-divider">Avatar</div>
-        <div class="flex items-center gap-4">
-          <div class="size-20 rounded-xl bg-base-200 grid place-items-center overflow-hidden">
-            <Avatars.avatar player={@preview} size={72} />
+        <div class="flex flex-col items-center gap-3">
+          <div class="size-32 rounded-2xl bg-base-200 ring-1 ring-[var(--fu-line-strong)] grid place-items-center overflow-hidden">
+            <Avatars.avatar player={@preview} size={120} />
           </div>
-          <div class="flex-1 space-y-2">
-            <.input field={@form[:avatar_legend]} type="select" label="Legend" options={@legends} />
-            <.input field={@form[:avatar_kit]} type="select" label="Nation kit" options={@kits} />
-          </div>
+          <div class="text-caption fu-ink-dim">live preview · tap to restyle</div>
         </div>
+
+        <Avatars.picker
+          name="player[avatar_legend]"
+          label="Legend"
+          options={@legends}
+          selected={@preview.avatar_legend}
+        >
+          <:swatch :let={lg}>
+            <span class="block size-full" style={"background:#{Avatars.legend_skin(lg)}"} />
+          </:swatch>
+        </Avatars.picker>
+
+        <Avatars.picker
+          name="player[avatar_kit]"
+          label="Nation kit"
+          options={@kits}
+          selected={@preview.avatar_kit}
+        >
+          <:swatch :let={kt}>
+            <span
+              class="block size-full"
+              style={"background:#{elem(Avatars.kit_colors(kt, @preview.avatar_color), 0)}"}
+            />
+          </:swatch>
+        </Avatars.picker>
+
         <div class="flex items-center gap-3">
           <label class="text-meta fu-ink-soft">Jersey colour</label>
           <input
@@ -117,7 +158,21 @@ defmodule FuWeb.ProfileLive do
         </div>
 
         <div class="fu-divider">Identity</div>
-        <.input field={@form[:display_name]} label="Display name" />
+        <.input
+          field={@form[:nickname]}
+          label="Display name (shown bold)"
+          placeholder="e.g. The Wall — optional"
+        />
+        <.input field={@form[:display_name]} label="Full name" />
+        <div class="grid grid-cols-2 gap-3">
+          <.input field={@form[:birthdate]} type="date" label="Birthdate" />
+          <.input
+            field={@form[:nation]}
+            type="select"
+            label="Nation"
+            options={[{"—", ""} | Enum.map(@nations, &{"#{Fu.Nations.flag(&1)} #{&1}", &1})]}
+          />
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <.input field={@form[:jersey_number]} type="number" label="Jersey" />
           <.input field={@form[:queue_region_km]} type="number" label="Region (km)" />
@@ -128,25 +183,18 @@ defmodule FuWeb.ProfileLive do
           <.input field={@form[:home_lng]} type="text" label="Home lng" />
         </div>
 
-        <div class="fu-divider">Playing</div>
-        <.input
-          field={@form[:primary_position]}
-          type="select"
-          label="Primary"
-          options={Fu.Positions.positions()}
-        />
-        <.input
-          field={@form[:secondary_position]}
-          type="select"
-          label="Secondary"
-          options={[{"—", ""} | Enum.map(Fu.Positions.positions(), &{&1, &1})]}
-        />
-        <.input
-          field={@form[:playstyle]}
-          type="select"
-          label="Playstyle"
-          options={[{"—", ""} | Enum.map(@playstyles, &{&1, &1})]}
-        />
+        <div class="fu-divider">Position preferences</div>
+        <p class="text-caption fu-ink-dim">
+          Pick your preferred variant for each position. You swap which one
+          you're playing on the home screen — it shows the variant you set here.
+        </p>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm fu-ink-soft w-24">Goalkeeper</span>
+          <span class="text-mono text-sm flex-1 text-right fu-ink-dim">GK · no variant</span>
+        </div>
+        <.sub_select label="Defender" main="DEF" name="player[def_sub]" selected={@player.def_sub} />
+        <.sub_select label="Midfield" main="MID" name="player[mid_sub]" selected={@player.mid_sub} />
+        <.sub_select label="Forward" main="FWD" name="player[fwd_sub]" selected={@player.fwd_sub} />
         <label class="flex items-center gap-2 text-meta">
           <input
             type="checkbox"
@@ -250,10 +298,70 @@ defmodule FuWeb.ProfileLive do
         </div>
       </div>
 
+      <!-- Theme -->
+      <div class="fu-card p-5 space-y-3">
+        <div class="fu-divider">Theme</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            :for={
+              {val, label} <- [
+                {"dark", "Dark"},
+                {"midnight", "Midnight"},
+                {"pitch", "Pitch"},
+                {"light", "Daylight"},
+                {"system", "System"}
+              ]
+            }
+            type="button"
+            phx-click={Phoenix.LiveView.JS.dispatch("phx:set-theme")}
+            data-phx-theme={val}
+            class="min-h-[44px] rounded-lg border border-[var(--fu-line)] text-meta transition-colors hover:border-[var(--fu-accent)] hover:text-[var(--fu-accent)]"
+          >
+            {label}
+          </button>
+        </div>
+        <p class="text-caption fu-ink-dim">
+          Applies instantly and is remembered on this device.
+        </p>
+      </div>
+
       <.link href={~p"/session"} method="delete" class="btn btn-ghost btn-sm w-full">
         Sign out
       </.link>
     </Layouts.app>
+    """
+  end
+
+  ## components
+
+  # Per-main default-sub picker (scoped to one main position's variants).
+  # Display/preference only — matchmaking still uses the main position.
+  attr :label, :string, required: true
+  attr :main, :string, required: true
+  attr :name, :string, required: true
+  attr :selected, :string, default: nil
+
+  defp sub_select(assigns) do
+    ~H"""
+    <div class="flex items-center gap-3">
+      <span class="text-sm fu-ink-soft w-24 shrink-0">{@label}</span>
+      <select
+        name={@name}
+        class="select select-sm select-bordered bg-base-200 flex-1 text-meta"
+        aria-label={"#{@label} variant (optional)"}
+      >
+        <option value="" selected={@selected in [nil, ""]}>
+          {@main} · no preference
+        </option>
+        <option
+          :for={{abbr, name} <- Fu.Positions.subs_for(@main)}
+          value={abbr}
+          selected={abbr == @selected}
+        >
+          {name} ({abbr})
+        </option>
+      </select>
+    </div>
     """
   end
 
