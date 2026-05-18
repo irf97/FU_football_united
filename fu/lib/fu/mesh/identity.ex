@@ -9,8 +9,16 @@ defmodule Fu.Mesh.Identity do
   drop the unverifiable, never relay it.
   """
 
-  @doc "A fresh Ed25519 keypair `{public, private}`."
+  @doc "A fresh random Ed25519 keypair `{public, private}`."
   def keypair, do: :crypto.generate_key(:eddsa, :ed25519)
+
+  @doc """
+  Deterministic Ed25519 keypair from a 32-byte seed. Same seed ⇒ same
+  identity — the basis for persona recovery (node L6) and for reproducible
+  conformance vectors (Ed25519 signing is itself deterministic, RFC 8032).
+  """
+  def keypair_from_seed(seed) when is_binary(seed) and byte_size(seed) == 32,
+    do: :crypto.generate_key(:eddsa, :ed25519, seed)
 
   @doc "Detached Ed25519 signature over `payload` (a binary)."
   def sign(priv, payload) when is_binary(payload),

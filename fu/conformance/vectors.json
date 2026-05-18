@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "spec": "fu-mesh-conformance",
+  "bootstrap": {
+    "provisional_witnesses": [
+      "o1",
+      "o2"
+    ],
+    "recoverable_rank_no_friends": 51.5,
+    "self_excluded": true
+  },
+  "identity": [
+    {
+      "address": "34750f98bd59fcfc",
+      "seed_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+      "public_hex": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "sign_payload": "1|p|1.5",
+      "signature_hex": "8bf748aa51b63c3c0957b9269612ad0a043706dffa335ae3f5defbac9fdb460721e38f7d20e94ba221e4d19f11b5930e2b21a681aed7b7179b6564e046598309"
+    },
+    {
+      "address": "6a3803d5f059902a",
+      "seed_hex": "0202020202020202020202020202020202020202020202020202020202020202",
+      "public_hex": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394"
+    }
+  ],
+  "mesh": {
+    "signed_ingest": {
+      "valid_att_rank": 51.5,
+      "forged_att_known": false,
+      "witnessed_rank_friends": 51.5
+    }
+  },
+  "generated_from": "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
+  "notes": [
+    "canonical attestation encoding = \"0\" pattern: match|player|delta",
+    "Ed25519 per RFC 8032 — signatures are deterministic and reproducible",
+    "address = lowercase hex of SHA-256(public_key), first 16 chars",
+    "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded"
+  ],
+  "canonical_attestations": [
+    {
+      "match": 1,
+      "canonical": "1|p|1.5",
+      "player": "p",
+      "delta": 1.5,
+      "signature_hex": "8bf748aa51b63c3c0957b9269612ad0a043706dffa335ae3f5defbac9fdb460721e38f7d20e94ba221e4d19f11b5930e2b21a681aed7b7179b6564e046598309"
+    },
+    {
+      "match": 7,
+      "canonical": "7|orphan|-0.8",
+      "player": "orphan",
+      "delta": -0.8,
+      "signature_hex": "61dc2b9fc4d41e21dffb323484ecb759ff695ad7240a6407ccb39b09a4f0fa128079958e43e5420d555d6df3a24fe4ba5eced5d76ec6cb92c7fa27635aa18904"
+    },
+    {
+      "match": 12,
+      "canonical": "12|gk|0.3",
+      "player": "gk",
+      "delta": 0.3,
+      "signature_hex": "91566ada6aeaba935da1953fa30bf4b125c6852503eac3b42bb438afa4403f7901f4a548a9a3794301a91d8bc55e0c0337b6ac9b1f8595d0b55d6387cc13b60e"
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Football United — Mesh Protocol Specification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#0A0908;--bg2:#14110F;--ink:#F4F0E8;--muted:#8A857C;--faint:#56524B;
+    --line:rgba(244,240,232,.09);--line2:rgba(244,240,232,.16);--lime:#C5FF3D;--danger:#FF6B5A;--warn:#F4B860;--info:#6BAEFF;
+    --serif:"Instrument Serif",Georgia,serif;--sans:"Schibsted Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:radial-gradient(ellipse 70% 45% at 50% -8%,rgba(197,255,61,.05),transparent 60%),var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+  .shell{display:grid;grid-template-columns:230px 1fr;max-width:1180px;margin:0 auto;gap:46px;padding:0 30px}
+  nav{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:38px 0;border-right:1px solid var(--line)}
+  nav .brand{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--lime)}
+  nav .sub{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);margin-bottom:22px}
+  nav a{display:block;font-size:12.5px;color:var(--muted);text-decoration:none;padding:5px 0 5px 12px;border-left:2px solid transparent}
+  nav a:hover{color:var(--ink);border-left-color:var(--lime)}
+  main{padding:54px 0 130px;min-width:0}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.3rem,5.2vw,3.5rem);line-height:1.06;letter-spacing:-.02em;margin:.4rem 0 1rem;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.5rem,3vw,2.05rem);letter-spacing:-.01em;margin:0 0 .2rem;scroll-margin-top:18px}
+  h3{font-size:13.5px;font-weight:700;color:var(--ink);margin:16px 0 6px}
+  section{padding:44px 0;border-bottom:1px solid var(--line)}
+  .sec-no{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;color:var(--lime);margin-bottom:9px}
+  p{color:#D8D3C8;font-size:.99rem;margin:.65rem 0}
+  p.lead{font-size:1.14rem;color:var(--ink)}
+  strong{color:var(--ink);font-weight:600}em{color:var(--lime);font-style:normal}
+  code{font-family:var(--mono);font-size:.84em;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#cfe89a}
+  pre{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:15px;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.65;color:#cfe89a;margin:14px 0}
+  table{width:100%;border-collapse:collapse;margin:13px 0;font-size:.88rem}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  td{color:#D2CDC2}td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+  .req{list-style:none;margin:.6rem 0;padding:0}
+  .req>li{position:relative;padding:9px 0 9px 58px;border-bottom:1px solid var(--line);color:#D8D3C8;font-size:.97rem}
+  .req>li::before{content:attr(data-id);position:absolute;left:0;top:9px;font-family:var(--mono);font-size:11px;color:var(--lime)}
+  .req .m{color:var(--ink);font-weight:700}
+  .callout{border-left:2px solid var(--lime);background:linear-gradient(90deg,rgba(197,255,61,.05),transparent 70%);padding:15px 20px;margin:16px 0;border-radius:0 10px 10px 0}
+  .callout.warn{border-color:var(--warn);background:linear-gradient(90deg,rgba(244,184,96,.06),transparent 70%)}
+  .callout .h{font-weight:700;color:var(--ink);font-size:13px;margin-bottom:3px}
+  .callout p{font-size:.93rem;margin:.25rem 0}
+  footer{padding:44px 0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  @media(max-width:900px){.shell{grid-template-columns:1fr;gap:0}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:18px 0}nav a{display:inline-block;border-left:0}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav>
+    <div class="brand">Football United</div>
+    <div class="sub">Mesh Protocol · v1</div>
+    <a href="#scope">1 · Scope &amp; status</a>
+    <a href="#kernel">2 · Kernel binding</a>
+    <a href="#identity">3 · Identity</a>
+    <a href="#object">4 · Object &amp; encoding</a>
+    <a href="#ingest">5 · Verify &amp; ingest</a>
+    <a href="#expiry">6 · Expiry &amp; compaction</a>
+    <a href="#propagation">7 · Propagation</a>
+    <a href="#rank">8 · Witnessed rank</a>
+    <a href="#bootstrap">9 · Provisional witnesses</a>
+    <a href="#conformance">10 · Conformance vectors</a>
+    <a href="#open">11 · Open / non-normative</a>
+  </nav>
+  <main>
+
+  <header>
+    <div class="kicker">Normative · the contract the Rust runtime implements</div>
+    <h1>Mesh Protocol<br />Specification.</h1>
+    <p class="lead">The validated v3 model, frozen into a wire-level contract. Every clause is reproducible against machine-checkable vectors generated from the Elixir reference. The reference is the oracle; this document is its law.</p>
+    <div class="callout warn">
+      <div class="h">Authority of this document</div>
+      <p>Where prose and the conformance vectors (<code>conformance/vectors.json</code>) disagree, <strong>the vectors win</strong> — they are generated from <code>Fu.Mesh.Identity</code> + <code>Fu.Mesh.V3</code>, the 128-test reference. A runtime is conformant iff it reproduces every vector exactly.</p>
+    </div>
+  </header>
+
+  <section id="scope">
+    <div class="sec-no">1 — Scope &amp; status</div>
+    <h2>What is frozen, what is not.</h2>
+    <p>This specifies the <strong>trust &amp; sync core</strong>: identity, the signed Object, verify-on-receive, expiry/compaction, subject-directed propagation, witnessed rank, and the friendless-bootstrap path. It does <em>not</em> specify radios (BLE/NFC/Wi-Fi-Aware), the PWA, or the node OS layer — those are <code>fu-node.html</code>. Algorithm validated in deterministic simulation to 10,000 users (storage flat, ~100% witness delivery, NFC-feasible payloads; orphan recoverability 90.5% @10k).</p>
+  </section>
+
+  <section id="kernel">
+    <div class="sec-no">2 — Kernel binding</div>
+    <h2>Six primitives, mapped to operations.</h2>
+    <table>
+      <thead><tr><th>Primitive</th><th>Protocol realisation</th></tr></thead>
+      <tbody>
+        <tr><td>Object</td><td>A signed, content-addressed attestation (§4)</td></tr>
+        <tr><td>Authority</td><td>Ed25519 author key + <code>verified?</code> gate (§3, §5)</td></tr>
+        <tr><td>Propagation</td><td>Subject-directed relay + closeness filter (§7)</td></tr>
+        <tr><td>Projection</td><td>Local <code>rank</code>; never authoritative</td></tr>
+        <tr><td>Anchor</td><td>Witnessed median + signature + (transport) proximity (§8)</td></tr>
+        <tr><td>Expiry</td><td>TTL eviction · acquaintance lapse · compaction (§6)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="identity">
+    <div class="sec-no">3 — Identity</div>
+    <h2>Ed25519, RFC 8032.</h2>
+    <ul class="req">
+      <li data-id="P3.1"><span class="m">MUST</span> represent a persona/device as an Ed25519 keypair. Signatures MUST be Ed25519 per RFC 8032 (deterministic — same key + message ⇒ same signature).</li>
+      <li data-id="P3.2"><span class="m">MUST</span> derive a recoverable identity deterministically from a 32-byte seed (<code>keypair_from_seed</code>); the same seed MUST yield the same public key on any conformant runtime.</li>
+      <li data-id="P3.3"><span class="m">MUST</span> compute an address as <code>lower_hex(SHA-256(public_key))[0..16]</code> (first 16 hex chars). This is the stable short id.</li>
+    </ul>
+    <pre>seed   = 01·32  →  public = 8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c
+                    address = 34750f98bd59fcfc        (see vectors.identity[0])</pre>
+  </section>
+
+  <section id="object">
+    <div class="sec-no">4 — Object &amp; canonical encoding</div>
+    <h2>The exact bytes that get signed.</h2>
+    <p>An attestation asserts a rank delta for a player at a match. Its <strong>canonical encoding</strong> — the only bytes ever signed or verified — is:</p>
+    <pre>canonical(att) = "{match}|{player}|{delta}"     // UTF-8, no padding, no spaces
+// e.g.  match=1 player="p" delta=1.5   →   "1|p|1.5"</pre>
+    <ul class="req">
+      <li data-id="P4.1"><span class="m">MUST</span> sign/verify over exactly <code>canonical(att)</code>; fields <code>sig</code>, <code>author_pub</code>, <code>size</code>, <code>witnesses</code> are excluded from the signed bytes.</li>
+      <li data-id="P4.2"><span class="m">MUST</span> render <code>delta</code> identically to the reference (e.g. <code>1.5</code>, <code>-0.8</code>, <code>0.3</code>) — the <code>canonical_attestations</code> vectors pin the byte-exact form and its expected signature.</li>
+      <li data-id="P4.3"><span class="m">MUST</span> treat an Object as immutable and identified by its content; the same canonical bytes are the same Object.</li>
+    </ul>
+  </section>
+
+  <section id="ingest">
+    <div class="sec-no">5 — Verify &amp; ingest</div>
+    <h2>Unverifiable is not state.</h2>
+    <ul class="req">
+      <li data-id="P5.1"><span class="m">MUST</span> verify an attestation's Ed25519 signature against its declared <code>author_pub</code> over <code>canonical(att)</code> before any effect (<code>ingest_signed</code>).</li>
+      <li data-id="P5.2"><span class="m">MUST</span> drop a failed attestation entirely — not fold it, not store it, <strong>not relay it</strong>. (Vector: forged delta ⇒ <code>knows? = false</code>, rank stays 50.0.)</li>
+      <li data-id="P5.3"><span class="m">MUST</span> be idempotent by match id: re-ingesting the same Object never double-counts.</li>
+      <li data-id="P5.4"><span class="m">MUST</span> clamp every derived rank to <code>[30.0, 100.0]</code>; unknown player ⇒ <code>50.0</code>.</li>
+    </ul>
+  </section>
+
+  <section id="expiry">
+    <div class="sec-no">6 — Expiry &amp; compaction</div>
+    <h2>Bounded by construction (the keystone).</h2>
+    <ul class="req">
+      <li data-id="P6.1"><span class="m">MUST</span> retain per known player only the newest <code>W = 8</code> pending attestations; older ones MUST fold into a <code>(base_rank, base_seq)</code> checkpoint (<code>compact</code>). Per-player store is O(W), not O(history).</li>
+      <li data-id="P6.2"><span class="m">MUST</span> evict a stranger record after <code>stranger_ttl = 4</code> idle ticks; friends are permanent; acquaintances are retained while the bond holds.</li>
+      <li data-id="P6.3"><span class="m">MUST</span> treat a peer as a sustained acquaintance iff encounters ≥ <code>acq_threshold = 3</code> AND idle ≤ <code>acq_decay = 6</code>; absence (not per-tick erosion) lapses the bond.</li>
+    </ul>
+    <div class="callout"><div class="h">Why this is normative, not housekeeping</div><p>The flat-storage result holds <em>only</em> because of P6. A runtime that "stores everything for now" is non-conformant by construction — it will reproduce v1's blow-up. Expiry is a correctness invariant: <strong>nothing unbounded, ever.</strong></p></div>
+  </section>
+
+  <section id="propagation">
+    <div class="sec-no">7 — Propagation</div>
+    <h2>Relay toward witnesses; never blind-flood.</h2>
+    <p>On encounter, for each record about subject <em>S</em>, the carrier forwards it to peer <em>T</em> iff:</p>
+    <ul class="req">
+      <li data-id="P7.1"><span class="m">MUST</span> forward when <em>T</em> cares about <em>S</em> (friend of, or already holds <em>S</em>), OR <em>T</em> ∈ <em>S</em>'s declared witnesses (subject-directed relay), OR the carrier is close to <em>S</em> (friend/acquaintance).</li>
+      <li data-id="P7.2"><span class="m">MUST NOT</span> forward a stranger's record to an unrelated peer (closeness filter) — this is what keeps gossip and storage bounded.</li>
+      <li data-id="P7.3"><span class="m">MUST</span> adopt a more-advanced checkpoint (<code>base_seq</code>) on reconcile and transfer only attestations the receiver lacks; reconcile MUST be convergent and idempotent (a second pass moves 0 bytes).</li>
+    </ul>
+  </section>
+
+  <section id="rank">
+    <div class="sec-no">8 — Witnessed rank</div>
+    <h2>Truth is the witnesses' median, never self.</h2>
+    <ul class="req">
+      <li data-id="P8.1"><span class="m">MUST</span> compute a player's canonical rank as the median of that player's <em>witnesses'</em> local views — the player's own copy MUST be excluded.</li>
+      <li data-id="P8.2"><span class="m">MUST</span> therefore make a lone forger powerless: only the whole witnessing group colluding can move the value. (Vector: <code>witnessed_rank_friends = 51.5</code> with two honest witnesses; self-tamper to 99.0 has no effect.)</li>
+      <li data-id="P8.3"><span class="m">MUST</span> return the median element at index <code>div(n-1, 2)</code> of the sorted views; empty witness set ⇒ <code>50.0</code>.</li>
+    </ul>
+  </section>
+
+  <section id="bootstrap">
+    <div class="sec-no">9 — Provisional witnesses (bootstrap)</div>
+    <h2>The friendless are recoverable through proximity.</h2>
+    <ul class="req">
+      <li data-id="P9.1"><span class="m">MUST</span> treat as a <em>provisional witness</em> of <em>S</em> any node (≠ <em>S</em>) that regards <em>S</em> as a sustained acquaintance AND holds <em>S</em>'s record.</li>
+      <li data-id="P9.2"><span class="m">MUST</span>, when computing recoverable rank, use friend-witnesses if any hold the record; otherwise fall back to the median over provisional witnesses (still self-excluded, still collusion-only).</li>
+      <li data-id="P9.3">Conformance target (informative): orphan recoverability ≥ ~90% at 10k via this path; the residual tail is a known, accepted limitation (§11).</li>
+    </ul>
+    <pre>vectors.bootstrap → provisional_witnesses=["o1","o2"]  recoverable_rank=51.5  self_excluded=true</pre>
+  </section>
+
+  <section id="conformance">
+    <div class="sec-no">10 — Conformance vectors</div>
+    <h2>The acceptance gate.</h2>
+    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> v1) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
+    <table>
+      <thead><tr><th>Section</th><th>Runtime must reproduce</th></tr></thead>
+      <tbody>
+        <tr><td>identity</td><td>seed → public_hex, address, and the Ed25519 signature_hex over <code>sign_payload</code></td></tr>
+        <tr><td>canonical_attestations</td><td>the exact <code>canonical</code> string and its <code>signature_hex</code> for each (match,player,delta)</td></tr>
+        <tr><td>mesh.signed_ingest</td><td>valid rank 51.5 · forged not known · witnessed_rank 51.5</td></tr>
+        <tr><td>bootstrap</td><td>provisional_witnesses, recoverable_rank, self_excluded</td></tr>
+      </tbody>
+    </table>
+    <p>Regenerate with <code>mix run --no-start bench/conformance_vectors.exs</code>. Bump <code>version</code> on any normative change; a runtime declares which version it targets.</p>
+  </section>
+
+  <section id="open">
+    <div class="sec-no">11 — Open / non-normative</div>
+    <h2>Honest edges.</h2>
+    <ul class="req">
+      <li data-id="O.1">Transport (BLE/NFC/Wi-Fi-Aware), wire framing &amp; the proximity Anchor are out of scope here — node spec, still real engineering.</li>
+      <li data-id="O.2">The <code>delta</code> string form is pinned by vectors today; a fixed-precision decimal encoding SHOULD be adopted before multi-language runtimes diverge on float formatting. Flagged.</li>
+      <li data-id="O.3">~10% orphan tail at scale remains unrecoverable in pure phone-only zones; venue nodes (node L1/§01) cover most of it. Mitigated, not zero.</li>
+      <li data-id="O.4">Revocation lists, capability tokens &amp; persona↔device key separation are specified at the node layer (L7); their on-wire form is a v2 protocol item.</li>
+    </ul>
+    <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
+  </section>
+
+  <footer>Football United · Mesh Protocol Specification v1 · vectors are law · generated from the 128-test reference</footer>
+  </main>
+</div>
+</body>
+</html>

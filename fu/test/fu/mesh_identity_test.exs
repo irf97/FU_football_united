@@ -30,6 +30,26 @@ defmodule Fu.Mesh.IdentityTest do
     refute Identity.verify(other_pub, "x", sig)
   end
 
+  test "keypair_from_seed/1 is deterministic — same seed, same identity (persona recovery)" do
+    seed = :binary.copy(<<7>>, 32)
+    {pub1, priv1} = Identity.keypair_from_seed(seed)
+    {pub2, priv2} = Identity.keypair_from_seed(seed)
+
+    assert pub1 == pub2 and priv1 == priv2
+    assert Identity.address(pub1) == Identity.address(pub2)
+
+    {other, _} = Identity.keypair_from_seed(:binary.copy(<<9>>, 32))
+    refute Identity.address(pub1) == Identity.address(other)
+
+    sig = Identity.sign(priv1, "recovered")
+    assert Identity.verify(pub1, "recovered", sig)
+  end
+
+  test "Ed25519 signatures are deterministic (RFC 8032) — vectors are reproducible" do
+    {_pub, priv} = Identity.keypair_from_seed(:binary.copy(<<1>>, 32))
+    assert Identity.sign(priv, "x|p|1.5") == Identity.sign(priv, "x|p|1.5")
+  end
+
   test "address/1 is a stable short content-addressed id of the public key" do
     {pub, _} = Identity.keypair()
     assert Identity.address(pub) == Identity.address(pub)
