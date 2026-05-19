@@ -113,9 +113,34 @@ pipeline = %{
   forged_verified: Identity.verified?(pforged)
 }
 
+# --- Adversarial: the security boundary, locked ---------------------------
+{ahp, ahpriv} = Identity.keypair_from_seed(:binary.copy(<<20>>, 32))
+{acp, acpriv} = Identity.keypair_from_seed(:binary.copy(<<21>>, 32))
+ah = V3.attest(1, "P", 1.5, []) |> Identity.sign_attest(ahpriv, ahp)
+ac = V3.attest(2, "P", 50.0, []) |> Identity.sign_attest(acpriv, acp)
+awit = fn id, atts -> Enum.reduce(atts, V3.new_node(id, ["P"]), &V3.ingest_signed(&2, &1)) end
+
+minority =
+  %{"w1" => awit.("w1", [ah]), "w2" => awit.("w2", [ah]), "w3" => awit.("w3", [ah]),
+    "w4" => awit.("w4", [ah, ac]), "w5" => awit.("w5", [ah, ac])}
+
+majority =
+  %{"w1" => awit.("w1", [ah]), "w2" => awit.("w2", [ah]), "w3" => awit.("w3", [ah, ac]),
+    "w4" => awit.("w4", [ah, ac]), "w5" => awit.("w5", [ah, ac])}
+
+{:ok, amang, ""} = (with {:ok, g, ""} <- Wire.decode(Wire.encode(ah)), do: Wire.decode(Wire.encode(%{g | delta: 9.9})))
+
+adversarial = %{
+  honest_signer_seed_hex: hex.(:binary.copy(<<20>>, 32)),
+  collude_signer_seed_hex: hex.(:binary.copy(<<21>>, 32)),
+  collusion_minority_2of5: V3.witnessed_rank(minority, ~w(w1 w2 w3 w4 w5), "P"),
+  collusion_majority_3of5: V3.witnessed_rank(majority, ~w(w1 w2 w3 w4 w5), "P"),
+  byzantine_relay_delivered: Identity.verified?(amang)
+}
+
 doc = %{
   spec: "fu-mesh-conformance",
-  version: 4,
+  version: 5,
   generated_from: "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   notes: [
     "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
@@ -125,14 +150,16 @@ doc = %{
     "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
     "v2 superseded v1: delta encoding moved from float-string to milli-integer",
     "v3 added the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)",
-    "v4 adds the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)"
+    "v4 added the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)",
+    "v5 adds adversarial: minority collusion cannot move the median, majority can (stated limit), byzantine relay cannot inject (integrity)"
   ],
   identity: identity,
   canonical_attestations: canonical,
   mesh: mesh,
   bootstrap: bootstrap,
   wire: wire,
-  pipeline: pipeline
+  pipeline: pipeline,
+  adversarial: adversarial
 }
 
 File.mkdir_p!("conformance")

@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "spec": "fu-mesh-conformance",
   "bootstrap": {
     "provisional_witnesses": [
@@ -64,6 +64,13 @@
       "chunk_count": 8
     }
   },
+  "adversarial": {
+    "honest_signer_seed_hex": "1414141414141414141414141414141414141414141414141414141414141414",
+    "collude_signer_seed_hex": "1515151515151515151515151515151515151515151515151515151515151515",
+    "collusion_minority_2of5": 51.5,
+    "collusion_majority_3of5": 100.0,
+    "byzantine_relay_delivered": false
+  },
   "generated_from": "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   "notes": [
     "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
@@ -73,36 +80,37 @@
     "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
     "v2 superseded v1: delta encoding moved from float-string to milli-integer",
     "v3 added the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)",
-    "v4 adds the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)"
+    "v4 added the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)",
+    "v5 adds adversarial: minority collusion cannot move the median, majority can (stated limit), byzantine relay cannot inject (integrity)"
   ],
   "canonical_attestations": [
     {
       "match": 1,
-      "player": "p",
-      "delta": 1.5,
       "canonical": "1|p|1500",
-      "signature_hex": "aad29927aedd5030d0eec09bb2d0588f773ac51791ff23abf3b674496aa15796647ebd3a41e0791fb3e66a1455eaaa93b7e9925b72d4f0daef6b09fee8ac8b09"
+      "signature_hex": "aad29927aedd5030d0eec09bb2d0588f773ac51791ff23abf3b674496aa15796647ebd3a41e0791fb3e66a1455eaaa93b7e9925b72d4f0daef6b09fee8ac8b09",
+      "player": "p",
+      "delta": 1.5
     },
     {
       "match": 7,
-      "player": "orphan",
-      "delta": -0.8,
       "canonical": "7|orphan|-800",
-      "signature_hex": "230f87e936ec5e3c381b00b6b408db0a6783671401a11cf10e9dc9de842b0e325156f734d6347dac604bd0d990c783919181922206253af3866546ed4739180e"
+      "signature_hex": "230f87e936ec5e3c381b00b6b408db0a6783671401a11cf10e9dc9de842b0e325156f734d6347dac604bd0d990c783919181922206253af3866546ed4739180e",
+      "player": "orphan",
+      "delta": -0.8
     },
     {
       "match": 12,
-      "player": "gk",
-      "delta": 0.3,
       "canonical": "12|gk|300",
-      "signature_hex": "c0b7318caf0128d6e432e0aa62d6a0d9f8734e81a19d48b96ace0234da23d823a86a23da62821f1c786cad4e8daeb6ed596466d8be78a14c9970a5caa335c109"
+      "signature_hex": "c0b7318caf0128d6e432e0aa62d6a0d9f8734e81a19d48b96ace0234da23d823a86a23da62821f1c786cad4e8daeb6ed596466d8be78a14c9970a5caa335c109",
+      "player": "gk",
+      "delta": 0.3
     },
     {
       "match": 2,
-      "player": "p",
-      "delta": 0.30000000000000004,
       "canonical": "2|p|300",
-      "signature_hex": "4384e97b58e63e2097bb17dbffed06d8caa1cc4236ab55bcaead19886f4a66df7fdae11649f0c0c0b6b17e97de81b11243f1e73cc092641d60982f080d606a0f"
+      "signature_hex": "4384e97b58e63e2097bb17dbffed06d8caa1cc4236ab55bcaead19886f4a66df7fdae11649f0c0c0b6b17e97de81b11243f1e73cc092641d60982f080d606a0f",
+      "player": "p",
+      "delta": 0.30000000000000004
     }
   ]
 }

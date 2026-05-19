@@ -22,7 +22,7 @@ defmodule Fu.ConformanceTest do
 
   test "spec + version handshake (step 0 — refuse anything else)", %{doc: d} do
     assert d["spec"] == "fu-mesh-conformance"
-    assert d["version"] == 4
+    assert d["version"] == 5
   end
 
   test "identity vectors reproduce exactly", %{doc: d} do
@@ -130,5 +130,37 @@ defmodule Fu.ConformanceTest do
 
     {:ok, forged, ""} = att |> Map.put(:delta, 99.0) |> Wire.encode() |> Wire.decode()
     assert Identity.verified?(forged) == p["forged_verified"]
+  end
+
+  test "adversarial: collusion boundary + byzantine integrity reproduce", %{doc: d} do
+    a = d["adversarial"]
+    {hp, hpriv} = Identity.keypair_from_seed(unhex(a["honest_signer_seed_hex"]))
+    {cp, cpriv} = Identity.keypair_from_seed(unhex(a["collude_signer_seed_hex"]))
+    h = V3.attest(1, "P", 1.5, []) |> Identity.sign_attest(hpriv, hp)
+    c = V3.attest(2, "P", 50.0, []) |> Identity.sign_attest(cpriv, cp)
+    w = fn id, atts -> Enum.reduce(atts, V3.new_node(id, ["P"]), &V3.ingest_signed(&2, &1)) end
+
+    minority = %{
+      "w1" => w.("w1", [h]), "w2" => w.("w2", [h]), "w3" => w.("w3", [h]),
+      "w4" => w.("w4", [h, c]), "w5" => w.("w5", [h, c])
+    }
+
+    majority = %{
+      "w1" => w.("w1", [h]), "w2" => w.("w2", [h]), "w3" => w.("w3", [h, c]),
+      "w4" => w.("w4", [h, c]), "w5" => w.("w5", [h, c])
+    }
+
+    assert_in_delta V3.witnessed_rank(minority, ~w(w1 w2 w3 w4 w5), "P"),
+                    a["collusion_minority_2of5"],
+                    1.0e-9
+
+    assert V3.witnessed_rank(majority, ~w(w1 w2 w3 w4 w5), "P") ==
+             a["collusion_majority_3of5"]
+
+    {:ok, m, ""} =
+      (with {:ok, g, ""} <- Wire.decode(Wire.encode(h)),
+            do: Wire.decode(Wire.encode(%{g | delta: 9.9})))
+
+    assert Identity.verified?(m) == a["byzantine_relay_delivered"]
   end
 end

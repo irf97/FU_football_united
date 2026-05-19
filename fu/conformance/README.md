@@ -1,6 +1,6 @@
 # FU Mesh — Conformance Harness Contract
 
-`vectors.json` (spec `fu-mesh-conformance`, **version 4**) is generated from
+`vectors.json` (spec `fu-mesh-conformance`, **version 5**) is generated from
 the Elixir reference (Identity + V3 + Wire).
 
 **A runtime is conformant iff it reproduces every vector byte/value-exact.**
@@ -37,7 +37,7 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
 ```
 0. Load vectors.json.
    ASSERT doc.spec == "fu-mesh-conformance"
-   ASSERT doc.version == 4                 # refuse to run against any other version
+   ASSERT doc.version == 5                 # refuse to run against any other version
 
 1. identity[]
    for each v:
@@ -90,8 +90,20 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
    forged = decode(encode(att with delta:=99.0))
    ASSERT verified?(forged) == pipeline.forged_verified                            # false
 
+7. adversarial   (the security boundary)
+   h = sign(attest(1,"P",1.5))  by seed adversarial.honest_signer_seed_hex
+   c = sign(attest(2,"P",50.0)) by seed adversarial.collude_signer_seed_hex
+   5 witnesses; k of them also ingest c (a validly-signed inflated fact):
+   ASSERT witnessed_rank(2-of-5 colluded) == adversarial.collusion_minority_2of5  # 51.5 (unmoved)
+   ASSERT witnessed_rank(3-of-5 colluded) == adversarial.collusion_majority_3of5  # 100.0 (moved — stated limit)
+   m = decode(encode( decode(encode(h)) with delta:=9.9 ))   # byzantine relay
+   ASSERT verified?(m) == adversarial.byzantine_relay_delivered                   # false (integrity holds)
+
 PASS iff every assertion holds; exit non-zero on the first failure.
 ```
+
+See `PROTOCOL_CHANGELOG.md` for the v1→v5 lineage &amp; compatibility rules
+(and the two version namespaces: conformance `version` vs wire frame byte).
 
 ### Wire frame (normative — big-endian)
 

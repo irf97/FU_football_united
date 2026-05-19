@@ -64,6 +64,7 @@
     <a href="#bootstrap">9 · Provisional witnesses</a>
     <a href="#wire">9.5 · Wire framing</a>
     <a href="#capstone">9.6 · Pipeline capstone</a>
+    <a href="#adversarial">9.7 · Adversarial boundary</a>
     <a href="#conformance">10 · Conformance vectors</a>
     <a href="#open">11 · Open / non-normative</a>
   </nav>
@@ -217,10 +218,22 @@ payload = match(u32) | delta_milli(i32) | player_len(u16) | player
     </ul>
   </section>
 
+  <section id="adversarial">
+    <div class="sec-no">9.7 — Adversarial &amp; the security boundary</div>
+    <h2>Where collusion does — and does not — move truth.</h2>
+    <p>The honest security model, stated as testable limits rather than implied. Locked by the <code>adversarial</code> vector.</p>
+    <ul class="req">
+      <li data-id="P9.7.1"><span class="m">MUST</span> be unmovable by a <em>minority</em> of colluding witnesses: with 5 witnesses and 2 holding a validly-signed inflated fact, <code>witnessed_rank</code> stays the honest median (<code>51.5</code>).</li>
+      <li data-id="P9.7.2"><span class="m">MUST</span> be movable by a <em>majority</em> (3 of 5 → <code>100.0</code>). This is the <strong>stated limit</strong>, not a defect — trust is group-collusion-bounded, not absolute. Document it; do not "fix" it by trusting fewer parties.</li>
+      <li data-id="P9.7.3"><span class="m">MUST</span> preserve integrity against a byzantine relay: a node that mangles a signed Object in transit produces an unverifiable Object that is dropped (<code>byzantine_relay_delivered == false</code>). A relay can <em>withhold</em> (availability) but never <em>inject</em> (integrity).</li>
+      <li data-id="P9.7.4">Partition tolerance (informative): a cut-off cluster reads the default until one bridge relay heals it, after which it converges to the witnessed value. Tested in the reference (<code>mesh_adversarial_test</code>).</li>
+    </ul>
+  </section>
+
   <section id="conformance">
     <div class="sec-no">10 — Conformance vectors</div>
     <h2>The acceptance gate.</h2>
-    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v4</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
+    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v5</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>. Lineage &amp; compatibility: <code>conformance/PROTOCOL_CHANGELOG.md</code>.</p>
     <table>
       <thead><tr><th>Section</th><th>Runtime must reproduce</th></tr></thead>
       <tbody>
@@ -230,6 +243,7 @@ payload = match(u32) | delta_milli(i32) | player_len(u16) | player
         <tr><td>bootstrap</td><td>provisional_witnesses, recoverable_rank, self_excluded</td></tr>
         <tr><td>wire</td><td>byte-exact <code>frame_hex</code>, <code>frame_bytes</code>, decode+verify round-trip, MTU <code>chunk_count</code></td></tr>
         <tr><td>pipeline</td><td>byte-only C→W1→W2 convergence: <code>final_witnessed_rank</code> 51.5, <code>forged_verified</code> false</td></tr>
+        <tr><td>adversarial</td><td>collusion minority 51.5 / majority 100.0; <code>byzantine_relay_delivered</code> false</td></tr>
       </tbody>
     </table>
     <p>Regenerate with <code>mix run --no-start bench/conformance_vectors.exs</code>. Bump <code>version</code> on any normative change; a runtime declares which version it targets.</p>
@@ -255,7 +269,7 @@ PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
     <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
   </section>
 
-  <footer>Football United · Mesh Protocol Specification v4 · vectors are law · generated from the 148-test reference</footer>
+  <footer>Football United · Mesh Protocol Specification v5 · vectors are law · generated from the 153-test reference</footer>
   </main>
 </div>
 </body>
