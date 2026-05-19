@@ -1,3 +1,5 @@
+> **Point-in-time document.** Current status & full project history: see README.md and CHANGELOG.md at the repo root. _(2026-05-19 — Football United app + P2P mesh protocol v5; 156 tests, 0 failures.)_
+
 # Aligning the built system with the IrfTek paper
 
 _What "align the built with the paper" can honestly mean in a centralized

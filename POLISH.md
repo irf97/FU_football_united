@@ -1,3 +1,5 @@
+> **Point-in-time document.** Current status & full project history: see README.md and CHANGELOG.md at the repo root. _(2026-05-19 — Football United app + P2P mesh protocol v5; 156 tests, 0 failures.)_
+
 # Football United · Polish (Phase 4)
 _Surface: **Home** (`lib/fu_web/live/home_live.ex`). Branch
 `feat/audit-test-deploy-polish`._

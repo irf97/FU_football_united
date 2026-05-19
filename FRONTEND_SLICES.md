@@ -1,3 +1,5 @@
+> **Point-in-time document.** Current status & full project history: see README.md and CHANGELOG.md at the repo root. _(2026-05-19 — Football United app + P2P mesh protocol v5; 156 tests, 0 failures.)_
+
 # Frontend Plan v1.0 → LiveView Port — Slices
 
 Bringing each existing LiveView surface up to the frontend plan's component
