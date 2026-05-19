@@ -1,6 +1,6 @@
 # FU Mesh — Conformance Harness Contract
 
-`vectors.json` (spec `fu-mesh-conformance`, **version 2**) is generated from
+`vectors.json` (spec `fu-mesh-conformance`, **version 3**) is generated from
 the Elixir reference (`Fu.Mesh.Identity` + `Fu.Mesh.V3`, 130 tests).
 
 **A runtime is conformant iff it reproduces every vector byte/value-exact.**
@@ -37,7 +37,7 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
 ```
 0. Load vectors.json.
    ASSERT doc.spec == "fu-mesh-conformance"
-   ASSERT doc.version == 2                 # refuse to run against any other version
+   ASSERT doc.version == 3                 # refuse to run against any other version
 
 1. identity[]
    for each v:
@@ -70,8 +70,35 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
    ASSERT recoverable_rank(nodes,[],"orphan")          == bootstrap.recoverable_rank_no_friends  # 51.5
    ASSERT ("orphan" not in provisional_witnesses)      == bootstrap.self_excluded          # true
 
+5. wire
+   (pub,priv) = keypair_from_seed(hex_decode(wire.signer_seed_hex))
+   att   = sign_attest(attest(wire.attestation...), priv, pub)
+   frame = wire_encode(att)
+   ASSERT hex(frame)            == wire.frame_hex          # byte-exact
+   ASSERT len(frame)            == wire.frame_bytes
+   ASSERT wire_decode(hex_decode(wire.frame_hex)) verifies and round-trips
+   ASSERT chunk_count(frame, wire.mtu_example.mtu) == wire.mtu_example.chunk_count
+
 PASS iff every assertion holds; exit non-zero on the first failure.
 ```
+
+### Wire frame (v3, normative — big-endian)
+
+```
+"FU"      2  magic
+0x02      1  version (protocol v2 — frame ver, not the conformance-doc ver)
+type      1  0x01 = signed attestation
+len       4  u32, payload byte length, MUST be <= 4096
+payload  len
+digest    4  first 4 bytes of SHA-256(payload)   # transit corruption only
+
+payload = match(u32) | delta_milli(i32) | player_len(u16) | player
+        | author_pub(32) | sig(64) | wit_count(u16) | [wlen(u16)|witness]*
+```
+
+Codec ≠ crypto: the digest catches bit-rot; `verified?` (Ed25519) is what
+authenticates. `:incomplete` means "buffer more and retry" (stream/MTU);
+`:oversize`/`:corrupt`/`:bad_frame`/`:version` are hard rejects.
 
 ## CI gate
 
@@ -91,3 +118,6 @@ harness ⇒ not a Football United node.
 | rank band / start | [30.0, 100.0] / 50.0 |
 | address length (hex chars) | 16 |
 | delta scale | ×1000, round-half-away-from-zero |
+| wire magic / frame version | `FU` / `0x02` |
+| max payload | 4096 bytes |
+| frame digest | SHA-256(payload)[0..4] |

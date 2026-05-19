@@ -62,6 +62,7 @@
     <a href="#propagation">7 · Propagation</a>
     <a href="#rank">8 · Witnessed rank</a>
     <a href="#bootstrap">9 · Provisional witnesses</a>
+    <a href="#wire">9.5 · Wire framing</a>
     <a href="#conformance">10 · Conformance vectors</a>
     <a href="#open">11 · Open / non-normative</a>
   </nav>
@@ -180,10 +181,31 @@ delta_milli    = round(delta * 1000)   // round half AWAY from zero; plain integ
     <pre>vectors.bootstrap → provisional_witnesses=["o1","o2"]  recoverable_rank=51.5  self_excluded=true</pre>
   </section>
 
+  <section id="wire">
+    <div class="sec-no">9.5 — Wire framing</div>
+    <h2>The transport boundary, byte-frozen.</h2>
+    <p>A signed Object on a byte stream is one length-delimited, integrity-checked frame. Big-endian throughout. The codec is <strong>not</strong> security — the digest catches transit bit-rot; Ed25519 (<code>verified?</code>) authenticates.</p>
+    <pre>"FU"     2  magic
+0x02     1  frame version (== protocol v2)
+type     1  0x01 = signed attestation
+len      4  u32, payload bytes, MUST be <= 4096
+payload len
+digest   4  SHA-256(payload)[0..4]          // transit corruption only
+
+payload = match(u32) | delta_milli(i32) | player_len(u16) | player
+        | author_pub(32) | sig(64) | wit_count(u16) | [wlen(u16)|witness]*</pre>
+    <ul class="req">
+      <li data-id="P9.5.1"><span class="m">MUST</span> reject <code>len &gt; 4096</code> (<code>:oversize</code>) <em>before</em> allocating it; reject bad magic (<code>:bad_frame</code>) and frame-version mismatch (<code>:version</code>).</li>
+      <li data-id="P9.5.2"><span class="m">MUST</span> treat a frame with fewer than <code>len+4</code> body bytes as <code>:incomplete</code> — buffer more &amp; retry (this is how MTU chunking &amp; stream reads work); a digest mismatch is a hard <code>:corrupt</code> reject.</li>
+      <li data-id="P9.5.3"><span class="m">MUST</span> produce byte-identical frames to the reference for the same signed attestation — pinned by the <code>wire</code> vector (<code>frame_hex</code>). MTU chunking is plain ≤<code>mtu</code> splits whose concatenation is the original frame.</li>
+      <li data-id="P9.5.4"><span class="m">MUST</span> keep codec and crypto separate: a structurally-valid frame whose signature fails <code>verified?</code> is decoded but its Object is <strong>not state</strong> (§5).</li>
+    </ul>
+  </section>
+
   <section id="conformance">
     <div class="sec-no">10 — Conformance vectors</div>
     <h2>The acceptance gate.</h2>
-    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v2</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
+    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v3</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
     <table>
       <thead><tr><th>Section</th><th>Runtime must reproduce</th></tr></thead>
       <tbody>
@@ -191,6 +213,7 @@ delta_milli    = round(delta * 1000)   // round half AWAY from zero; plain integ
         <tr><td>canonical_attestations</td><td>the exact <code>canonical</code> string and its <code>signature_hex</code> for each (match,player,delta)</td></tr>
         <tr><td>mesh.signed_ingest</td><td>valid rank 51.5 · forged not known · witnessed_rank 51.5</td></tr>
         <tr><td>bootstrap</td><td>provisional_witnesses, recoverable_rank, self_excluded</td></tr>
+        <tr><td>wire</td><td>byte-exact <code>frame_hex</code>, <code>frame_bytes</code>, decode+verify round-trip, MTU <code>chunk_count</code></td></tr>
       </tbody>
     </table>
     <p>Regenerate with <code>mix run --no-start bench/conformance_vectors.exs</code>. Bump <code>version</code> on any normative change; a runtime declares which version it targets.</p>
@@ -208,7 +231,7 @@ PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
     <div class="sec-no">11 — Open / non-normative</div>
     <h2>Honest edges.</h2>
     <ul class="req">
-      <li data-id="O.1">Transport (BLE/NFC/Wi-Fi-Aware), wire framing &amp; the proximity Anchor are out of scope here — node spec, still real engineering.</li>
+      <li data-id="O.1"><s>Wire framing out of scope.</s> <strong>SPECIFIED in v3</strong> (§9.5, codec implemented &amp; vector-locked). Still out of scope: the <em>radios</em> themselves (BLE/NFC/Wi-Fi-Aware) and the proximity Anchor — real engineering, node spec.</li>
       <li data-id="O.2"><s>The <code>delta</code> string form risks float-formatting divergence.</s> <strong>RESOLVED in v2</strong> — delta is now the integer <code>round(delta*1000)</code> (§4.2); no float formatting crosses the wire.</li>
       <li data-id="O.3">~10% orphan tail at scale remains unrecoverable in pure phone-only zones; venue nodes (node L1/§01) cover most of it. Mitigated, not zero.</li>
       <li data-id="O.4">Revocation lists, capability tokens &amp; persona↔device key separation are specified at the node layer (L7); their on-wire form is a v2 protocol item.</li>
@@ -216,7 +239,7 @@ PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
     <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
   </section>
 
-  <footer>Football United · Mesh Protocol Specification v2 · vectors are law · generated from the 130-test reference</footer>
+  <footer>Football United · Mesh Protocol Specification v3 · vectors are law · generated from the 144-test reference</footer>
   </main>
 </div>
 </body>

@@ -10,7 +10,7 @@ defmodule Fu.ConformanceTest do
   """
   use ExUnit.Case, async: true
 
-  alias Fu.Mesh.{Identity, V3}
+  alias Fu.Mesh.{Identity, V3, Wire}
 
   setup_all do
     json = File.read!(Path.join(File.cwd!(), "conformance/vectors.json"))
@@ -22,7 +22,7 @@ defmodule Fu.ConformanceTest do
 
   test "spec + version handshake (step 0 — refuse anything else)", %{doc: d} do
     assert d["spec"] == "fu-mesh-conformance"
-    assert d["version"] == 2
+    assert d["version"] == 3
   end
 
   test "identity vectors reproduce exactly", %{doc: d} do
@@ -85,5 +85,26 @@ defmodule Fu.ConformanceTest do
                     b["recoverable_rank_no_friends"],
                     1.0e-9
     assert ("orphan" not in V3.provisional_witnesses(nodes, "orphan")) == b["self_excluded"]
+  end
+
+  test "wire frame reproduces byte-exact, decodes, and chunks identically", %{doc: d} do
+    w = d["wire"]
+    {pub, priv} = Identity.keypair_from_seed(unhex(w["signer_seed_hex"]))
+    a = w["attestation"]
+
+    att =
+      V3.attest(a["match"], a["player"], a["delta"], a["witnesses"])
+      |> Identity.sign_attest(priv, pub)
+
+    frame = Wire.encode(att)
+    assert hx(frame) == w["frame_hex"]
+    assert byte_size(frame) == w["frame_bytes"]
+
+    assert {:ok, got, ""} = Wire.decode(unhex(w["frame_hex"]))
+    assert Identity.verified?(got)
+    assert got.player == a["player"]
+
+    mx = w["mtu_example"]
+    assert length(Wire.chunks(frame, mx["mtu"])) == mx["chunk_count"]
   end
 end

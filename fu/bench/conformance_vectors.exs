@@ -6,7 +6,7 @@
 # Rust runtime MUST reproduce exactly. Ed25519 signing is deterministic
 # (RFC 8032), so signature bytes are stable expected values, not samples.
 
-alias Fu.Mesh.{Identity, V3}
+alias Fu.Mesh.{Identity, V3, Wire}
 
 hex = fn b -> Base.encode16(b, case: :lower) end
 seed1 = :binary.copy(<<1>>, 32)
@@ -74,9 +74,22 @@ bootstrap = %{
   self_excluded: "orphan" not in V3.provisional_witnesses(onodes, "orphan")
 }
 
+# --- Wire framing: byte-exact frame for a deterministic signed att --------
+wire_att = V3.attest(1, "p", 1.5, ["w1"]) |> Identity.sign_attest(priv1, pub1)
+wire_frame = Wire.encode(wire_att)
+
+wire = %{
+  attestation: %{match: 1, player: "p", delta: 1.5, witnesses: ["w1"]},
+  signer_seed_hex: hex.(seed1),
+  frame_hex: hex.(wire_frame),
+  frame_bytes: byte_size(wire_frame),
+  max_payload: Wire.max_payload(),
+  mtu_example: %{mtu: 16, chunk_count: length(Wire.chunks(wire_frame, 16))}
+}
+
 doc = %{
   spec: "fu-mesh-conformance",
-  version: 2,
+  version: 3,
   generated_from: "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   notes: [
     "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
@@ -84,12 +97,14 @@ doc = %{
     "Ed25519 per RFC 8032 — signatures are deterministic and reproducible",
     "address = lowercase hex of SHA-256(public_key), first 16 chars",
     "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
-    "v2 supersedes v1: delta encoding moved from float-string to milli-integer"
+    "v2 superseded v1: delta encoding moved from float-string to milli-integer",
+    "v3 adds the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)"
   ],
   identity: identity,
   canonical_attestations: canonical,
   mesh: mesh,
-  bootstrap: bootstrap
+  bootstrap: bootstrap,
+  wire: wire
 }
 
 File.mkdir_p!("conformance")
