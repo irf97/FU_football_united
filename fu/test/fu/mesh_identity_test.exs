@@ -9,6 +9,18 @@ defmodule Fu.Mesh.IdentityTest do
   alias Fu.Mesh.Identity
   alias Fu.Mesh.V3
 
+  test "canonical/1 is a language-stable milli-integer encoding (no float formatting)" do
+    assert Identity.canonical(V3.attest(1, "p", 1.5, [])) == "1|p|1500"
+    assert Identity.canonical(V3.attest(7, "orphan", -0.8, [])) == "7|orphan|-800"
+    assert Identity.canonical(V3.attest(12, "gk", 0.3, [])) == "12|gk|300"
+    # float arithmetic noise must not leak into the signed bytes
+    noisy = V3.attest(2, "p", 0.1 + 0.2, [])
+    assert Identity.canonical(noisy) == "2|p|300"
+    # excludes sig/author_pub/witnesses/size from the signed bytes
+    signed = V3.attest(1, "p", 1.5, ["w1"]) |> Identity.sign_attest(elem(Identity.keypair(), 1), <<0>>)
+    assert Identity.canonical(signed) == "1|p|1500"
+  end
+
   test "a keypair signs and verifies its own payload" do
     {pub, priv} = Identity.keypair()
     msg = "match:42|player:p|delta:1.5"

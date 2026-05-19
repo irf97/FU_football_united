@@ -36,10 +36,16 @@ defmodule Fu.Mesh.Identity do
     :crypto.hash(:sha256, pub) |> Base.encode16(case: :lower) |> binary_part(0, 16)
   end
 
-  # Canonical, signature-stable encoding of the *meaningful* fields only.
-  # Excludes sig/author_pub/size so tampering any of match/player/delta
-  # invalidates the signature.
-  defp canonical(%{match: m, player: p, delta: d}), do: "#{m}|#{p}|#{d}"
+  @doc """
+  Canonical, signature-stable encoding of the *meaningful* fields only:
+  `"{match}|{player}|{delta_milli}"`. `delta_milli = round(delta * 1000)`
+  (round half away from zero) — a plain integer, so there is **no float
+  formatting** to diverge across languages. `player` is opaque UTF-8 and
+  MUST NOT contain `|`. Excludes sig/author_pub/witnesses/size so tampering
+  any signed field invalidates the signature.
+  """
+  def canonical(%{match: m, player: p, delta: d}),
+    do: "#{m}|#{p}|#{round(d * 1000)}"
 
   @doc "Attach an Ed25519 signature + author key to an attestation."
   def sign_attest(att, priv, pub) do

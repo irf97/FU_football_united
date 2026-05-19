@@ -115,12 +115,14 @@
     <div class="sec-no">4 — Object &amp; canonical encoding</div>
     <h2>The exact bytes that get signed.</h2>
     <p>An attestation asserts a rank delta for a player at a match. Its <strong>canonical encoding</strong> — the only bytes ever signed or verified — is:</p>
-    <pre>canonical(att) = "{match}|{player}|{delta}"     // UTF-8, no padding, no spaces
-// e.g.  match=1 player="p" delta=1.5   →   "1|p|1.5"</pre>
+    <pre>canonical(att) = "{match}|{player}|{delta_milli}"          // UTF-8
+delta_milli    = round(delta * 1000)   // round half AWAY from zero; plain integer
+// delta=1.5 -> "1|p|1500"   delta=-0.8 -> "7|orphan|-800"   0.1+0.2 -> "2|p|300"</pre>
     <ul class="req">
       <li data-id="P4.1"><span class="m">MUST</span> sign/verify over exactly <code>canonical(att)</code>; fields <code>sig</code>, <code>author_pub</code>, <code>size</code>, <code>witnesses</code> are excluded from the signed bytes.</li>
-      <li data-id="P4.2"><span class="m">MUST</span> render <code>delta</code> identically to the reference (e.g. <code>1.5</code>, <code>-0.8</code>, <code>0.3</code>) — the <code>canonical_attestations</code> vectors pin the byte-exact form and its expected signature.</li>
+      <li data-id="P4.2"><span class="m">MUST</span> encode <code>delta</code> as the integer <code>round(delta*1000)</code> (round-half-away-from-zero) — <strong>never</strong> a float string. Removes all cross-language float-formatting divergence; arithmetic noise (<code>0.1+0.2</code>) MUST collapse to the same integer (<code>300</code>). Pinned by the <code>canonical_attestations</code> vectors.</li>
       <li data-id="P4.3"><span class="m">MUST</span> treat an Object as immutable and identified by its content; the same canonical bytes are the same Object.</li>
+      <li data-id="P4.4"><span class="m">MUST</span> treat <code>player</code> as an opaque UTF-8 id that MUST NOT contain the <code>|</code> delimiter.</li>
     </ul>
   </section>
 
@@ -181,7 +183,7 @@
   <section id="conformance">
     <div class="sec-no">10 — Conformance vectors</div>
     <h2>The acceptance gate.</h2>
-    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> v1) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
+    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v2</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
     <table>
       <thead><tr><th>Section</th><th>Runtime must reproduce</th></tr></thead>
       <tbody>
@@ -192,6 +194,14 @@
       </tbody>
     </table>
     <p>Regenerate with <code>mix run --no-start bench/conformance_vectors.exs</code>. Bump <code>version</code> on any normative change; a runtime declares which version it targets.</p>
+    <h3>Conformance harness contract</h3>
+    <p>A runtime ships a harness (CI-gated) that loads <code>vectors.json</code> and, per section, performs the operation with its own implementation and asserts equality — exit non-zero on any mismatch. Full procedure: <code>conformance/README.md</code>.</p>
+    <pre>1 assert doc.spec=="fu-mesh-conformance" and doc.version==2   // refuse otherwise
+2 identity[]            : keypair_from_seed(seed) → public_hex,address; sign(canonical)→signature_hex
+3 canonical_attestations: build canonical(match,player,delta) == .canonical; sign → .signature_hex
+4 mesh.signed_ingest    : ingest valid→rank 51.5; ingest forged→not known; witnessed_rank==51.5
+5 bootstrap             : provisional_witnesses, recoverable_rank, self_excluded all equal
+PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
   </section>
 
   <section id="open">
@@ -199,14 +209,14 @@
     <h2>Honest edges.</h2>
     <ul class="req">
       <li data-id="O.1">Transport (BLE/NFC/Wi-Fi-Aware), wire framing &amp; the proximity Anchor are out of scope here — node spec, still real engineering.</li>
-      <li data-id="O.2">The <code>delta</code> string form is pinned by vectors today; a fixed-precision decimal encoding SHOULD be adopted before multi-language runtimes diverge on float formatting. Flagged.</li>
+      <li data-id="O.2"><s>The <code>delta</code> string form risks float-formatting divergence.</s> <strong>RESOLVED in v2</strong> — delta is now the integer <code>round(delta*1000)</code> (§4.2); no float formatting crosses the wire.</li>
       <li data-id="O.3">~10% orphan tail at scale remains unrecoverable in pure phone-only zones; venue nodes (node L1/§01) cover most of it. Mitigated, not zero.</li>
       <li data-id="O.4">Revocation lists, capability tokens &amp; persona↔device key separation are specified at the node layer (L7); their on-wire form is a v2 protocol item.</li>
     </ul>
     <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
   </section>
 
-  <footer>Football United · Mesh Protocol Specification v1 · vectors are law · generated from the 128-test reference</footer>
+  <footer>Football United · Mesh Protocol Specification v2 · vectors are law · generated from the 130-test reference</footer>
   </main>
 </div>
 </body>

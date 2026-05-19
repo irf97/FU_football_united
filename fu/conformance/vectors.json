@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "spec": "fu-mesh-conformance",
   "bootstrap": {
     "provisional_witnesses": [
@@ -14,8 +14,8 @@
       "address": "34750f98bd59fcfc",
       "seed_hex": "0101010101010101010101010101010101010101010101010101010101010101",
       "public_hex": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
-      "sign_payload": "1|p|1.5",
-      "signature_hex": "8bf748aa51b63c3c0957b9269612ad0a043706dffa335ae3f5defbac9fdb460721e38f7d20e94ba221e4d19f11b5930e2b21a681aed7b7179b6564e046598309"
+      "sign_payload": "1|p|1500",
+      "signature_hex": "aad29927aedd5030d0eec09bb2d0588f773ac51791ff23abf3b674496aa15796647ebd3a41e0791fb3e66a1455eaaa93b7e9925b72d4f0daef6b09fee8ac8b09"
     },
     {
       "address": "6a3803d5f059902a",
@@ -32,32 +32,41 @@
   },
   "generated_from": "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   "notes": [
-    "canonical attestation encoding = \"0\" pattern: match|player|delta",
+    "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
+    "player is opaque UTF-8 and MUST NOT contain the '|' delimiter",
     "Ed25519 per RFC 8032 — signatures are deterministic and reproducible",
     "address = lowercase hex of SHA-256(public_key), first 16 chars",
-    "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded"
+    "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
+    "v2 supersedes v1: delta encoding moved from float-string to milli-integer"
   ],
   "canonical_attestations": [
     {
       "match": 1,
-      "canonical": "1|p|1.5",
+      "canonical": "1|p|1500",
       "player": "p",
       "delta": 1.5,
-      "signature_hex": "8bf748aa51b63c3c0957b9269612ad0a043706dffa335ae3f5defbac9fdb460721e38f7d20e94ba221e4d19f11b5930e2b21a681aed7b7179b6564e046598309"
+      "signature_hex": "aad29927aedd5030d0eec09bb2d0588f773ac51791ff23abf3b674496aa15796647ebd3a41e0791fb3e66a1455eaaa93b7e9925b72d4f0daef6b09fee8ac8b09"
     },
     {
       "match": 7,
-      "canonical": "7|orphan|-0.8",
+      "canonical": "7|orphan|-800",
       "player": "orphan",
       "delta": -0.8,
-      "signature_hex": "61dc2b9fc4d41e21dffb323484ecb759ff695ad7240a6407ccb39b09a4f0fa128079958e43e5420d555d6df3a24fe4ba5eced5d76ec6cb92c7fa27635aa18904"
+      "signature_hex": "230f87e936ec5e3c381b00b6b408db0a6783671401a11cf10e9dc9de842b0e325156f734d6347dac604bd0d990c783919181922206253af3866546ed4739180e"
     },
     {
       "match": 12,
-      "canonical": "12|gk|0.3",
+      "canonical": "12|gk|300",
       "player": "gk",
       "delta": 0.3,
-      "signature_hex": "91566ada6aeaba935da1953fa30bf4b125c6852503eac3b42bb438afa4403f7901f4a548a9a3794301a91d8bc55e0c0337b6ac9b1f8595d0b55d6387cc13b60e"
+      "signature_hex": "c0b7318caf0128d6e432e0aa62d6a0d9f8734e81a19d48b96ace0234da23d823a86a23da62821f1c786cad4e8daeb6ed596466d8be78a14c9970a5caa335c109"
+    },
+    {
+      "match": 2,
+      "canonical": "2|p|300",
+      "player": "p",
+      "delta": 0.30000000000000004,
+      "signature_hex": "4384e97b58e63e2097bb17dbffed06d8caa1cc4236ab55bcaead19886f4a66df7fdae11649f0c0c0b6b17e97de81b11243f1e73cc092641d60982f080d606a0f"
     }
   ]
 }

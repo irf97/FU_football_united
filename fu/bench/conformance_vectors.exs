@@ -15,13 +15,15 @@ seed2 = :binary.copy(<<2>>, 32)
 {pub2, _priv2} = Identity.keypair_from_seed(seed2)
 
 # --- Identity vectors -------------------------------------------------------
+id_payload = Identity.canonical(V3.attest(1, "p", 1.5, []))
+
 identity = [
   %{
     seed_hex: hex.(seed1),
     public_hex: hex.(pub1),
     address: Identity.address(pub1),
-    sign_payload: "1|p|1.5",
-    signature_hex: hex.(Identity.sign(priv1, "1|p|1.5"))
+    sign_payload: id_payload,
+    signature_hex: hex.(Identity.sign(priv1, id_payload))
   },
   %{
     seed_hex: hex.(seed2),
@@ -31,11 +33,10 @@ identity = [
 ]
 
 # --- Canonical attestation encoding (the exact bytes that get signed) -------
-canon = fn m, p, d -> "#{m}|#{p}|#{d}" end
-
+# Single source of truth: Fu.Mesh.Identity.canonical/1 (milli-integer delta).
 canonical =
-  for {m, p, d} <- [{1, "p", 1.5}, {7, "orphan", -0.8}, {12, "gk", 0.3}] do
-    payload = canon.(m, p, d)
+  for {m, p, d} <- [{1, "p", 1.5}, {7, "orphan", -0.8}, {12, "gk", 0.3}, {2, "p", 0.1 + 0.2}] do
+    payload = Identity.canonical(V3.attest(m, p, d, []))
     %{match: m, player: p, delta: d, canonical: payload, signature_hex: hex.(Identity.sign(priv1, payload))}
   end
 
@@ -75,13 +76,15 @@ bootstrap = %{
 
 doc = %{
   spec: "fu-mesh-conformance",
-  version: 1,
+  version: 2,
   generated_from: "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   notes: [
-    "canonical attestation encoding = \"#{0}\" pattern: match|player|delta",
+    "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
+    "player is opaque UTF-8 and MUST NOT contain the '|' delimiter",
     "Ed25519 per RFC 8032 — signatures are deterministic and reproducible",
     "address = lowercase hex of SHA-256(public_key), first 16 chars",
-    "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded"
+    "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
+    "v2 supersedes v1: delta encoding moved from float-string to milli-integer"
   ],
   identity: identity,
   canonical_attestations: canonical,
