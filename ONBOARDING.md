@@ -59,8 +59,12 @@ CI runs both gates independently (`.github/workflows/conformance.yml`).
 - Known untested frontier (out of conformance scope, not hidden):
   **R1** (`delta_milli` decimal-vs-binary64), **R2** (Ed25519 verify
   variant).
-- App pre-launch blockers, by design: real SMS adapter; admin is a
-  hardcoded demo gate (a flagged blocker — not a vuln to silently fix).
+- App pre-launch blockers — **updated**: admin credential is now **out
+  of source** (runtime env, constant-time, fail-closed) — resolved. SMS
+  is now a **release-grade boundary** (provider strategy + injected
+  transport, fail-closed); `LogAdapter` is still the default, so **no
+  real texts send until a concrete provider+transport is wired** —
+  deliberate, a localized add, not an architectural blocker.
 
 ## Working here
 
@@ -80,6 +84,8 @@ CI runs both gates independently (`.github/workflows/conformance.yml`).
    author, no contaminated context. The single event that crosses the
    legitimacy threshold. (See `redefinition/THIRD_IMPLEMENTATION_PLAN.md`.)
 2. Pin the R1/R2 frontier with new vectors (would bump the version).
-3. Resolve app pre-launch blockers (SMS adapter, admin credential).
+3. App pre-launch blockers: admin credential **done**; SMS boundary
+   **done** — remaining is wiring one concrete SMS provider+transport
+   (small, localized) plus the usual prod release config.
 4. Transport + runtime — large, genuinely unscoped engineering. Not
    implied to be near.

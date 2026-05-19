@@ -54,9 +54,19 @@ log alone. ~2 minutes.
 - Known untested frontier: **R1** (`delta_milli` decimal-vs-binary64)
   and **R2** (Ed25519 verify variant) — out of conformance scope, not
   pretended-covered.
-- App pre-launch blockers, by design: real SMS adapter; admin is a
-  **hardcoded demo gate** (a known, flagged blocker — do **not** treat
-  it as a vuln to silently patch, nor as a real secret).
+- App pre-launch blockers — **status updated**:
+  - **Admin credential: RESOLVED.** Out of source; secret from
+    `FU_ADMIN_PASSWORD` (`config/runtime.exs`), constant-time compare,
+    **fail-closed** (unset ⇒ admin login disabled, never a fallback).
+    Dev default in `config/dev.exs` only. There is no longer a
+    hardcoded password to "not patch".
+  - **SMS: architecture RESOLVED, vendor deferred (honest).** `Fu.SMS`
+    is now a release-grade boundary — `Fu.SMS.Provider` strategy +
+    injected `Fu.SMS.Transport` + fail-closed `HTTPAdapter` + resilient
+    `deliver/2`. `LogAdapter` is still the default: **no real texts are
+    sent until a concrete provider+transport is wired** (deliberate —
+    principled architecture before vendor lock). This is a small,
+    localized add, not an architectural blocker.
 
 ## Operating constraints (hard — learned the hard way)
 

@@ -99,6 +99,11 @@ is independent of whether Football United ever ships.
   story**: a single self-contained narrative (origin → pivot → kernel →
   conformance → second impl → findings → what is not built → threshold →
   next), honest and hype-free.
+- [`STRATEGIC_RUNTIME_ARCHITECTURE.md`](STRATEGIC_RUNTIME_ARCHITECTURE.md)
+  — systems-level architecture: FU as the first domain of the IrfTek
+  local-first runtime; kernel, Rust-runtime roles, trust/governance,
+  scaling, the 8-phase roadmap. Maturity-tagged throughout. Guides the
+  next build phase.
 - [`SECOND_IMPLEMENTATION.md`](SECOND_IMPLEMENTATION.md) — the contract
   that makes the legitimacy threshold real and un-gameable.
 - [`CLEANROOM_READINESS.md`](CLEANROOM_READINESS.md) — honest audit of

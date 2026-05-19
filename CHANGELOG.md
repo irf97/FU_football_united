@@ -15,7 +15,27 @@ Protocol/conformance versions have their own lineage in
 
 ## Phase 5 — External reproduction & contract hardening
 
-### Cold-start onboarding + end-to-end narrative *(latest)*
+### App pre-launch hardening — principled architecture before release *(latest)*
+- **Admin credential out of source (TDD).** Removed the hardcoded
+  `@admin_password` from `login_live.ex`. Secret now sourced from
+  `FU_ADMIN_PASSWORD` (`config/runtime.exs`), validated in the
+  `Fu.Admin` context via `Plug.Crypto.secure_compare/2` (constant-time),
+  **fail-closed** (unset ⇒ admin login disabled, never a fallback). Dev
+  default in `config/dev.exs` only. New `login_live_admin_test` (RED→GREEN).
+- **SMS release-grade boundary (TDD).** `Fu.SMS` reworked into ports &
+  adapters: `Fu.SMS.Provider` (IO-free vendor strategy) + injected
+  `Fu.SMS.Transport` (HTTP seam) + fail-closed `Fu.SMS.HTTPAdapter` +
+  resilient `deliver/2` (an adapter that raises becomes `{:error, _}`,
+  never reaches the OTP caller). **No vendor or HTTP dependency added**
+  — deliberate: principled architecture before vendor lock; `LogAdapter`
+  stays the default, so no real texts send until a concrete
+  provider+transport is wired (a small, localized step). New
+  `sms_seam_test`; existing `sms_test` unchanged.
+- Suite: **165 tests / 5 properties / 0 failures**. Blocker docs
+  (CLAUDE.md, ONBOARDING.md, FU_END_TO_END.html) updated to the honest
+  status: admin resolved; SMS architecture resolved, vendor deferred.
+
+### Cold-start onboarding + end-to-end narrative
 - `CLAUDE.md` added — the single auto-loaded brief any AI agent reads
   first: the journey, the hard operating constraints, the calibrated-
   honesty ethos, and the honest status (v6; clean-room threshold **not**

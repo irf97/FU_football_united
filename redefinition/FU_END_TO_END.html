@@ -229,9 +229,11 @@
       <li>Captain-guarded tactics, friends/groups, per-queue chat.</li>
     </ul>
     <p>Status: <span class="pill p-real">Real · tested · runnable</span>
-      — 156 tests / 5 properties / 0 failures. Pre-launch blockers are
-      documented, not hidden (real SMS gateway; admin credential out of
-      source).</p>
+      — 165 tests / 5 properties / 0 failures. Pre-launch blockers are
+      documented, not hidden — and now largely closed: the admin
+      credential is out of source (runtime env, fail-closed) and SMS is
+      a release-grade boundary (a concrete provider is the only localized
+      step left).</p>
   </section>
 
   <!-- 2 -->
@@ -458,8 +460,10 @@
         <b>Friendless bootstrap mitigated, not solved</b> (~90% @10k in
         simulation; a residual tail remains).</span></div>
       <div class="ck part"><span class="g">◐</span><span class="l">
-        <b>App pre-launch blockers open</b> (real SMS gateway; admin
-        credential still in source).</span></div>
+        <b>App pre-launch blockers mostly closed.</b> Admin credential is
+        out of source (runtime env, fail-closed); SMS is a release-grade
+        boundary — but <b>no real texts send</b> until one concrete
+        provider+transport is wired (deliberate, localized).</span></div>
       <div class="ck no"><span class="g">✗</span><span class="l">
         <b>Not a production runtime or infrastructure.</b> It is a
         reference kernel + simulator.</span></div>
@@ -515,9 +519,10 @@
           contract version. Closes the known untested gaps.</div>
         <span class="effort">Effort: small · Confidence: high (scoped)</span></div>
       <div class="rung"><span class="n">M3</span>
-        <div class="h">Resolve app pre-launch blockers</div>
-        <div class="x">Real SMS adapter; admin credential out of source.
-          Makes the football product shippable on its own merits.</div>
+        <div class="h">App pre-launch blockers (mostly done)</div>
+        <div class="x">Admin credential out of source — <b>done</b>. SMS
+          release-grade boundary — <b>done</b>; remaining: wire one
+          concrete provider+transport + prod release config.</div>
         <span class="effort">Effort: small · Confidence: high</span></div>
       <div class="rung"><span class="n">M4</span>
         <div class="h">Transport + runtime (the real build)</div>
