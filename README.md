@@ -110,6 +110,8 @@ client are the genuine remaining build — outside this repo.
 
 | File | What it is |
 |---|---|
+| `redefinition/FU_END_TO_END.html` | **End-to-end narrative — read this first** (honest, single page) |
+| `CLAUDE.md` | Cold-start brief for any AI agent: journey, constraints, honest status |
 | `CHANGELOG.md` | **The chronological record of everything that happened** |
 | `fu-network-pitch.html` | Why (engineer/marketing pitch) |
 | `fu-dossier.html` | How it's built (architecture & state) |

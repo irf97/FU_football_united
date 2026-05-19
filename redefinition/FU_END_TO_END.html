@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Football United — End to End</title>
+<style>
+  :root{
+    --bg:#0b0c0e; --bg-soft:#131519; --panel:#16181d; --panel-2:#1b1e24;
+    --ink:#ECEAE3; --muted:#9aa0a8; --faint:#646a73;
+    --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.17);
+    --accent:#C5FF3D; --good:#7ED957; --warn:#F2B441; --bad:#FF6B5A; --info:#6BAEFF;
+    --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%,rgba(197,255,61,.045),transparent 60%),
+      var(--bg);
+    color:var(--ink);font-family:var(--sans);line-height:1.65;
+    font-size:16px;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(197,255,61,.25)}
+  a:hover{border-bottom-color:var(--accent)}
+  code{font-family:var(--mono);font-size:.85em;background:var(--bg-soft);
+    border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:#d6e8a6}
+
+  /* top bar */
+  header.top{position:sticky;top:0;z-index:9;background:rgba(11,12,14,.86);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .top .wrap{display:flex;align-items:center;gap:16px;
+    height:52px;justify-content:space-between}
+  .brand{font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--accent);white-space:nowrap}
+  nav.toc{display:flex;gap:14px;overflow-x:auto;scrollbar-width:none}
+  nav.toc::-webkit-scrollbar{display:none}
+  nav.toc a{color:var(--muted);font-size:12px;border:0;white-space:nowrap}
+  nav.toc a:hover{color:var(--ink)}
+
+  /* hero */
+  .hero{padding:74px 0 30px;border-bottom:1px solid var(--line)}
+  .kick{font-family:var(--mono);font-size:11.5px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--serif);font-weight:600;
+    font-size:clamp(2.1rem,7vw,3.5rem);line-height:1.05;
+    letter-spacing:-.015em;margin:.5rem 0 .9rem;text-wrap:balance}
+  .lede{font-size:clamp(1.02rem,2.6vw,1.22rem);color:var(--ink);max-width:62ch}
+  .sub{color:var(--muted);margin-top:.7rem;max-width:64ch}
+
+  .stance{margin:26px 0 6px;border-left:3px solid var(--accent);
+    background:linear-gradient(90deg,rgba(197,255,61,.06),transparent 75%);
+    padding:15px 20px;border-radius:0 10px 10px 0}
+  .stance b{color:var(--ink)}
+  .stance p{color:#d4d2c8;font-size:.96rem;margin:.3rem 0}
+
+  section{padding:46px 0;border-bottom:1px solid var(--line)}
+  .sec-no{font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+    color:var(--accent);margin-bottom:8px}
+  h2{font-family:var(--serif);font-weight:600;
+    font-size:clamp(1.5rem,4vw,2.05rem);letter-spacing:-.01em;
+    margin-bottom:.5rem;scroll-margin-top:64px}
+  h3{font-size:14px;font-weight:700;color:var(--ink);
+    text-transform:uppercase;letter-spacing:.06em;margin:22px 0 8px}
+  p{color:#d4d2c8;margin:.6rem 0}
+  ul.clean{list-style:none;margin:.6rem 0}
+  ul.clean li{position:relative;padding:5px 0 5px 20px;color:#d4d2c8;font-size:.97rem}
+  ul.clean li::before{content:"—";position:absolute;left:0;color:var(--faint)}
+  strong{color:var(--ink)}
+  em{color:var(--accent);font-style:normal}
+
+  /* pills */
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;
+    border-radius:999px;border:1px solid var(--line2);white-space:nowrap}
+  .p-real{color:var(--good);border-color:rgba(126,217,87,.4);background:rgba(126,217,87,.08)}
+  .p-bound{color:var(--warn);border-color:rgba(242,180,65,.4);background:rgba(242,180,65,.08)}
+  .p-asp{color:var(--bad);border-color:rgba(255,107,90,.4);background:rgba(255,107,90,.08)}
+  .p-info{color:var(--info);border-color:rgba(107,174,255,.4);background:rgba(107,174,255,.08)}
+
+  /* layer diagram */
+  .layers{display:flex;flex-direction:column;gap:10px;margin:18px 0}
+  .layer{display:flex;align-items:flex-start;gap:14px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .layer .bar{width:4px;align-self:stretch;border-radius:3px;flex:none}
+  .l-app .bar{background:var(--good)} .l-ker .bar{background:var(--warn)}
+  .l-run .bar{background:var(--bad)}
+  .layer .body{flex:1;min-width:0}
+  .layer .t{font-weight:700;color:var(--ink)}
+  .layer .d{color:var(--muted);font-size:.92rem;margin-top:3px}
+  .layer .meta{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+
+  /* timeline */
+  .tl{position:relative;margin:20px 0 6px;padding-left:26px}
+  .tl::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;
+    width:2px;background:var(--line2)}
+  .tl .ev{position:relative;padding:0 0 22px 8px}
+  .tl .ev:last-child{padding-bottom:0}
+  .tl .ev::before{content:"";position:absolute;left:-23px;top:4px;
+    width:12px;height:12px;border-radius:50%;background:var(--bg);
+    border:2px solid var(--accent)}
+  .tl .ev.muted::before{border-color:var(--faint)}
+  .tl .ph{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--accent)}
+  .tl .ev.muted .ph{color:var(--faint)}
+  .tl .ti{font-weight:700;color:var(--ink);margin:1px 0 2px}
+  .tl .tx{color:var(--muted);font-size:.92rem}
+
+  /* table */
+  .scroll{overflow-x:auto;margin:16px 0;border:1px solid var(--line);
+    border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:560px}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);
+    vertical-align:top}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);background:var(--bg-soft)}
+  tr:last-child td{border-bottom:0}
+  td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+  td{color:#cdd0d3}
+
+  /* reproducibility loop */
+  .loop{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 8px}
+  .node{background:var(--panel);border:1px solid var(--line2);border-radius:10px;
+    padding:10px 13px;font-size:.86rem;color:var(--ink);flex:1;min-width:140px;
+    text-align:center}
+  .node small{display:block;color:var(--muted);font-size:.74rem;
+    margin-top:2px;font-family:var(--mono)}
+  .arrow{color:var(--faint);font-size:18px;flex:none}
+  .loopback{font-family:var(--mono);font-size:11.5px;color:var(--accent);
+    margin-top:6px}
+
+  /* checklist */
+  .check{display:grid;grid-template-columns:1fr;gap:8px;margin:16px 0}
+  @media(min-width:640px){.check{grid-template-columns:1fr 1fr}}
+  .ck{display:flex;gap:11px;align-items:flex-start;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .ck .g{font-family:var(--mono);font-weight:700;flex:none;width:18px;
+    text-align:center}
+  .ck.done .g{color:var(--good)} .ck.part .g{color:var(--warn)}
+  .ck.no .g{color:var(--bad)}
+  .ck .l{font-size:.9rem;color:#d4d2c8}
+  .ck .l b{color:var(--ink)}
+
+  /* ladder */
+  .ladder{display:flex;flex-direction:column-reverse;gap:0;margin:18px 0 6px}
+  .rung{border:1px solid var(--line);border-bottom:0;background:var(--panel);
+    padding:15px 18px;position:relative}
+  .ladder .rung:first-child{border-bottom:1px solid var(--line);
+    border-radius:0 0 12px 12px}
+  .ladder .rung:last-child{border-radius:12px 12px 0 0}
+  .rung .n{font-family:var(--mono);font-size:11px;color:var(--accent);
+    letter-spacing:.1em}
+  .rung .h{font-weight:700;color:var(--ink);margin:2px 0 3px}
+  .rung .x{color:var(--muted);font-size:.9rem}
+  .rung .effort{font-family:var(--mono);font-size:10px;color:var(--faint);
+    text-transform:uppercase;letter-spacing:.08em;margin-top:6px;display:block}
+
+  .docs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .docs a{font-family:var(--mono);font-size:11.5px;background:var(--bg-soft);
+    border:1px solid var(--line);border-radius:7px;padding:6px 10px;color:var(--muted)}
+  .docs a:hover{color:var(--ink);border-color:var(--line2)}
+
+  footer{padding:40px 0 70px;color:var(--faint);font-size:.84rem}
+  footer .wrap>div{border-top:1px solid var(--line);padding-top:20px}
+  .mono{font-family:var(--mono)}
+  @media(max-width:560px){
+    .brand{font-size:11px}
+    section{padding:38px 0}
+  }
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <span class="brand">Football United</span>
+  <nav class="toc">
+    <a href="#s1">App</a><a href="#s2">Built</a><a href="#s3">Pivot</a>
+    <a href="#s4">Protocol</a><a href="#s5">Vectors</a><a href="#s6">2nd impl</a>
+    <a href="#s7">Findings</a><a href="#s8">Not built</a><a href="#s9">Threshold</a>
+    <a href="#s10">Next</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="kick">End-to-end · for reviewers, engineers, investors</div>
+    <h1>Football United, told straight.</h1>
+    <p class="lede">A built football app, a deterministic protocol reference
+      kernel, and a reproducibility methodology — three distinct things in
+      one repository, described without inflating any of them.</p>
+    <p class="sub">This page is the honest narrative. Where a claim is
+      strong it is evidenced; where something does not exist it is said
+      plainly. No deployed network is claimed anywhere in this document.</p>
+
+    <div class="stance">
+      <p><b>The one-paragraph version.</b> The football app is real and
+      tested. The mesh protocol is a <em>self-consistent reference
+      kernel</em> frozen into a machine-checkable contract — validated in
+      simulation, reproduced once by an independent (but
+      context-contaminated) Python implementation. It is <b>not</b> a
+      proven interop standard and there is <b>no</b> runtime, radio,
+      transport, network, or deployment. The clean-room legitimacy
+      threshold is <b>not yet crossed</b>.</p>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <section id="s1">
+    <div class="sec-no">01 — ORIGIN</div>
+    <h2>The original Football United app</h2>
+    <p>Football United started as an amateur-football matchmaking product:
+      find players, fill a match, play, rate each other, carry a rank.
+      It is a <strong>Phoenix LiveView / PostgreSQL</strong> application,
+      built and runnable today.</p>
+    <ul class="clean">
+      <li>Surfaces: <code>/browse</code>, <code>/queue</code>,
+        <code>/lobby</code>, <code>/match</code>, <code>/postmatch</code>,
+        <code>/profile</code>, password-gated <code>/admin</code>.</li>
+      <li>A soft-join → hard-lock commitment model with bail penalties
+        (1 day &gt;24h before kickoff, 1 week within 24h).</li>
+      <li>A deterministic, append-only rank ledger: idempotent finalize,
+        disputes-as-amendments, decay, rated 8v8 + 7v7. Sub-positions are
+        display-only — a test-locked invariant keeps them out of
+        matchmaking.</li>
+      <li>Captain-guarded tactics, friends/groups, per-queue chat.</li>
+    </ul>
+    <p>Status: <span class="pill p-real">Real · tested · runnable</span>
+      — 156 tests / 5 properties / 0 failures. Pre-launch blockers are
+      documented, not hidden (real SMS gateway; admin credential out of
+      source).</p>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <div class="sec-no">02 — WHAT WAS ACTUALLY BUILT</div>
+    <h2>The three layers, and which column each sits in</h2>
+    <p>The single biggest way to misread this repository is to collapse
+      these three things into one claim.</p>
+    <div class="layers">
+      <div class="layer l-app">
+        <div class="bar"></div>
+        <div class="body">
+          <div class="t">1 · The football app</div>
+          <div class="d">Phoenix LiveView product: queues, lobbies,
+            matches, voting, ranking, friends, admin.</div>
+          <div class="meta"><span class="pill p-real">Real</span>
+            <span class="pill p-info">156 tests / 0 fail</span></div>
+        </div>
+      </div>
+      <div class="layer l-ker">
+        <div class="bar"></div>
+        <div class="body">
+          <div class="t">2 · The protocol reference kernel</div>
+          <div class="d">Deterministic Elixir modules + a frozen,
+            byte-exact conformance contract (v6) for proximity-trust
+            mesh semantics.</div>
+          <div class="meta"><span class="pill p-bound">Real but bounded</span>
+            <span class="pill p-info">self-consistent reference, not a proven standard</span></div>
+        </div>
+      </div>
+      <div class="layer l-run">
+        <div class="bar"></div>
+        <div class="body">
+          <div class="t">3 · The runtime / network / ecosystem</div>
+          <div class="d">Rust runtime, BLE/NFC transport, phone client,
+            node OS, third-party adoption.</div>
+          <div class="meta"><span class="pill p-asp">Aspirational · zero of it exists</span></div>
+        </div>
+      </div>
+    </div>
+    <p>Also built around the kernel: an independent Python
+      implementation, a dual-runtime CI gate, a divergence audit, and the
+      <code>redefinition/</code> framing you are reading now.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <div class="sec-no">03 — THE PIVOT</div>
+    <h2>From product to reference kernel</h2>
+    <p>Mid-build the direction shifted toward a server-less,
+      proximity-trust peer-to-peer model. Rather than ship speculative
+      networking code, the decision was to make the Phoenix app the
+      <strong>simulator and oracle</strong> and freeze the trust/sync
+      core into an executable, versioned contract. A future phone/node
+      runtime is the named target — it has not been written.</p>
+    <div class="tl">
+      <div class="ev"><div class="ph">Phase 0–2</div>
+        <div class="ti">Football app + depth</div>
+        <div class="tx">MVP → lock/penalty lifecycle, tactics, ranking
+          ledger, full test suite.</div></div>
+      <div class="ev"><div class="ph">Phase 3</div>
+        <div class="ti">P2P pivot, de-risked into a contract</div>
+        <div class="tx">Mesh model v1→v3; friendless-bootstrap mitigated;
+          each layer frozen as a tested, vector-locked primitive.</div></div>
+      <div class="ev"><div class="ph">Phase 4</div>
+        <div class="ti">Made tangible</div>
+        <div class="tx">Mesh Lab simulator over the real modules;
+          documentation tracking pass.</div></div>
+      <div class="ev"><div class="ph">Conformance v1→v6</div>
+        <div class="ti">The contract hardened by use</div>
+        <div class="tx">v2 language-stable encoding · v3 wire · v4
+          pipeline · v5 adversarial · v6 bootstrap scenario pinned.</div></div>
+      <div class="ev"><div class="ph">Phase 5</div>
+        <div class="ti">External reproducibility</div>
+        <div class="tx">Independent Python implementation; clean-room
+          audit; third-implementation legitimacy plan.</div></div>
+      <div class="ev muted"><div class="ph">Future</div>
+        <div class="ti">Runtime · radios · network</div>
+        <div class="tx">Unbuilt. The genuine remaining engineering.</div></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <div class="sec-no">04 — WHAT THE PROTOCOL MODEL DOES</div>
+    <h2>The trust &amp; sync core</h2>
+    <p>The kernel specifies how a signed claim about a player's rank
+      travels by physical proximity and how truth is derived from
+      witnesses — not from any server.</p>
+    <ul class="clean">
+      <li><strong>Identity</strong> — Ed25519 (RFC 8032); a 32-byte seed
+        deterministically yields a keypair; address =
+        <code>SHA-256(pub)</code> first 16 hex chars.</li>
+      <li><strong>Canonical encoding</strong> — the exact bytes signed:
+        <code>"{match}|{player}|{delta_milli}"</code>, integer-milli
+        delta, no float formatting (language-stable across runtimes).</li>
+      <li><strong>Verify-or-drop ingest</strong> — an attestation not
+        validly signed by its declared author is dropped entirely: never
+        folded, stored, or relayed.</li>
+      <li><strong>Witnessed rank</strong> — a player's rank is the
+        <em>median of their witnesses' views, self excluded</em>. A lone
+        forger is powerless; a colluding <em>minority</em> cannot move it;
+        a <em>majority</em> can — this is the stated, documented limit,
+        not a defect.</li>
+      <li><strong>Friendless bootstrap</strong> — proximity over time
+        promotes acquaintances to provisional witnesses, so the
+        friendless are still recoverable (mitigated to ~90% at 10k in
+        simulation, not 100%).</li>
+      <li><strong>Wire framing &amp; pipeline</strong> — a byte-exact,
+        digest-checked frame; two nodes converge on a witnessed rank
+        using only chunked, reassembled bytes.</li>
+    </ul>
+    <p>Validated <em>in deterministic simulation</em> to 10,000 users
+      (flat storage, ~100% witness delivery, NFC-feasible payloads).
+      Simulation is not field deployment.</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <div class="sec-no">05 — WHAT CONFORMANCE VECTORS PROVE</div>
+    <h2>And, just as importantly, what they do not</h2>
+    <p><code>fu/conformance/vectors.json</code> (spec
+      <code>fu-mesh-conformance</code>, version 6) is a set of
+      deterministic input→output pairs <em>generated by running the
+      reference</em> — not hand-typed constants. Ed25519 is deterministic
+      (RFC 8032), so the signature bytes are stable expected values.</p>
+    <h3>They prove</h3>
+    <ul class="clean">
+      <li>Reproducibility: another implementation can be checked
+        byte/value-exact, section by section.</li>
+      <li>Regression safety: a normative change must bump the version and
+        the self-check refuses any mismatch.</li>
+      <li>Anti-circularity: an independent code path re-derives every
+        value rather than echoing the generator.</li>
+    </ul>
+    <h3>They do <em>not</em> prove</h3>
+    <ul class="clean">
+      <li>That the protocol design is <em>correct</em> or secure — a
+        faithfully reproduced flaw is still a flaw.</li>
+      <li>That any network, runtime, or radio works — none exists.</li>
+    </ul>
+    <p>Precedence is explicit and ordered:
+      <code>prose &lt; vectors.json &lt; reference code</code>.</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <div class="sec-no">06 — THE PYTHON SECOND IMPLEMENTATION</div>
+    <h2>What it reproduced — and its honest scope</h2>
+    <p>An independent Python implementation
+      (<code>implementations/python-conformance/</code>) was written from
+      the spec + vectors, with a <strong>vendored pure-Python RFC 8032
+      Ed25519</strong> (a separate crypto stack from the reference's) and
+      <strong>zero third-party dependencies</strong>.</p>
+    <p>Result: <span class="pill p-real">31 / 31 vectors @ v6</span> —
+      every section reproduced value/byte-exact, including the
+      byte-exact wire frame and signatures from the independent crypto
+      path.</p>
+    <div class="stance">
+      <p><b>The honest asterisk.</b> Its author had prior exposure to
+      paraphrases of the algorithm. Per the project's own contract this
+      is a <b>spec-sufficiency audit</b>, <b>not</b> a clean-room
+      independence proof. It raised the contract's quality; it did
+      <b>not</b> certify external reproducibility. That distinction is
+      stated, not glossed.</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <div class="sec-no">07 — AMBIGUITIES FOUND &amp; FIXED</div>
+    <h2>The audit did its job</h2>
+    <p>Building an independent implementation surfaced four
+      under-specifications invisible while the reference checked itself.
+      All are now closed in the contract.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Gap</th><th>Resolution</th><th>Impact</th></tr></thead>
+      <tbody>
+        <tr><td>F4</td><td>bootstrap scenario lived only in the generator
+          (node set, encounter counts, unsigned fold all hidden)</td>
+          <td>scenario pinned as structured input
+          <code>bootstrap.scenario</code>; version 5→6 (additive)</td>
+          <td>contract-level; outputs unchanged</td></tr>
+        <tr><td>F3</td><td>step-3 prose built one witness; the vector
+          needs two</td><td>prose now constructs both witnesses</td>
+          <td>docs-only; no behaviour change</td></tr>
+        <tr><td>F1</td><td>"32-byte seed → keypair" never stated the seed
+          <em>is</em> the Ed25519 private seed</td>
+          <td>stated explicitly (RFC 8032 §5.1.5)</td>
+          <td>docs-only</td></tr>
+        <tr><td>F7</td><td>rank fold formula &amp; clamp order never
+          written</td><td>fold + clamp-once-at-read written out</td>
+          <td>docs-only</td></tr>
+      </tbody>
+    </table></div>
+    <p>A spec-stability pass also fixed prose that could drift from the
+      vectors (the <code>[0..N]</code> inclusive-range trap;
+      "ascending-sorted" median; anti-drift test-count wording).
+      <strong>Honestly remaining</strong> and explicitly out of current
+      conformance scope: <code>R1</code> (the <code>delta_milli</code>
+      decimal-vs-binary64 domain on untested deltas) and <code>R2</code>
+      (Ed25519 verify-equation variant on adversarial signatures). These
+      are the frontier — documented, not pretended-covered.</p>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <div class="sec-no">08 — WHAT STILL DOES NOT EXIST</div>
+    <h2>Said plainly</h2>
+    <div class="check">
+      <div class="ck no"><span class="g">✗</span><span class="l">
+        <b>No deployed decentralized network.</b> Nothing is running in
+        the field.</span></div>
+      <div class="ck no"><span class="g">✗</span><span class="l">
+        <b>No Rust runtime.</b> It is a named target; zero Rust exists.</span></div>
+      <div class="ck no"><span class="g">✗</span><span class="l">
+        <b>No BLE/NFC/Wi-Fi-Aware transport.</b> Radios are unbuilt.</span></div>
+      <div class="ck no"><span class="g">✗</span><span class="l">
+        <b>No phone client / node OS.</b> The 25-layer node design is a
+        document, not an implementation.</span></div>
+      <div class="ck no"><span class="g">✗</span><span class="l">
+        <b>No third-party implementations or adoption.</b> No ecosystem.</span></div>
+      <div class="ck part"><span class="g">◐</span><span class="l">
+        <b>Friendless bootstrap mitigated, not solved</b> (~90% @10k in
+        simulation; a residual tail remains).</span></div>
+      <div class="ck part"><span class="g">◐</span><span class="l">
+        <b>App pre-launch blockers open</b> (real SMS gateway; admin
+        credential still in source).</span></div>
+      <div class="ck no"><span class="g">✗</span><span class="l">
+        <b>Not a production runtime or infrastructure.</b> It is a
+        reference kernel + simulator.</span></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <div class="sec-no">09 — CLEAN-ROOM THRESHOLD</div>
+    <h2>Status: not yet crossed</h2>
+    <p>The reproducibility loop is the engine of credibility — and it is
+      honestly only half-turned.</p>
+    <div class="loop">
+      <div class="node">Elixir reference<small>the oracle</small></div>
+      <span class="arrow">→</span>
+      <div class="node">vectors.json v6<small>frozen contract</small></div>
+      <span class="arrow">→</span>
+      <div class="node">independent impl<small>Python (contaminated)</small></div>
+      <span class="arrow">→</span>
+      <div class="node">divergence findings<small>F1·F3·F4·F7</small></div>
+      <span class="arrow">→</span>
+      <div class="node">spec tightening<small>contract hardened</small></div>
+    </div>
+    <div class="loopback">↺ findings feed back and tighten the contract — the loop works; it has not yet been closed by an <em>uncontaminated</em> implementer.</div>
+    <p style="margin-top:14px">The repository crosses from
+      <em>self-referential</em> to <em>externally reproducible</em> only
+      when an implementation that is <strong>a different language, a
+      different author, and has zero exposure</strong> to the Elixir
+      source, the Python implementation, the generator, the tests, or
+      this project's history reproduces the vectors. The Python run does
+      not qualify and says so itself. The exact, un-gameable criteria are
+      defined <em>before</em> any attempt in
+      <a href="THIRD_IMPLEMENTATION_PLAN.md">THIRD_IMPLEMENTATION_PLAN.md</a>
+      and <a href="SECOND_IMPLEMENTATION.md">SECOND_IMPLEMENTATION.md</a>.</p>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <div class="sec-no">10 — NEXT MILESTONES</div>
+    <h2>The ladder, in honest order of confidence gained</h2>
+    <div class="ladder">
+      <div class="rung"><span class="n">M1</span>
+        <div class="h">Clean-room third implementation</div>
+        <div class="x">A different language + different author + no
+          contaminated context reproduces v6 from the allowed inputs
+          only. This is the single event that crosses the legitimacy
+          threshold.</div>
+        <span class="effort">Effort: moderate · Confidence: decisive</span></div>
+      <div class="rung"><span class="n">M2</span>
+        <div class="h">Pin the R1/R2 frontier</div>
+        <div class="x">Add vectors for the <code>delta_milli</code>
+          numeric domain and an adversarial Ed25519 case; would bump the
+          contract version. Closes the known untested gaps.</div>
+        <span class="effort">Effort: small · Confidence: high (scoped)</span></div>
+      <div class="rung"><span class="n">M3</span>
+        <div class="h">Resolve app pre-launch blockers</div>
+        <div class="x">Real SMS adapter; admin credential out of source.
+          Makes the football product shippable on its own merits.</div>
+        <span class="effort">Effort: small · Confidence: high</span></div>
+      <div class="rung"><span class="n">M4</span>
+        <div class="h">Transport + runtime (the real build)</div>
+        <div class="x">BLE/NFC, a phone/node runtime against the frozen
+          contract. Large, genuinely unscoped engineering — not implied
+          to be near.</div>
+        <span class="effort">Effort: large · Confidence: not yet estimable</span></div>
+    </div>
+
+    <h3>Read the primary sources</h3>
+    <div class="docs">
+      <a href="../README.md">/README.md</a>
+      <a href="../CHANGELOG.md">/CHANGELOG.md</a>
+      <a href="README.md">redefinition/README.md</a>
+      <a href="spec/BOUNDARIES.md">BOUNDARIES.md</a>
+      <a href="CLEANROOM_READINESS.md">CLEANROOM_READINESS.md</a>
+      <a href="SECOND_IMPLEMENTATION.md">SECOND_IMPLEMENTATION.md</a>
+      <a href="THIRD_IMPLEMENTATION_PLAN.md">THIRD_IMPLEMENTATION_PLAN.md</a>
+      <a href="../fu/conformance/README.md">conformance/README.md</a>
+      <a href="../fu/conformance/PROTOCOL_CHANGELOG.md">PROTOCOL_CHANGELOG.md</a>
+      <a href="../fu-protocol.html">fu-protocol.html</a>
+      <a href="../implementations/python-conformance/DIVERGENCE_LOG.md">DIVERGENCE_LOG.md</a>
+      <a href="../.github/workflows/conformance.yml">CI gate</a>
+    </div>
+  </section>
+
+</div>
+
+<footer><div class="wrap"><div>
+  <span class="mono">Football United · end-to-end narrative</span> —
+  product, reference kernel, and future runtime are distinct. The kernel
+  is a self-consistent reference, not a proven interop standard. No
+  runtime, radio, transport, network, deployment, or external adoption
+  exists. Clean-room threshold: <b style="color:var(--bad)">not
+  crossed</b>. Precedence: <code>prose &lt; vectors.json &lt; reference
+  code</code>. This document changes no protocol behaviour, no vectors,
+  and no version.
+</div></div></footer>
+
+</body>
+</html>

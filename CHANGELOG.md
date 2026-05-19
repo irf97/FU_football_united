@@ -1,8 +1,12 @@
 # Changelog
 
-The chronological record of this project. Newest first. All work is on
-branch `feat/audit-test-deploy-polish`; commits are **local-only** (no
-remote pushed). Tests grew ~48 → **156**, 0 failures throughout.
+The chronological record of this project. Newest first. Work is on
+branch `feat/audit-test-deploy-polish`. A remote now exists
+(`github.com/irf97/FU_football_united`); the branch was reconciled by
+**rebasing local work onto the remote's `817c2b6`** (no force-push,
+nothing discarded). Agent pushes to that remote are tooling-blocked —
+`git push` is run by the human. Tests grew ~48 → **156**, 0 failures
+throughout.
 
 Protocol/conformance versions have their own lineage in
 [`fu/conformance/PROTOCOL_CHANGELOG.md`](fu/conformance/PROTOCOL_CHANGELOG.md).
@@ -10,6 +14,45 @@ Protocol/conformance versions have their own lineage in
 ---
 
 ## Phase 5 — External reproduction & contract hardening
+
+### Cold-start onboarding + end-to-end narrative *(latest)*
+- `CLAUDE.md` added — the single auto-loaded brief any AI agent reads
+  first: the journey, the hard operating constraints, the calibrated-
+  honesty ethos, and the honest status (v6; clean-room threshold **not**
+  crossed; nothing deployed). Closes the cold-start gap (no agent entry
+  point existed).
+- `redefinition/FU_END_TO_END.html` — one self-contained, hype-free
+  page covering origin → pivot → kernel → conformance → second impl →
+  findings → what is **not** built → threshold → next. Linked from
+  README, the redefinition map, and CLAUDE.md.
+- Audit fixes: corrected a stale contradiction in `redefinition/README.md`
+  ("no independent implementation exists" → the Python one exists but is
+  contaminated/audit-only); refreshed this header (a remote now exists).
+
+### Reproducibility process hardening (Phase 2 of the de-risk)
+- **Dual-runtime CI** (`.github/workflows/conformance.yml`): Elixir
+  self-check + independent Python harness, failing **independently**.
+- `redefinition/CLEANROOM_READINESS.md` — honest audit of whether a
+  fresh implementer could reproduce v6 from docs alone; surfaced the
+  untested frontier **R1** (`delta_milli` decimal-vs-binary64 domain)
+  and **R2** (Ed25519 verify-equation variant), explicitly out of
+  current conformance scope rather than pretended-covered.
+- `redefinition/THIRD_IMPLEMENTATION_PLAN.md` — the legitimacy roadmap
+  (a plan, not code): what a *truly* independent, uncontaminated third
+  implementation must be to cross the threshold.
+- Spec-stability pass (docs-only, no behaviour/vectors/version): the
+  `[0..N]` inclusive-range trap, "ascending-sorted" median, anti-drift
+  test-count wording. Positioning hardened in `fu-protocol.html` (no
+  runtime/network presented as existing).
+
+### F3 / F1 / F7 closed (docs-only — no behaviour, no vectors, no version)
+- **F3:** `conformance/README.md` step 3 now constructs *both* witnesses
+  (the vector needs two; prose built one).
+- **F1:** stated explicitly that the 32-byte seed *is* the Ed25519
+  private seed (RFC 8032 §5.1.5), no KDF.
+- **F7:** the rank fold formula + clamp-once-at-read order written out.
+  All four audit findings (F4/F3/F1/F7) closed; every gap an
+  independent implementation exposed is now explicit in the contract.
 
 ### F4 fix — bootstrap scenario pinned (conformance **v6**)
 - An independent Python implementation (`implementations/python-conformance/`,

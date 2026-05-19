@@ -77,7 +77,12 @@ strong sense. The rules for what counts are in
 *before* any attempt, on purpose: rules written after the fact are
 rationalizations of whatever shortcuts were taken.
 
-Status: **no independent implementation exists. Threshold not crossed.**
+Status: **the threshold is not crossed.** An independent Python
+implementation reproduces every v6 vector — but its author had
+contaminated context, so by its own statement it is a *spec-sufficiency
+audit*, not a clean-room crossing. No *uncontaminated* independent
+implementation exists yet. See [`CLEANROOM_READINESS.md`](CLEANROOM_READINESS.md)
+and [`THIRD_IMPLEMENTATION_PLAN.md`](THIRD_IMPLEMENTATION_PLAN.md).
 
 ## The durable asset
 
@@ -90,6 +95,10 @@ is independent of whether Football United ever ships.
 
 ## Map
 
+- [`FU_END_TO_END.html`](FU_END_TO_END.html) — **start here for the whole
+  story**: a single self-contained narrative (origin → pivot → kernel →
+  conformance → second impl → findings → what is not built → threshold →
+  next), honest and hype-free.
 - [`SECOND_IMPLEMENTATION.md`](SECOND_IMPLEMENTATION.md) — the contract
   that makes the legitimacy threshold real and un-gameable.
 - [`CLEANROOM_READINESS.md`](CLEANROOM_READINESS.md) — honest audit of
