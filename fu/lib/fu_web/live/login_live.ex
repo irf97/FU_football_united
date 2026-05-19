@@ -5,8 +5,6 @@ defmodule FuWeb.LoginLive do
   alias Fu.{Accounts, Admin}
   alias FuWeb.PlayerAuth
 
-  @admin_password "boobs"
-
   @impl true
   def mount(_params, _session, socket) do
     {:ok, assign(socket, step: :phone, phone: "", error: nil, dev_code: nil)}
@@ -50,17 +48,22 @@ defmodule FuWeb.LoginLive do
     do: {:noreply, assign(socket, step: :admin, error: nil)}
 
   def handle_event("admin-login", %{"password" => pw}, socket) do
-    if String.downcase(String.trim(pw)) == @admin_password do
-      case Admin.ensure_admin_player() do
-        nil ->
-          {:noreply, assign(socket, error: "No players yet — run the seed first.")}
+    cond do
+      not Admin.admin_login_enabled?() ->
+        {:noreply, assign(socket, error: "Admin login is disabled.")}
 
-        admin ->
-          token = PlayerAuth.login_token(admin.id)
-          {:noreply, redirect(socket, to: ~p"/session/#{token}?#{[to: "/admin"]}")}
-      end
-    else
-      {:noreply, assign(socket, error: "Wrong password.")}
+      Admin.password_valid?(pw) ->
+        case Admin.ensure_admin_player() do
+          nil ->
+            {:noreply, assign(socket, error: "No players yet — run the seed first.")}
+
+          admin ->
+            token = PlayerAuth.login_token(admin.id)
+            {:noreply, redirect(socket, to: ~p"/session/#{token}?#{[to: "/admin"]}")}
+        end
+
+      true ->
+        {:noreply, assign(socket, error: "Wrong password.")}
     end
   end
 

@@ -22,6 +22,14 @@ end
 
 config :fu, FuWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Admin console credential — out of source, fail-closed. Set across all
+# environments when present; unset (and no dev default) ⇒ the admin gate
+# is DISABLED, the app still runs. Never raises: admin is optional, not
+# load-bearing for the app.
+if admin_password = System.get_env("FU_ADMIN_PASSWORD") do
+  config :fu, :admin_password, admin_password
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

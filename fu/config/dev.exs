@@ -10,6 +10,11 @@ config :fu, Fu.Repo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
+# Dev-only admin console secret (convenience; not a production secret and
+# not in source modules). Prod sources this from FU_ADMIN_PASSWORD in
+# config/runtime.exs; absent there ⇒ admin login disabled (fail-closed).
+config :fu, :admin_password, "dev-admin"
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

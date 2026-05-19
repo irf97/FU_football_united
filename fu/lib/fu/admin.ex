@@ -101,5 +101,28 @@ defmodule Fu.Admin do
         nil
     end
   end
+
+  @doc """
+  Whether the admin console gate is enabled. **Fail-closed:** enabled
+  only when a non-empty secret is configured at `:fu, :admin_password`
+  (sourced from `FU_ADMIN_PASSWORD` in `config/runtime.exs`). No secret
+  ⇒ admin login is disabled — never a hardcoded fallback.
+  """
+  def admin_login_enabled?, do: configured_secret() not in [nil, ""]
+
+  @doc """
+  Constant-time check of a submitted password against the configured
+  secret. Always false when the gate is disabled.
+  """
+  def password_valid?(submitted) when is_binary(submitted) do
+    case configured_secret() do
+      s when s in [nil, ""] -> false
+      secret -> Plug.Crypto.secure_compare(String.trim(submitted), secret)
+    end
+  end
+
+  def password_valid?(_), do: false
+
+  defp configured_secret, do: Application.get_env(:fu, :admin_password)
 end
 
