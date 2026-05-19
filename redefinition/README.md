@@ -92,8 +92,17 @@ is independent of whether Football United ever ships.
 
 - [`SECOND_IMPLEMENTATION.md`](SECOND_IMPLEMENTATION.md) — the contract
   that makes the legitimacy threshold real and un-gameable.
+- [`CLEANROOM_READINESS.md`](CLEANROOM_READINESS.md) — honest audit of
+  whether a fresh implementer could reproduce v6 from the docs alone;
+  remaining hidden assumptions and the spec-stability log.
+- [`THIRD_IMPLEMENTATION_PLAN.md`](THIRD_IMPLEMENTATION_PLAN.md) — the
+  legitimacy roadmap: what a *truly* independent third implementation
+  must be to cross the threshold (a plan, not an implementation).
 - [`spec/BOUNDARIES.md`](spec/BOUNDARIES.md) — exactly where each of the
   three layers starts and stops; what is in scope and what is not.
+- `../.github/workflows/conformance.yml` — dual-runtime CI gate
+  (Elixir reference self-check + independent Python harness, failing
+  independently).
 - Root [`../README.md`](../README.md) — how to run it.
 - [`../fu/conformance/README.md`](../fu/conformance/README.md) — the
   conformance contract and CI gate (rigorous; pre-existing).

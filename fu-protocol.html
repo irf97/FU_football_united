@@ -71,12 +71,12 @@
   <main>
 
   <header>
-    <div class="kicker">Normative · the contract the Rust runtime implements</div>
+    <div class="kicker">Normative · the contract a future runtime must implement — no runtime, radio, or network is built</div>
     <h1>Mesh Protocol<br />Specification.</h1>
     <p class="lead">The validated v3 model, frozen into a wire-level contract. Every clause is reproducible against machine-checkable vectors generated from the Elixir reference. The reference is the oracle; this document is its law.</p>
     <div class="callout warn">
       <div class="h">Authority of this document</div>
-      <p>Where prose and the conformance vectors (<code>conformance/vectors.json</code>) disagree, <strong>the vectors win</strong> — they are generated from <code>Fu.Mesh.Identity</code> + <code>Fu.Mesh.V3</code>, the 128-test reference. A runtime is conformant iff it reproduces every vector exactly.</p>
+      <p>Where prose and the conformance vectors (<code>conformance/vectors.json</code>) disagree, <strong>the vectors win</strong> — they are generated from <code>Fu.Mesh.Identity</code> + <code>Fu.Mesh.V3</code>, the test-locked Elixir reference. A runtime is conformant iff it reproduces every vector exactly.</p>
     </div>
   </header>
 
@@ -108,7 +108,7 @@
     <ul class="req">
       <li data-id="P3.1"><span class="m">MUST</span> represent a persona/device as an Ed25519 keypair. Signatures MUST be Ed25519 per RFC 8032 (deterministic — same key + message ⇒ same signature).</li>
       <li data-id="P3.2"><span class="m">MUST</span> derive a recoverable identity deterministically from a 32-byte seed (<code>keypair_from_seed</code>); the same seed MUST yield the same public key on any conformant runtime. <strong>The 32-byte seed is used directly and unmodified as the Ed25519 private-key seed</strong> (RFC 8032 §5.1.5) — <em>no</em> application-level hash/KDF/derivation is applied to the seed before key generation (the SHA-512 expansion of the seed is internal to Ed25519, not an extra step). <code>keypair_from_seed(seed)</code> ≡ the Ed25519 keypair whose private seed <em>is</em> <code>seed</code>. <strong>F1</strong> — was implicit (vector-resolved only); now stated. Docs-only, no behaviour change.</li>
-      <li data-id="P3.3"><span class="m">MUST</span> compute an address as <code>lower_hex(SHA-256(public_key))[0..16]</code> (first 16 hex chars). This is the stable short id.</li>
+      <li data-id="P3.3"><span class="m">MUST</span> compute an address as <code>lower_hex(SHA-256(public_key))</code> truncated to the first 16 hex chars (chars 0–15 — <em>not</em> an inclusive 0..16 range). This is the stable short id.</li>
     </ul>
     <pre>seed   = 01·32  →  public = 8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c
                     address = 34750f98bd59fcfc        (see vectors.identity[0])</pre>
@@ -169,7 +169,7 @@ delta_milli    = round(delta * 1000)   // round half AWAY from zero; plain integ
     <ul class="req">
       <li data-id="P8.1"><span class="m">MUST</span> compute a player's canonical rank as the median of that player's <em>witnesses'</em> local views — the player's own copy MUST be excluded.</li>
       <li data-id="P8.2"><span class="m">MUST</span> therefore make a lone forger powerless: only the whole witnessing group colluding can move the value. (Vector: <code>witnessed_rank_friends = 51.5</code> with two honest witnesses; self-tamper to 99.0 has no effect.)</li>
-      <li data-id="P8.3"><span class="m">MUST</span> return the median element at index <code>div(n-1, 2)</code> of the sorted views; empty witness set ⇒ <code>50.0</code>.</li>
+      <li data-id="P8.3"><span class="m">MUST</span> return the median element at index <code>div(n-1, 2)</code> of the <strong>ascending-sorted</strong> views; empty witness set ⇒ <code>50.0</code>.</li>
     </ul>
   </section>
 
@@ -198,7 +198,7 @@ vectors.bootstrap.scenario.nodes = [o1·enc3·ingest, o2·enc3·ingest, orphan·
 type     1  0x01 = signed attestation
 len      4  u32, payload bytes, MUST be <= 4096
 payload len
-digest   4  SHA-256(payload)[0..4]          // transit corruption only
+digest   4  SHA-256(payload), first 4 bytes (bytes 0–3)   // transit corruption only
 
 payload = match(u32) | delta_milli(i32) | player_len(u16) | player
         | author_pub(32) | sig(64) | wit_count(u16) | [wlen(u16)|witness]*</pre>
@@ -272,10 +272,10 @@ PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
       <li data-id="O.3">~10% orphan tail at scale remains unrecoverable in pure phone-only zones; venue nodes (node L1/§01) cover most of it. Mitigated, not zero.</li>
       <li data-id="O.4">Revocation lists, capability tokens &amp; persona↔device key separation are specified at the node layer (L7); their on-wire form is a v2 protocol item.</li>
     </ul>
-    <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
+    <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is a frozen, vector-checked contract: a future runtime <em>could be</em> verified against it rather than merely inspired. That is the entire claim. <strong>No runtime, radio, transport, network, or deployment exists</strong> — they are the genuine remaining build, not a thing this document describes as done. One independent implementation (Python) reproduces the vectors but does not, by its own statement, cross the clean-room legitimacy threshold (see <code>redefinition/</code>).</p></div>
   </section>
 
-  <footer>Football United · Mesh Protocol Specification v6 · vectors are law · generated from the 156-test reference</footer>
+  <footer>Football United · Mesh Protocol Specification v6 · vectors are law · generated from the test-locked Elixir reference</footer>
   </main>
 </div>
 </body>

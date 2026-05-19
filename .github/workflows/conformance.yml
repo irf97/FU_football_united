@@ -1,0 +1,76 @@
+name: conformance
+
+# Dual-runtime conformance gate. The two jobs are INDEPENDENT (no `needs:`)
+# and fail separately: a break in either implementation must surface on its
+# own, not be masked by the other. Neither job proves correctness — they
+# prove the contract (fu/conformance/vectors.json, v6) is still reproduced
+# byte/value-exact by each implementation. See redefinition/ for the honest
+# scope (this is reproducibility, not a clean-room legitimacy crossing).
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  elixir-conformance:
+    name: Elixir reference self-check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fu_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIX_ENV: test
+    defaults:
+      run:
+        working-directory: fu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          # Track the dev environment (Elixir 1.19 / OTP 28).
+          otp-version: "28"
+          elixir-version: "1.19"
+      - name: Fetch deps
+        run: mix deps.get
+      - name: Conformance self-check (reference re-derives vectors.json v6)
+        run: mix test test/fu/conformance_test.exs
+
+  python-conformance:
+    name: Independent Python harness
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/python-conformance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Conformance harness (no deps — vendored RFC 8032)
+        # THE gate: zero-dependency, exits non-zero on the first mismatch.
+        # Locally validated (31/31 @ v6). This is what makes the job
+        # fail independently of the Elixir job.
+        run: python -m fu_mesh_conformance.harness
+      - name: Pytest per-section view (informational, not the gate)
+        # Same assertions as the harness, split per section for readable
+        # CI output. Non-fatal: the harness above is authoritative;
+        # this step has not been independently validated.
+        continue-on-error: true
+        run: |
+          python -m pip install --quiet pytest
+          pytest -q

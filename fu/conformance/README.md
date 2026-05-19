@@ -56,8 +56,8 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
     is the single end-clamp above; the per-step clamp matters only past
     the window and is stated here for completeness.
 - **witnessed rank** = median of the witnesses' local views, the subject's
-  own copy excluded; median index = `floor((n-1)/2)` of the sorted views;
-  empty witness set ⇒ `50.0`.
+  own copy excluded; median index = `floor((n-1)/2)` of the
+  **ascending-sorted** views; empty witness set ⇒ `50.0`.
 
 ---
 
@@ -189,4 +189,4 @@ harness ⇒ not a Football United node.
 | delta scale | ×1000, round-half-away-from-zero |
 | wire magic / frame version | `FU` / `0x02` |
 | max payload | 4096 bytes |
-| frame digest | SHA-256(payload)[0..4] |
+| frame digest | SHA-256(payload), first 4 bytes (bytes 0–3) |
