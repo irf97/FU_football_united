@@ -22,7 +22,7 @@ defmodule Fu.ConformanceTest do
 
   test "spec + version handshake (step 0 — refuse anything else)", %{doc: d} do
     assert d["spec"] == "fu-mesh-conformance"
-    assert d["version"] == 5
+    assert d["version"] == 6
   end
 
   test "identity vectors reproduce exactly", %{doc: d} do
@@ -64,27 +64,31 @@ defmodule Fu.ConformanceTest do
                     1.0e-9
   end
 
-  test "bootstrap (provisional witnesses) reproduces exactly", %{doc: d} do
+  test "bootstrap reproduces from the PINNED scenario (v6 — F4 fix)", %{doc: d} do
+    # v6: the scenario is now structured input in the contract itself
+    # (bootstrap.scenario), not hidden in the generator. This re-derivation
+    # consumes those inputs exactly as an external implementer must — the
+    # bootstrap fold is unsigned (V3.ingest), which is now explicit.
     b = d["bootstrap"]
-    a = V3.attest(1, "orphan", 1.5, [])
+    sc = b["scenario"]
+    s = sc["subject"]
+    at = sc["attestation"]
+    att = V3.attest(at["match"], at["player"], at["delta"], at["witnesses"] || [])
 
-    acq = fn id ->
-      V3.new_node(id, [])
-      |> then(&Enum.reduce(1..V3.acq_threshold(), &1, fn _, x -> V3.met(x, "orphan") end))
-      |> V3.ingest(a)
-    end
+    nodes =
+      Map.new(sc["nodes"], fn nd ->
+        n = V3.new_node(nd["id"], nd["friends"] || [])
+        e = nd["encounters_with_subject"]
+        n = Enum.reduce(1..e//1, n, fn _, x -> V3.met(x, s) end)
+        n = if nd["ingests_attestation"], do: V3.ingest(n, att), else: n
+        {nd["id"], n}
+      end)
 
-    nodes = %{
-      "o1" => acq.("o1"),
-      "o2" => acq.("o2"),
-      "orphan" => V3.new_node("orphan", []) |> V3.ingest(a)
-    }
-
-    assert Enum.sort(V3.provisional_witnesses(nodes, "orphan")) == b["provisional_witnesses"]
-    assert_in_delta V3.recoverable_rank(nodes, [], "orphan"),
+    assert Enum.sort(V3.provisional_witnesses(nodes, s)) == b["provisional_witnesses"]
+    assert_in_delta V3.recoverable_rank(nodes, sc["friend_witnesses"] || [], s),
                     b["recoverable_rank_no_friends"],
                     1.0e-9
-    assert ("orphan" not in V3.provisional_witnesses(nodes, "orphan")) == b["self_excluded"]
+    assert (s not in V3.provisional_witnesses(nodes, s)) == b["self_excluded"]
   end
 
   test "wire frame reproduces byte-exact, decodes, and chunks identically", %{doc: d} do

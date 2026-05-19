@@ -9,6 +9,28 @@ Protocol/conformance versions have their own lineage in
 
 ---
 
+## Phase 5 — External reproduction & contract hardening
+
+### F4 fix — bootstrap scenario pinned (conformance **v6**)
+- An independent Python implementation (`implementations/python-conformance/`,
+  built from spec + vectors only, RFC 8032 crypto vendored) reproduced all
+  7 sections — but the audit (`DIVERGENCE_LOG.md`) found **F4**: the
+  `bootstrap` section pinned only its *outputs*; the node set, encounter
+  counts, and the fact that the bootstrap fold is **unsigned** lived only
+  in the generator. Two implementers could "pass" with different
+  constructions — underspecification, not conformance.
+- **Fix:** `bootstrap.scenario` is now structured input *in the contract*
+  (subject · attestation · `acq_threshold`/`acq_decay`/`ticks` ·
+  `friend_witnesses` · per-node `friends`/`encounters_with_subject`/
+  `ingests_attestation`). Outputs unchanged (`["o1","o2"]`/`51.5`/`true`).
+  `conformance_test` now *re-derives* bootstrap from the pinned scenario
+  (data-driven, TDD: RED→GREEN); the Python harness builds from the same
+  inputs. Contract `version` bumped **5 → 6** (additive; propagated through
+  `conformance/README.md`, `PROTOCOL_CHANGELOG.md`, `fu-protocol.html`,
+  root README). Suite: **156 tests / 0 failures**; Python harness 31/31 @v6.
+- Also added (prior, this phase): `redefinition/` (honest three-layer
+  framing + `SECOND_IMPLEMENTATION.md` legitimacy contract).
+
 ## Phase 4 — Make the protocol tangible
 
 ### Mesh Lab (interactive simulator/spec/conformance UI)

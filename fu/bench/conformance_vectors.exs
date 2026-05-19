@@ -58,20 +58,49 @@ mesh = %{
 }
 
 # --- Provisional-witness (friendless bootstrap) ----------------------------
-a = V3.attest(1, "orphan", 1.5, [])
+# F4 fix (v6): the scenario is now PINNED into the contract as structured
+# inputs (bootstrap.scenario) so any implementer reproduces it
+# deterministically — not just the outputs. The bootstrap fold is UNSIGNED
+# (V3.ingest, no signature) unlike every signed section; this is now
+# explicit in the contract rather than buried in this generator.
+boot_subject = "orphan"
+boot_att = V3.attest(1, boot_subject, 1.5, [])
 
-acq = fn id ->
-  V3.new_node(id, [])
-  |> (fn n -> Enum.reduce(1..V3.acq_threshold(), n, fn _, x -> V3.met(x, "orphan") end) end).()
-  |> V3.ingest(a)
+boot_nodes_spec = [
+  %{id: "o1", friends: [], encounters: V3.acq_threshold(), ingests: true},
+  %{id: "o2", friends: [], encounters: V3.acq_threshold(), ingests: true},
+  %{id: boot_subject, friends: [], encounters: 0, ingests: true}
+]
+
+build_boot = fn %{id: id, friends: fr, encounters: e, ingests: ing} ->
+  n = Enum.reduce(1..e//1, V3.new_node(id, fr), fn _, x -> V3.met(x, boot_subject) end)
+  if ing, do: V3.ingest(n, boot_att), else: n
 end
 
-onodes = %{"o1" => acq.("o1"), "o2" => acq.("o2"), "orphan" => V3.new_node("orphan", []) |> V3.ingest(a)}
+onodes = Map.new(boot_nodes_spec, fn s -> {s.id, build_boot.(s)} end)
+boot_friend_witnesses = []
 
 bootstrap = %{
-  provisional_witnesses: V3.provisional_witnesses(onodes, "orphan") |> Enum.sort(),
-  recoverable_rank_no_friends: V3.recoverable_rank(onodes, [], "orphan"),
-  self_excluded: "orphan" not in V3.provisional_witnesses(onodes, "orphan")
+  scenario: %{
+    subject: boot_subject,
+    attestation: %{match: 1, player: boot_subject, delta: 1.5, witnesses: [], signed: false},
+    acq_threshold: V3.acq_threshold(),
+    acq_decay: V3.acq_decay(),
+    ticks: 0,
+    friend_witnesses: boot_friend_witnesses,
+    nodes:
+      Enum.map(boot_nodes_spec, fn s ->
+        %{
+          id: s.id,
+          friends: s.friends,
+          encounters_with_subject: s.encounters,
+          ingests_attestation: s.ingests
+        }
+      end)
+  },
+  provisional_witnesses: V3.provisional_witnesses(onodes, boot_subject) |> Enum.sort(),
+  recoverable_rank_no_friends: V3.recoverable_rank(onodes, boot_friend_witnesses, boot_subject),
+  self_excluded: boot_subject not in V3.provisional_witnesses(onodes, boot_subject)
 }
 
 # --- Wire framing: byte-exact frame for a deterministic signed att --------
@@ -140,7 +169,7 @@ adversarial = %{
 
 doc = %{
   spec: "fu-mesh-conformance",
-  version: 5,
+  version: 6,
   generated_from: "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   notes: [
     "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
@@ -151,7 +180,8 @@ doc = %{
     "v2 superseded v1: delta encoding moved from float-string to milli-integer",
     "v3 added the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)",
     "v4 added the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)",
-    "v5 adds adversarial: minority collusion cannot move the median, majority can (stated limit), byzantine relay cannot inject (integrity)"
+    "v5 adds adversarial: minority collusion cannot move the median, majority can (stated limit), byzantine relay cannot inject (integrity)",
+    "v6 pins bootstrap.scenario (structured inputs: subject, unsigned attestation, per-node friends/encounters/ingest) so the bootstrap section is deterministically reproducible from the contract, not just its outputs (F4 fix). NOTE: bootstrap uses the UNSIGNED fold (ingest), unlike all signed sections."
   ],
   identity: identity,
   canonical_attestations: canonical,

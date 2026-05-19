@@ -1,7 +1,41 @@
 {
-  "version": 5,
+  "version": 6,
   "spec": "fu-mesh-conformance",
   "bootstrap": {
+    "scenario": {
+      "nodes": [
+        {
+          "id": "o1",
+          "friends": [],
+          "encounters_with_subject": 3,
+          "ingests_attestation": true
+        },
+        {
+          "id": "o2",
+          "friends": [],
+          "encounters_with_subject": 3,
+          "ingests_attestation": true
+        },
+        {
+          "id": "orphan",
+          "friends": [],
+          "encounters_with_subject": 0,
+          "ingests_attestation": true
+        }
+      ],
+      "acq_threshold": 3,
+      "subject": "orphan",
+      "attestation": {
+        "match": 1,
+        "signed": false,
+        "player": "orphan",
+        "delta": 1.5,
+        "witnesses": []
+      },
+      "acq_decay": 6,
+      "ticks": 0,
+      "friend_witnesses": []
+    },
     "provisional_witnesses": [
       "o1",
       "o2"
@@ -81,7 +115,8 @@
     "v2 superseded v1: delta encoding moved from float-string to milli-integer",
     "v3 added the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)",
     "v4 added the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)",
-    "v5 adds adversarial: minority collusion cannot move the median, majority can (stated limit), byzantine relay cannot inject (integrity)"
+    "v5 adds adversarial: minority collusion cannot move the median, majority can (stated limit), byzantine relay cannot inject (integrity)",
+    "v6 pins bootstrap.scenario (structured inputs: subject, unsigned attestation, per-node friends/encounters/ingest) so the bootstrap section is deterministically reproducible from the contract, not just its outputs (F4 fix). NOTE: bootstrap uses the UNSIGNED fold (ingest), unlike all signed sections."
   ],
   "canonical_attestations": [
     {

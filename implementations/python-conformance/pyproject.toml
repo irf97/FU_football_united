@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fu-mesh-conformance"
+version = "0.1.0"
+description = "Independent Python implementation of the FU Mesh protocol, verified against fu/conformance/vectors.json (spec-sufficiency audit; see README caveat)."
+requires-python = ">=3.10"
+dependencies = []  # pure stdlib + vendored RFC 8032 — independence is the point
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["fu_mesh_conformance"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

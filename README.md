@@ -8,11 +8,14 @@ Two things live in this repo:
    pivoted to. Validated in simulation to 10k users and frozen into a
    versioned, machine-checkable contract. **Not** a running product yet.
 
+> **New here? Read [`redefinition/README.md`](redefinition/README.md) first** —
+> what this repo actually is (app vs. reference kernel vs. aspirational
+> runtime) and what is honestly claimed vs. not.
 > Full chronological history of how this got here: **[CHANGELOG.md](CHANGELOG.md)**.
 > Protocol version lineage: **[fu/conformance/PROTOCOL_CHANGELOG.md](fu/conformance/PROTOCOL_CHANGELOG.md)**.
 
 **Status (2026-05-19):** 156 tests / 0 failures · 17/17 audited app features
-WIRED · mesh protocol conformance **v5** · branch
+WIRED · mesh protocol conformance **v6** · branch
 `feat/audit-test-deploy-polish` · commits are **local-only** (not yet pushed).
 
 ---
@@ -96,7 +99,7 @@ delivery at 10k, NFC-feasible payloads; friendless-bootstrap closed to
 Everything above the radio is now a **frozen, byte-exact, self-verifying
 contract**: identity (Ed25519) · canonical encoding · signed ingest ·
 witnessed/recoverable rank · wire framing · end-to-end pipeline ·
-adversarial bounds — all in `fu/conformance/vectors.json` (spec v5), with a
+adversarial bounds — all in `fu/conformance/vectors.json` (spec v6), with a
 self-checking harness (`fu/test/conformance_test.exs`) and a CI gate
 (`fu/conformance/README.md`). The Rust runtime, radios (BLE/NFC), and
 client are the genuine remaining build — outside this repo.
@@ -114,7 +117,7 @@ client are the genuine remaining build — outside this repo.
 | `fu-features.html` | What ships (feature catalog + traceability) |
 | `fu-dashboard.html` | Unified PM dashboard (spec/features/req/personas/…) |
 | `fu-node.html` | Solid-node full architecture (25 layers on the IrfTek kernel) |
-| `fu-protocol.html` | Mesh protocol spec v5 (vectors are law) |
+| `fu-protocol.html` | Mesh protocol spec v6 (vectors are law) |
 | `fu/conformance/` | `vectors.json` + `README.md` (CI gate) + `PROTOCOL_CHANGELOG.md` |
 | `AUDIT.md`, `STACK.md`, `DEPLOY.md`, `POLISH.md`, `SLICES.md`, `FRONTEND_SLICES.md` | Point-in-time build artifacts (see banner in each) |
 | `docs/irftek-*`, `docs/ALIGNMENT.md`, `docs/FU-APPENDIX.md` | IrfTek research lineage |

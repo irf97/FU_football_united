@@ -9,7 +9,7 @@ marked additive.
 
 | Namespace | Where | Meaning |
 |---|---|---|
-| **conformance `version`** | `vectors.json` `.version` | the *contract* revision a runtime targets (1→5) |
+| **conformance `version`** | `vectors.json` `.version` | the *contract* revision a runtime targets (1→6) |
 | **wire frame version** | the `0x02` byte inside a frame | the *on-wire frame* revision; currently fixed at `2` |
 
 They move independently. Conformance v3 and v4 both carry frame version
@@ -18,7 +18,27 @@ breaking event with its own migration note here.
 
 ---
 
-## v5 — Adversarial security boundary *(current)*
+## v6 — Bootstrap scenario pinned (F4) *(current)*
+
+- **Changed** `bootstrap`: added `bootstrap.scenario` — structured input
+  (subject, the attestation, `acq_threshold`/`acq_decay`/`ticks`,
+  `friend_witnesses`, and per-node `friends`/`encounters_with_subject`/
+  `ingests_attestation`). The section's *outputs* are unchanged
+  (`["o1","o2"]` / `51.5` / `true`).
+- **Why (F4):** v1–v5 published the bootstrap *outputs* but not the
+  *scenario* — the node set, encounter counts, and the fact that the
+  bootstrap fold is **unsigned** lived only in the generator. Two
+  independent implementers could "pass" with different constructions;
+  that is underspecification, not conformance. v6 makes the section
+  deterministically reproducible from the contract alone.
+- **Invariant made explicit:** the bootstrap path uses the **unsigned**
+  fold (`ingest`, not `ingest_signed`) — `scenario.attestation.signed
+  == false`. This was always true in the reference; it is now stated.
+- **Compatibility:** additive (new `scenario` object; no output or
+  signature changed) — but still a version bump per rule 2; a v5-only
+  harness does not satisfy v6 (it cannot assert the pinned scenario).
+
+## v5 — Adversarial security boundary
 
 - **Added** `adversarial`: the collusion boundary &amp; transit integrity,
   contract-locked. Pins `collusion_minority_2of5` (51.5 — unmoved),

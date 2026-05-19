@@ -20,7 +20,8 @@ project history: `/CHANGELOG.md`.
   `mesh_pipeline_test` (byte-only convergence), `mesh_adversarial_test`
   (collusion boundary / byzantine relay / partition-heal).
 - Conformance self-check — `conformance_test` (reference reproduces
-  `vectors.json` v5).
+  `vectors.json` v6; bootstrap re-derived from the pinned
+  `bootstrap.scenario`, F4 fix).
 - Mesh Lab — `mesh_lab_test` (mount, live harness PASS, sim actions).
 - Ranking math — `ranking_test` + StreamData clamp properties.
 

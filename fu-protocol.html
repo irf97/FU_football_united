@@ -107,7 +107,7 @@
     <h2>Ed25519, RFC 8032.</h2>
     <ul class="req">
       <li data-id="P3.1"><span class="m">MUST</span> represent a persona/device as an Ed25519 keypair. Signatures MUST be Ed25519 per RFC 8032 (deterministic — same key + message ⇒ same signature).</li>
-      <li data-id="P3.2"><span class="m">MUST</span> derive a recoverable identity deterministically from a 32-byte seed (<code>keypair_from_seed</code>); the same seed MUST yield the same public key on any conformant runtime.</li>
+      <li data-id="P3.2"><span class="m">MUST</span> derive a recoverable identity deterministically from a 32-byte seed (<code>keypair_from_seed</code>); the same seed MUST yield the same public key on any conformant runtime. <strong>The 32-byte seed is used directly and unmodified as the Ed25519 private-key seed</strong> (RFC 8032 §5.1.5) — <em>no</em> application-level hash/KDF/derivation is applied to the seed before key generation (the SHA-512 expansion of the seed is internal to Ed25519, not an extra step). <code>keypair_from_seed(seed)</code> ≡ the Ed25519 keypair whose private seed <em>is</em> <code>seed</code>. <strong>F1</strong> — was implicit (vector-resolved only); now stated. Docs-only, no behaviour change.</li>
       <li data-id="P3.3"><span class="m">MUST</span> compute an address as <code>lower_hex(SHA-256(public_key))[0..16]</code> (first 16 hex chars). This is the stable short id.</li>
     </ul>
     <pre>seed   = 01·32  →  public = 8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c
@@ -137,6 +137,7 @@ delta_milli    = round(delta * 1000)   // round half AWAY from zero; plain integ
       <li data-id="P5.2"><span class="m">MUST</span> drop a failed attestation entirely — not fold it, not store it, <strong>not relay it</strong>. (Vector: forged delta ⇒ <code>knows? = false</code>, rank stays 50.0.)</li>
       <li data-id="P5.3"><span class="m">MUST</span> be idempotent by match id: re-ingesting the same Object never double-counts.</li>
       <li data-id="P5.4"><span class="m">MUST</span> clamp every derived rank to <code>[30.0, 100.0]</code>; unknown player ⇒ <code>50.0</code>.</li>
+      <li data-id="P5.5"><span class="m">MUST</span> compute rank by the explicit fold (<strong>F7</strong> — was vector-resolved only; now stated; docs-only): from a checkpoint <code>(base_rank, base_seq)</code> (initially <code>50.0, 0</code>) plus the pending validly-accepted attestations — <code>rank = clamp( base_rank + Σ a.delta for a in pending )</code>. Application is keyed by <code>match</code>: a <code>match</code> already pending or <code>≤ base_seq</code> is idempotent (not re-applied); distinct match ids each add their <code>delta</code> exactly once; sum order is irrelevant. <strong>Clamp is applied once, to the final folded sum, at read time</strong> — intermediate sums are not clamped. Compaction past the window (<code>W = 8</code>) folds the oldest into <code>base_rank</code> clamping per step and advances <code>base_seq</code>; all conformance vectors stay under <code>W</code>, so the observable rule is the single end-clamp.</li>
     </ul>
   </section>
 
@@ -179,8 +180,13 @@ delta_milli    = round(delta * 1000)   // round half AWAY from zero; plain integ
       <li data-id="P9.1"><span class="m">MUST</span> treat as a <em>provisional witness</em> of <em>S</em> any node (≠ <em>S</em>) that regards <em>S</em> as a sustained acquaintance AND holds <em>S</em>'s record.</li>
       <li data-id="P9.2"><span class="m">MUST</span>, when computing recoverable rank, use friend-witnesses if any hold the record; otherwise fall back to the median over provisional witnesses (still self-excluded, still collusion-only).</li>
       <li data-id="P9.3">Conformance target (informative): orphan recoverability ≥ ~90% at 10k via this path; the residual tail is a known, accepted limitation (§11).</li>
+      <li data-id="P9.4"><span class="m">MUST</span> ingest the bootstrap attestation via the <strong>unsigned</strong> fold (<code>ingest</code>, not <code>ingest_signed</code>) — the friendless path establishes recoverable witnesses from proximity, not authorship. Pinned explicit as <code>scenario.attestation.signed == false</code> (v6).</li>
+      <li data-id="P9.5"><span class="m">MUST</span> reproduce the section from the <strong>pinned scenario</strong> <code>bootstrap.scenario</code> (subject · attestation · <code>acq_threshold</code>/<code>acq_decay</code>/<code>ticks</code> · <code>friend_witnesses</code> · per-node <code>friends</code>/<code>encounters_with_subject</code>/<code>ingests_attestation</code>), not from prose. <strong>F4 fix (v6):</strong> v1–v5 pinned only the outputs; the scenario itself is now contract, so the section is deterministically reproducible and not implementer-invented.</li>
     </ul>
-    <pre>vectors.bootstrap → provisional_witnesses=["o1","o2"]  recoverable_rank=51.5  self_excluded=true</pre>
+    <pre>build: for each scenario.nodes[i] → new_node(id,friends); met(subject)×encounters_with_subject;
+       if ingests_attestation: ingest(att)    // UNSIGNED fold
+vectors.bootstrap.scenario.nodes = [o1·enc3·ingest, o2·enc3·ingest, orphan·enc0·ingest]
+  → provisional_witnesses=["o1","o2"]  recoverable_rank=51.5  self_excluded=true</pre>
   </section>
 
   <section id="wire">
@@ -233,7 +239,7 @@ payload = match(u32) | delta_milli(i32) | player_len(u16) | player
   <section id="conformance">
     <div class="sec-no">10 — Conformance vectors</div>
     <h2>The acceptance gate.</h2>
-    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v5</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>. Lineage &amp; compatibility: <code>conformance/PROTOCOL_CHANGELOG.md</code>.</p>
+    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v6</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>. Lineage &amp; compatibility: <code>conformance/PROTOCOL_CHANGELOG.md</code>.</p>
     <table>
       <thead><tr><th>Section</th><th>Runtime must reproduce</th></tr></thead>
       <tbody>
@@ -249,7 +255,7 @@ payload = match(u32) | delta_milli(i32) | player_len(u16) | player
     <p>Regenerate with <code>mix run --no-start bench/conformance_vectors.exs</code>. Bump <code>version</code> on any normative change; a runtime declares which version it targets.</p>
     <h3>Conformance harness contract</h3>
     <p>A runtime ships a harness (CI-gated) that loads <code>vectors.json</code> and, per section, performs the operation with its own implementation and asserts equality — exit non-zero on any mismatch. Full procedure: <code>conformance/README.md</code>.</p>
-    <pre>1 assert doc.spec=="fu-mesh-conformance" and doc.version==2   // refuse otherwise
+    <pre>1 assert doc.spec=="fu-mesh-conformance" and doc.version==6   // refuse otherwise
 2 identity[]            : keypair_from_seed(seed) → public_hex,address; sign(canonical)→signature_hex
 3 canonical_attestations: build canonical(match,player,delta) == .canonical; sign → .signature_hex
 4 mesh.signed_ingest    : ingest valid→rank 51.5; ingest forged→not known; witnessed_rank==51.5
@@ -269,7 +275,7 @@ PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
     <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
   </section>
 
-  <footer>Football United · Mesh Protocol Specification v5 · vectors are law · generated from the 153-test reference</footer>
+  <footer>Football United · Mesh Protocol Specification v6 · vectors are law · generated from the 156-test reference</footer>
   </main>
 </div>
 </body>
