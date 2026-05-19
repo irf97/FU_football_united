@@ -68,6 +68,27 @@ defmodule Fu.Mesh.WireTest do
     assert {:ok, _att, ""} = Wire.decode(IO.iodata_to_binary(chunks))
   end
 
+  property "decode never crashes on hostile/garbage input — only {:ok,_} | {:error,reason}" do
+    check all junk <- binary(max_length: 200) do
+      case Wire.decode(junk) do
+        {:ok, _att, _rest} -> :ok
+        {:error, r} -> assert r in [:incomplete, :oversize, :corrupt, :version, :bad_frame]
+      end
+    end
+  end
+
+  property "any prefix of a valid frame decodes to :incomplete/:corrupt, never crashes" do
+    {pub, priv} = Identity.keypair_from_seed(:binary.copy(<<4>>, 32))
+    full = V3.attest(1, "p", 1.5, ["w1"]) |> Identity.sign_attest(priv, pub) |> Wire.encode()
+
+    check all take <- integer(0..(byte_size(full) - 1)) do
+      case Wire.decode(binary_part(full, 0, take)) do
+        {:ok, _, _} -> flunk("a strict prefix must not decode as a whole frame")
+        {:error, r} -> assert r in [:incomplete, :corrupt, :bad_frame]
+      end
+    end
+  end
+
   property "any signed attestation survives encode → random-MTU chunking → reassembly → decode" do
     {pub, priv} = Identity.keypair_from_seed(:binary.copy(<<5>>, 32))
 
