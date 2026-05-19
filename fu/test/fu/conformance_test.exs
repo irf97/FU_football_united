@@ -22,7 +22,7 @@ defmodule Fu.ConformanceTest do
 
   test "spec + version handshake (step 0 — refuse anything else)", %{doc: d} do
     assert d["spec"] == "fu-mesh-conformance"
-    assert d["version"] == 3
+    assert d["version"] == 4
   end
 
   test "identity vectors reproduce exactly", %{doc: d} do
@@ -106,5 +106,29 @@ defmodule Fu.ConformanceTest do
 
     mx = w["mtu_example"]
     assert length(Wire.chunks(frame, mx["mtu"])) == mx["chunk_count"]
+  end
+
+  test "pipeline capstone: byte-only C→W1→W2 convergence reproduces", %{doc: d} do
+    p = d["pipeline"]
+    {pub, priv} = Identity.keypair_from_seed(unhex(p["signer_seed_hex"]))
+    a = p["attestation"]
+    att = V3.attest(a["match"], a["player"], a["delta"], a["witnesses"]) |> Identity.sign_attest(priv, pub)
+
+    hop = fn x, mtu ->
+      {:ok, [g], ""} = x |> Wire.encode() |> Wire.chunks(mtu) |> IO.iodata_to_binary() |> Wire.decode_stream()
+      g
+    end
+
+    w1 = V3.new_node("W1", ["P"]) |> V3.ingest_signed(hop.(att, p["mtu_a"]))
+    [held] = V3.held_attestations(w1, "P")
+    w2 = V3.new_node("W2", ["P"]) |> V3.ingest_signed(hop.(held, p["mtu_b"]))
+    nodes = %{"W1" => w1, "W2" => w2, "P" => V3.new_node("P", [])}
+
+    assert_in_delta V3.witnessed_rank(nodes, ["W1", "W2"], "P"),
+                    p["final_witnessed_rank"],
+                    1.0e-9
+
+    {:ok, forged, ""} = att |> Map.put(:delta, 99.0) |> Wire.encode() |> Wire.decode()
+    assert Identity.verified?(forged) == p["forged_verified"]
   end
 end

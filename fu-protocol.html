@@ -63,6 +63,7 @@
     <a href="#rank">8 · Witnessed rank</a>
     <a href="#bootstrap">9 · Provisional witnesses</a>
     <a href="#wire">9.5 · Wire framing</a>
+    <a href="#capstone">9.6 · Pipeline capstone</a>
     <a href="#conformance">10 · Conformance vectors</a>
     <a href="#open">11 · Open / non-normative</a>
   </nav>
@@ -202,10 +203,24 @@ payload = match(u32) | delta_milli(i32) | player_len(u16) | player
     </ul>
   </section>
 
+  <section id="capstone">
+    <div class="sec-no">9.6 — Pipeline capstone</div>
+    <h2>Convergence using only bytes.</h2>
+    <p>The whole stack as one path: a signer attests about <code>P</code>, the fact reaches witness <code>W1</code> then is relayed to <code>W2</code> — and <strong>the only channel between nodes is a chunked, reassembled byte stream</strong>. No node touches another's state.</p>
+    <pre>sign → canonical → Wire.encode → chunk(mtu_a) → reassemble → decode
+     → ingest_signed(W1)  → held_attestations → Wire.encode → chunk(mtu_b)
+     → reassemble → decode → ingest_signed(W2) → witnessed_rank == 51.5</pre>
+    <ul class="req">
+      <li data-id="P9.6.1"><span class="m">MUST</span> converge: after the byte-only C→W1→W2 relay, <code>witnessed_rank({W1,W2},["W1","W2"],"P")</code> equals <code>pipeline.final_witnessed_rank</code> — pinned by the <code>pipeline</code> vector.</li>
+      <li data-id="P9.6.2"><span class="m">MUST</span> reproduce <code>forged_verified == false</code>: a delta tampered <em>after</em> signing re-frames with a valid digest but a failing Ed25519 check, and is therefore not state. Codec integrity ≠ authorship.</li>
+      <li data-id="P9.6.3">This is the closest executable proof of "the protocol runs" obtainable without real radios; the radios remain the genuine remaining build (§11).</li>
+    </ul>
+  </section>
+
   <section id="conformance">
     <div class="sec-no">10 — Conformance vectors</div>
     <h2>The acceptance gate.</h2>
-    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v3</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
+    <p><code>conformance/vectors.json</code> (spec <code>fu-mesh-conformance</code> <strong>v4</strong>) is generated from the reference. A runtime is conformant iff, for every section, it reproduces the listed outputs <strong>byte/value-exact</strong>:</p>
     <table>
       <thead><tr><th>Section</th><th>Runtime must reproduce</th></tr></thead>
       <tbody>
@@ -214,6 +229,7 @@ payload = match(u32) | delta_milli(i32) | player_len(u16) | player
         <tr><td>mesh.signed_ingest</td><td>valid rank 51.5 · forged not known · witnessed_rank 51.5</td></tr>
         <tr><td>bootstrap</td><td>provisional_witnesses, recoverable_rank, self_excluded</td></tr>
         <tr><td>wire</td><td>byte-exact <code>frame_hex</code>, <code>frame_bytes</code>, decode+verify round-trip, MTU <code>chunk_count</code></td></tr>
+        <tr><td>pipeline</td><td>byte-only C→W1→W2 convergence: <code>final_witnessed_rank</code> 51.5, <code>forged_verified</code> false</td></tr>
       </tbody>
     </table>
     <p>Regenerate with <code>mix run --no-start bench/conformance_vectors.exs</code>. Bump <code>version</code> on any normative change; a runtime declares which version it targets.</p>
@@ -239,7 +255,7 @@ PASS iff every assertion holds. The harness is the gate, not a courtesy.</pre>
     <div class="callout"><div class="h">Bottom line</div><p>The trust/sync core is now a frozen, vector-checked contract — a Rust runtime can be <em>verified</em>, not merely inspired. The remaining build is transport + the node OS layer; this is the ground they stand on.</p></div>
   </section>
 
-  <footer>Football United · Mesh Protocol Specification v3 · vectors are law · generated from the 144-test reference</footer>
+  <footer>Football United · Mesh Protocol Specification v4 · vectors are law · generated from the 148-test reference</footer>
   </main>
 </div>
 </body>

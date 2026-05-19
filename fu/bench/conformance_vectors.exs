@@ -87,9 +87,35 @@ wire = %{
   mtu_example: %{mtu: 16, chunk_count: length(Wire.chunks(wire_frame, 16))}
 }
 
+# --- Pipeline capstone: convergence over bytes only -----------------------
+pseed = :binary.copy(<<8>>, 32)
+{ppub, ppriv} = Identity.keypair_from_seed(pseed)
+patt = V3.attest(1, "P", 1.5, ["W1", "W2"]) |> Identity.sign_attest(ppriv, ppub)
+
+wire_hop = fn a, mtu ->
+  {:ok, [g], ""} = a |> Wire.encode() |> Wire.chunks(mtu) |> IO.iodata_to_binary() |> Wire.decode_stream()
+  g
+end
+
+pw1 = V3.new_node("W1", ["P"]) |> V3.ingest_signed(wire_hop.(patt, 11))
+[pheld] = V3.held_attestations(pw1, "P")
+pw2 = V3.new_node("W2", ["P"]) |> V3.ingest_signed(wire_hop.(pheld, 7))
+pnodes = %{"W1" => pw1, "W2" => pw2, "P" => V3.new_node("P", [])}
+
+{:ok, pforged, ""} = patt |> Map.put(:delta, 99.0) |> Wire.encode() |> Wire.decode()
+
+pipeline = %{
+  signer_seed_hex: hex.(pseed),
+  attestation: %{match: 1, player: "P", delta: 1.5, witnesses: ["W1", "W2"]},
+  mtu_a: 11,
+  mtu_b: 7,
+  final_witnessed_rank: V3.witnessed_rank(pnodes, ["W1", "W2"], "P"),
+  forged_verified: Identity.verified?(pforged)
+}
+
 doc = %{
   spec: "fu-mesh-conformance",
-  version: 3,
+  version: 4,
   generated_from: "Fu.Mesh.Identity + Fu.Mesh.V3 (Elixir reference)",
   notes: [
     "canonical = \"{match}|{player}|{delta_milli}\"; delta_milli = round(delta*1000), round-half-away-from-zero — a plain integer, NO float formatting",
@@ -98,13 +124,15 @@ doc = %{
     "address = lowercase hex of SHA-256(public_key), first 16 chars",
     "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
     "v2 superseded v1: delta encoding moved from float-string to milli-integer",
-    "v3 adds the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)"
+    "v3 added the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)",
+    "v4 adds the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)"
   ],
   identity: identity,
   canonical_attestations: canonical,
   mesh: mesh,
   bootstrap: bootstrap,
-  wire: wire
+  wire: wire,
+  pipeline: pipeline
 }
 
 File.mkdir_p!("conformance")

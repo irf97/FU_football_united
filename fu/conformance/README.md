@@ -1,7 +1,7 @@
 # FU Mesh — Conformance Harness Contract
 
-`vectors.json` (spec `fu-mesh-conformance`, **version 3**) is generated from
-the Elixir reference (`Fu.Mesh.Identity` + `Fu.Mesh.V3`, 130 tests).
+`vectors.json` (spec `fu-mesh-conformance`, **version 4**) is generated from
+the Elixir reference (Identity + V3 + Wire).
 
 **A runtime is conformant iff it reproduces every vector byte/value-exact.**
 Where this prose and `vectors.json` disagree, the vectors win.
@@ -37,7 +37,7 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
 ```
 0. Load vectors.json.
    ASSERT doc.spec == "fu-mesh-conformance"
-   ASSERT doc.version == 3                 # refuse to run against any other version
+   ASSERT doc.version == 4                 # refuse to run against any other version
 
 1. identity[]
    for each v:
@@ -79,10 +79,21 @@ Regenerate: `mix run --no-start bench/conformance_vectors.exs`
    ASSERT wire_decode(hex_decode(wire.frame_hex)) verifies and round-trips
    ASSERT chunk_count(frame, wire.mtu_example.mtu) == wire.mtu_example.chunk_count
 
+6. pipeline   (capstone — convergence using ONLY framed bytes)
+   (pub,priv) = keypair_from_seed(hex_decode(pipeline.signer_seed_hex))
+   att = sign_attest(attest(pipeline.attestation...), priv, pub)
+   hop(x,mtu) = decode_stream(reassemble(chunks(encode(x), mtu)))  // bytes only
+   w1 = ingest_signed(new_node("W1",["P"]), hop(att, pipeline.mtu_a))
+   held = held_attestations(w1,"P")[0]
+   w2 = ingest_signed(new_node("W2",["P"]), hop(held, pipeline.mtu_b))
+   ASSERT witnessed_rank({w1,w2},["W1","W2"],"P") == pipeline.final_witnessed_rank  # 51.5
+   forged = decode(encode(att with delta:=99.0))
+   ASSERT verified?(forged) == pipeline.forged_verified                            # false
+
 PASS iff every assertion holds; exit non-zero on the first failure.
 ```
 
-### Wire frame (v3, normative — big-endian)
+### Wire frame (normative — big-endian)
 
 ```
 "FU"      2  magic
@@ -107,7 +118,7 @@ runtime's CI: a normative change bumps `version`; the runtime declares the
 version it targets and the harness refuses any mismatch (step 0). No green
 harness ⇒ not a Football United node.
 
-## Constants (frozen at v2, from the reference)
+## Constants (frozen, from the reference)
 
 | name | value |
 |---|---|

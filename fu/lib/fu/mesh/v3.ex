@@ -240,6 +240,14 @@ defmodule Fu.Mesh.V3 do
 
   def knows?(node, player), do: Map.has_key?(node.store, player)
 
+  @doc "The signed attestations this node currently holds for a player (for relay)."
+  def held_attestations(node, player) do
+    case Map.get(node.store, player) do
+      nil -> []
+      r -> Map.values(r.pending)
+    end
+  end
+
   def seen_match?(node, player, match) do
     case Map.get(node.store, player) do
       nil -> false

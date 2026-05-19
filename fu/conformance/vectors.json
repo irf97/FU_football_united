@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "spec": "fu-mesh-conformance",
   "bootstrap": {
     "provisional_witnesses": [
@@ -23,6 +23,22 @@
       "public_hex": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394"
     }
   ],
+  "pipeline": {
+    "attestation": {
+      "match": 1,
+      "player": "P",
+      "delta": 1.5,
+      "witnesses": [
+        "W1",
+        "W2"
+      ]
+    },
+    "signer_seed_hex": "0808080808080808080808080808080808080808080808080808080808080808",
+    "mtu_a": 11,
+    "mtu_b": 7,
+    "final_witnessed_rank": 51.5,
+    "forged_verified": false
+  },
   "mesh": {
     "signed_ingest": {
       "valid_att_rank": 51.5,
@@ -31,18 +47,18 @@
     }
   },
   "wire": {
-    "max_payload": 4096,
     "attestation": {
       "match": 1,
       "player": "p",
+      "delta": 1.5,
       "witnesses": [
         "w1"
-      ],
-      "delta": 1.5
+      ]
     },
     "signer_seed_hex": "0101010101010101010101010101010101010101010101010101010101010101",
     "frame_hex": "465502010000007100000001000005dc0001708a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5caad29927aedd5030d0eec09bb2d0588f773ac51791ff23abf3b674496aa15796647ebd3a41e0791fb3e66a1455eaaa93b7e9925b72d4f0daef6b09fee8ac8b09000100027731e5a0a52d",
     "frame_bytes": 125,
+    "max_payload": 4096,
     "mtu_example": {
       "mtu": 16,
       "chunk_count": 8
@@ -56,7 +72,8 @@
     "address = lowercase hex of SHA-256(public_key), first 16 chars",
     "rank band [30.0,100.0], start 50.0; witnessed rank = median, self-excluded",
     "v2 superseded v1: delta encoding moved from float-string to milli-integer",
-    "v3 adds the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)"
+    "v3 added the wire section: byte-exact frame (magic FU, ver 2, len-prefixed, sha256[0..4] digest)",
+    "v4 adds the pipeline capstone: convergence using ONLY framed bytes (sign→encode→chunk→stream→ingest_signed→relay→witnessed rank)"
   ],
   "canonical_attestations": [
     {
