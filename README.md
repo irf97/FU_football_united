@@ -113,12 +113,8 @@ client are the genuine remaining build — outside this repo.
 | `redefinition/FU_END_TO_END.html` | **End-to-end narrative — read this first** (honest, single page) |
 | `CLAUDE.md` | Cold-start brief for any AI agent: journey, constraints, honest status |
 | `CHANGELOG.md` | **The chronological record of everything that happened** |
-| `fu-network-pitch.html` | Why (engineer/marketing pitch) |
-| `fu-dossier.html` | How it's built (architecture & state) |
-| `fu-spec.html` | What it must do (normative MUST/SHOULD clauses) |
-| `fu-features.html` | What ships (feature catalog + traceability) |
-| `fu-dashboard.html` | Unified PM dashboard (spec/features/req/personas/…) |
-| `fu-node.html` | Solid-node full architecture (25 layers on the IrfTek kernel) |
+| `redefinition/archive/fu-spec.html` | What it must do (normative MUST/SHOULD clauses) — archived |
+| `redefinition/archive/fu-node.html` | Solid-node full architecture (25 layers on the IrfTek kernel) — archived, aspirational |
 | `fu-protocol.html` | Mesh protocol spec v6 (vectors are law) |
 | `fu/conformance/` | `vectors.json` + `README.md` (CI gate) + `PROTOCOL_CHANGELOG.md` |
 | `AUDIT.md`, `STACK.md`, `DEPLOY.md`, `POLISH.md`, `SLICES.md`, `FRONTEND_SLICES.md` | Point-in-time build artifacts (see banner in each) |

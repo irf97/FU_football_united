@@ -450,7 +450,7 @@ promised — it is mapped, not committed.
 - `redefinition/CLEANROOM_READINESS.md` — R1/R2 frontier, spec-stability.
 - `redefinition/THIRD_IMPLEMENTATION_PLAN.md` — what crosses the threshold.
 - `fu/conformance/{README,PROTOCOL_CHANGELOG}.md`, `vectors.json` — the law.
-- `fu-protocol.html` — protocol spec v6. `fu-node.html` — node-layer design.
+- `fu-protocol.html` — protocol spec v6. `archive/fu-node.html` — node-layer design (archived, aspirational).
 - `CLAUDE.md` — operating constraints + ethos for any builder.
 
 > **The one rule that outranks this entire document:** never claim more

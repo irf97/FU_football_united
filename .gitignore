@@ -15,3 +15,19 @@ fu/priv/static/assets/
 
 # Claude local settings
 .claude/settings.local.json
+
+# graphify — regenerable artefacts
+# Pattern note: `graphify-out/*` (not `graphify-out/`) so the negations below
+# actually re-include the two files we want kept. Per gitignore(5), a directory
+# exclude makes file-level negations ineffective; an `/*` glob lets them work.
+graphify-out/*
+!graphify-out/cost.json
+!graphify-out/GRAPH_REPORT.md
+
+# graphify intermediate files at repo root from manual re-runs
+.graphify_*.json
+.graphify_*.py
+
+# Python test debris (from audit/test_graph_edge_audit.py)
+__pycache__/
+.pytest_cache/

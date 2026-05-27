@@ -50,6 +50,12 @@
 </style>
 </head>
 <body>
+<div role="alert" style="background:#14110F;color:#F4B860;padding:0.9em 1.2em;margin:0;border-bottom:2px solid #F4B860;border-left:4px solid #F4B860;font-family:ui-monospace,Menlo,monospace;font-size:0.92em;line-height:1.5">
+  <strong style="color:#F4B860">ARCHIVED 2026-05-21.</strong> Preserved as historical / aspirational reference. For current project state see
+  <a href="../FU_END_TO_END.html" style="color:#F4B860;text-decoration:underline">../FU_END_TO_END.html</a>
+  and <a href="../../CLAUDE.md" style="color:#F4B860;text-decoration:underline">CLAUDE.md</a>.
+  Some claims may have been stale at archive time.
+</div>
 <div class="shell">
   <nav>
     <div class="brand">Football United</div>
@@ -75,7 +81,7 @@
   <header>
     <div class="kicker">Normative · MUST / SHOULD / MAY · reflects the built behaviour</div>
     <h1>Functional<br />Specification.</h1>
-    <p class="lead">What Football United does, stated as testable requirements. This is the behavioural contract — the architecture and current state live in <code>fu-dossier.html</code>; this document is the <em>spec</em>. Each clause is numbered for traceability to tests.</p>
+    <p class="lead">What Football United does, stated as testable requirements. This is the behavioural contract — the end-to-end narrative and architecture live in <code>redefinition/FU_END_TO_END.html</code>; this document is the <em>spec</em>. Each clause is numbered for traceability to tests.</p>
   </header>
 
   <section id="scope">
@@ -102,8 +108,8 @@
       <li data-id="2.1"><span class="must">MUST</span> authenticate via phone one-time code; a player record is created on first successful verification.</li>
       <li data-id="2.2"><span class="must">MUST</span> rate-limit code requests to <span class="num">5 per phone per 15 minutes</span>; excess returns a rate-limited error.</li>
       <li data-id="2.3"><span class="must">MUST</span> cap verification attempts at <span class="num">5</span> per active code; on the cap the code is burned and a new one is required. Consumed codes MUST NOT be replayable.</li>
-      <li data-id="2.4"><span class="must">MUST</span> deliver codes through a pluggable adapter (<code>Fu.SMS.Adapter</code>); the default logs. A real provider MUST be configured before production.</li>
-      <li data-id="2.5"><span class="may">MAY</span> expose an admin login gate; in this build it is a shared password and is explicitly not production auth.</li>
+      <li data-id="2.4"><span class="must">MUST</span> deliver codes through a pluggable adapter (<code>Fu.SMS.Provider</code>); the default logs. A real provider MUST be configured before production.</li>
+      <li data-id="2.5"><span class="may">MAY</span> expose an admin login gate. The credential is read from the <code>FU_ADMIN_PASSWORD</code> environment variable (not source), compared in constant time, and fail-closed (unset ⇒ admin login disabled).</li>
     </ol>
   </section>
 
@@ -279,7 +285,7 @@
       <li data-id="15.1">Synthesising a brand-new match from solo queuers (current quick-match selects existing eligible queues).</li>
       <li data-id="15.2">Push/interstitial when a queue confirms while the player is on another screen.</li>
       <li data-id="15.3">Self-sovereign keypair identity and real BLE/NFC transport (prerequisite for §14 in production).</li>
-      <li data-id="15.4">Real SMS provider and secret-stored admin credential (launch-critical, not yet built).</li>
+      <li data-id="15.4">Real SMS provider (launch-critical, vendor pending — boundary built). Admin credential out of source: DONE.</li>
       <li data-id="15.5">Format downgrade (e.g. 8v8→7v7) at the lock deadline — current behaviour is confirm / extend-once / cancel.</li>
     </ol>
   </section>

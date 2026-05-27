@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Football United — Architecture (3D)</title>
+<style>
+  :root{
+    --bg:#0b0c0e; --bg-soft:#131519; --panel:#16181d; --panel-2:#1b1e24;
+    --line:#23272f;
+    --ink:#ECEAE3; --muted:#9aa0a8; --faint:#646a73;
+    --accent:#C5FF3D; --good:#7ED957; --warn:#F2B441; --bad:#FF6B5A; --info:#6BAEFF;
+    --serif: ui-serif, Georgia, "Source Serif Pro", "Times New Roman", serif;
+    --sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    --mono:  ui-monospace, Menlo, "JetBrains Mono", "Cascadia Code", monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.55; overflow:hidden; }
+  header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:14px 22px; border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, #0d0e11 0%, var(--bg) 100%);
+    z-index:10; position:relative;
+  }
+  .brand{ font-family:var(--mono); font-size:11.5px; letter-spacing:.22em; color:var(--accent); text-transform:uppercase; }
+  .title{ font-family:var(--serif); font-size:17px; color:var(--ink); }
+  .hud{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+    color:var(--muted);
+  }
+  .hud kbd{
+    font-family:var(--mono); font-size:10px; padding:1px 6px;
+    border:1px solid var(--line); border-radius:3px;
+    background:var(--bg-soft); color:var(--ink); margin:0 2px;
+  }
+
+  main{
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    height:calc(100vh - 51px - 38px);
+  }
+  .viz{
+    position:relative; background:#06070a;
+    /* subtle vignette */
+    background-image:radial-gradient(ellipse at center, #0c0e12 0%, #06070a 70%);
+  }
+  #viz3d{ position:absolute; inset:0; }
+
+  .layer-tags{
+    position:absolute; right:18px; top:14px;
+    display:flex; flex-direction:column; gap:8px;
+    pointer-events:none; user-select:none;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  }
+  .layer-tags .tag{
+    padding:4px 10px; border-radius:3px; border:1px solid;
+    background:rgba(11,12,14,0.65); backdrop-filter:blur(4px);
+    text-transform:uppercase;
+  }
+  .layer-tags .tag.asp { color:#FF6B5A; border-color:#FF6B5A55; }
+  .layer-tags .tag.fro { color:#6BAEFF; border-color:#6BAEFF55; }
+  .layer-tags .tag.bnd { color:#F2B441; border-color:#F2B44155; }
+  .layer-tags .tag.rea { color:#7ED957; border-color:#7ED95755; }
+  .layer-tags .tag.met { color:#C5FF3D; border-color:#C5FF3D55; }
+
+  .controls{
+    position:absolute; left:18px; top:14px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .controls button{
+    font-family:var(--mono); font-size:10px; letter-spacing:.18em;
+    color:var(--muted); text-transform:uppercase;
+    background:rgba(11,12,14,0.65); backdrop-filter:blur(4px);
+    border:1px solid var(--line); border-radius:3px;
+    padding:6px 10px; cursor:pointer; min-width:160px; text-align:left;
+    transition:all .15s ease;
+  }
+  .controls button:hover{ color:var(--accent); border-color:var(--accent); }
+  .controls button.on{ color:var(--accent); border-color:var(--accent); }
+  .controls .sep{
+    height:1px; background:var(--line); margin:4px 0;
+  }
+
+  aside{
+    border-left:1px solid var(--line);
+    background:var(--panel);
+    padding:22px 22px 18px; overflow:auto;
+  }
+  aside h2{ font-family:var(--serif); font-weight:600; font-size:20px; margin:0 0 4px; color:var(--ink); line-height:1.25; }
+  aside .status{
+    display:inline-block;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+    padding:3px 9px; border-radius:3px; text-transform:uppercase;
+    margin-top:4px;
+  }
+  aside .path{ font-family:var(--mono); font-size:11px; color:var(--muted); margin:14px 0 18px; line-height:1.5; }
+  aside .path span.sep{ color:var(--faint); margin:0 5px; }
+  aside .detail{ color:#d4d2c8; font-size:.96rem; line-height:1.6; border-top:1px solid var(--line); padding-top:14px; }
+  aside .meta{
+    margin-top:14px; padding-top:14px; border-top:1px solid var(--line);
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    display:grid; grid-template-columns:auto 1fr; gap:6px 14px;
+  }
+  aside .meta .k{ color:var(--faint); }
+  aside .meta .v{ color:#d4d2c8; }
+
+  footer{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 22px; border-top:1px solid var(--line);
+    background:#0a0b0d; font-family:var(--mono); font-size:11px; color:var(--muted);
+  }
+  .legend{ display:flex; gap:18px; align-items:center; }
+  .legend .item{ display:flex; gap:7px; align-items:center; }
+  .legend .sw{ width:11px; height:11px; border-radius:2px; }
+
+  /* 3d-force-graph node tooltip — overrides the library default */
+  .scene-tooltip{
+    font-family:var(--mono) !important; font-size:11px !important;
+    color:var(--ink) !important;
+    background:rgba(22,24,29,0.92) !important;
+    border:1px solid var(--line) !important; border-radius:4px !important;
+    padding:8px 11px !important; max-width:320px !important;
+    box-shadow:0 4px 18px rgba(0,0,0,.5) !important;
+  }
+  .scene-tooltip strong{ font-family:var(--serif); font-size:13px; color:var(--ink); display:block; margin-bottom:3px; }
+  .scene-tooltip .det{ color:var(--muted); font-family:var(--sans); font-size:11.5px; line-height:1.45; display:block; margin-top:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="brand">▎ Football United</span>
+    &nbsp; <span class="title">Architecture · 3D</span>
+  </div>
+  <div class="hud">
+    <kbd>drag</kbd> orbit · <kbd>scroll</kbd> zoom · <kbd>right-drag</kbd> pan · <kbd>click</kbd> node = focus
+  </div>
+</header>
+
+<main>
+  <div class="viz">
+    <div id="viz3d"></div>
+
+    <div class="controls">
+      <button id="btn-reset" title="Reset camera">↺ RESET CAMERA</button>
+      <button id="btn-spine" class="on" title="Toggle cross-layer spine edges">⌥ SPINE EDGES</button>
+      <button id="btn-labels" title="Toggle always-on labels">⌥ NODE LABELS</button>
+      <button id="btn-rotate" title="Toggle auto-rotate">⌥ AUTO-ROTATE</button>
+    </div>
+
+    <div class="layer-tags">
+      <div class="tag asp">↑ aspirational</div>
+      <div class="tag fro">  frontier</div>
+      <div class="tag bnd">  bounded — kernel</div>
+      <div class="tag rea">  real — app</div>
+      <div class="tag met">↓ methodology</div>
+    </div>
+  </div>
+
+  <aside id="panel">
+    <h2 id="p-name">Football United</h2>
+    <span class="status" id="p-status">Root</span>
+    <div class="path" id="p-path">Football United</div>
+    <div class="detail" id="p-detail">
+      Three layers stacked on the <em>z</em>-axis encode the project's actual epistemic shape: methodology at the floor, the real app above it, the bounded kernel in the middle, frontier slightly above the kernel, and the aspirational runtime at the top — geometric, not just colour-coded.
+      <br><br>
+      <strong>Click any node</strong> to focus the camera and read its detail. <strong>Drag</strong> to orbit. <strong>Scroll</strong> to zoom.
+    </div>
+    <div class="meta">
+      <span class="k">nodes</span>     <span class="v" id="m-nodes">—</span>
+      <span class="k">edges</span>     <span class="v" id="m-edges">—</span>
+      <span class="k">spine ties</span><span class="v" id="m-spine">—</span>
+      <span class="k">layers</span>    <span class="v">5 (z-pinned)</span>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div class="legend">
+    <div class="item"><span class="sw" style="background:#7ED957"></span> real, tested</div>
+    <div class="item"><span class="sw" style="background:#F2B441"></span> real but bounded</div>
+    <div class="item"><span class="sw" style="background:#FF6B5A"></span> aspirational · not built</div>
+    <div class="item"><span class="sw" style="background:#6BAEFF"></span> open frontier</div>
+    <div class="item"><span class="sw" style="background:#C5FF3D"></span> methodology · cross-cutting</div>
+  </div>
+  <div>three.js · 3d-force-graph · d3-force-3d &nbsp;|&nbsp; source: CLAUDE.md · redefinition/README.md · v6 contract</div>
+</footer>
+
+<!-- 3d-force-graph bundles its own three.js -->
+<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+<script>
+/* =====================================================================
+   DATA — same canonical hierarchy as architecture.html
+   ===================================================================== */
+const DATA = {
+  name: "Football United", status: "root",
+  detail: "Three layers, one repo. Phoenix matchmaking app · frozen protocol kernel · aspirational runtime.",
+  children: [
+    { name: "① App", status: "real",
+      detail: "Amateur-football matchmaking — Elixir / Phoenix LiveView / Postgres. 156 tests / 0 fail. Runnable today.",
+      children: [
+        { name: "Phoenix contexts", status: "real", detail: "15 bounded contexts; cross-context glue lives in Fu.Queues.",
+          children: [
+            { name: "Accounts", status: "real", detail: "Phone-OTP signup/login with attempt cap and hardening." },
+            { name: "Queues", status: "real", detail: "Browse/join/lock/confirm/complete lifecycle. The most-connected module." },
+            { name: "Matching", status: "real", detail: "Position-aware pops; geo + rank-close heuristics." },
+            { name: "Lobby", status: "real", detail: "Sequenced captain claim (keeper 60s → ranked 60s → free 120s → random)." },
+            { name: "Ranking", status: "real", detail: "Append-only rank ledger; deterministic; disputes-as-amendments." },
+            { name: "Matches", status: "real", detail: "Clock (kickoff/pause/resume), result submit, voting window." },
+            { name: "Voting", status: "real", detail: "MOTM / category tally; skip protection." },
+            { name: "Balance", status: "real", detail: "Snake-draft team balancing with strict-progress + fuel cap." },
+            { name: "Booking", status: "real", detail: "speculative → provisional → confirmed → released; operator stub." },
+            { name: "Friends", status: "real", detail: "Requester/addressee model; phone-based invite." },
+            { name: "Groups", status: "real", detail: "Leader + invite_code; atomic group-queue join." },
+            { name: "Tactics", status: "real", detail: "Formation + per-match overrides." },
+            { name: "QueueChat", status: "real", detail: "In-queue messaging gated by membership." },
+            { name: "Admin", status: "real", detail: "Suspend toggles; gated behind FU_ADMIN_PASSWORD." },
+            { name: "SMS", status: "real", detail: "Fu.SMS.Provider + Fu.SMS.Transport strategy boundary; LogAdapter default." }
+          ]},
+        { name: "LiveViews", status: "real", detail: "Server-rendered UI surface; minimal JS.",
+          children: [
+            { name: "Home LV", status: "real", detail: "Recent form, friends, group queues." },
+            { name: "Browse LV", status: "real", detail: "Open queues filtered by position, distance." },
+            { name: "Lobby LV", status: "real", detail: "Captain claim, position swap, kickoff." },
+            { name: "Match LV", status: "real", detail: "Live clock, goal recording, submit-result." },
+            { name: "Matchmaking LV", status: "real", detail: "Auto-refresh of queue pops." },
+            { name: "Post-match LV", status: "real", detail: "Voting + rank delta visualisation." },
+            { name: "Profile LV", status: "real", detail: "Display name, availability, rank history." },
+            { name: "QueueChat LV", status: "real", detail: "Realtime PubSub-backed chat." },
+            { name: "Admin LV", status: "real", detail: "Suspended-user view, status badges." },
+            { name: "MeshLab (/lab)", status: "real", detail: "In-app simulator that exercises the protocol kernel — disposable window onto kernel logic until a Rust runtime exists." }
+          ]},
+        { name: "Auth", status: "real", detail: "Two gates with very different threat models.",
+          children: [
+            { name: "Phone-OTP login", status: "real", detail: "Rate-limited + attempt-capped (post-AUDIT-#1 hardening)." },
+            { name: "Admin gate", status: "real", detail: "FU_ADMIN_PASSWORD env var only · constant-time compare · fail-closed. No hardcoded fallback." }
+          ]},
+        { name: "Lifecycle", status: "real", detail: "Browse → Join → Lock → Match → Post-match → Rank. Test-locked.",
+          children: [
+            { name: "Bail penalty", status: "real", detail: "1d / 1w suspensions, stacking; locked-period only." },
+            { name: "No-show", status: "real", detail: "Rank penalty + 14d suspension + operator-review dispute." },
+            { name: "Sub-position invariant", status: "real", detail: "Sub positions are display-only; never reach matchmaking. Test-locked." }
+          ]},
+        { name: "Tests (156/0)", status: "real", detail: "Strict TDD: RED → GREEN → refactor.",
+          children: [
+            { name: "Context tests", status: "real", detail: "Per-context behavioural specs." },
+            { name: "LiveView tests", status: "real", detail: "End-to-end through the HTTP/LiveView surface." },
+            { name: "Conformance test", status: "real", detail: "Locks the v6 contract against vectors.json. Bridges to Layer ②." },
+            { name: "Property tests", status: "real", detail: "sub-position invariant, balance termination, fold idempotence." }
+          ]}
+      ]},
+
+    { name: "② Protocol Kernel", status: "bounded",
+      detail: "Deterministic Elixir mesh + byte-exact conformance contract. Self-consistent reference, NOT proven interop. Frozen at v6.",
+      children: [
+        { name: "Conformance v6", status: "bounded", detail: "31 vectors. Precedence: prose < vectors.json < reference code.",
+          children: [
+            { name: "vectors.json", status: "bounded", detail: "Frozen byte-exact test fixtures, organized by section." },
+            { name: "PROTOCOL_CHANGELOG", status: "bounded", detail: "v1 → v6 evolution; F4 (bootstrap) the only behaviour-adjacent bump." },
+            { name: "Bootstrap pinned (F4)", status: "bounded", detail: "Friendless-newcomer scenario explicit in v6 — unsigned fold." },
+            { name: "Vector generator", status: "bounded", detail: "bench/conformance_vectors.exs — vectors are emitted, not authored." }
+          ]},
+        { name: "Mesh lineage", status: "bounded", detail: "Three generations; v3 is the current routed mesh.",
+          children: [
+            { name: "V1 — append-only log", status: "bounded", detail: "Original proximity-gossip; benchmark baseline." },
+            { name: "V2 — friend-graph + TTL", status: "bounded", detail: "Superseded; proximity-bounded relay; retained for benchmark comparison." },
+            { name: "V3 — subject-directed relay", status: "bounded", detail: "Current. Acquaintance tier + provisional-witness fold." }
+          ]},
+        { name: "Identity", status: "bounded", detail: "Fu.Mesh.Identity — Ed25519 (RFC 8032), pure deterministic crypto.",
+          children: [
+            { name: "Keypair", status: "bounded", detail: "Generated from a seed; seed == RFC 8032 private key (F1 closed)." },
+            { name: "Canonical encoding", status: "bounded", detail: "match | player | delta_milli encoded byte-exactly." },
+            { name: "Sign / verify", status: "bounded", detail: "Locked by vectors; cross-runtime variants are R2 frontier." }
+          ]},
+        { name: "Wire codec", status: "bounded", detail: "Fu.Mesh.Wire — length-delimited byte-exact framing.",
+          children: [
+            { name: "Encode/decode", status: "bounded", detail: "Round-trip locked by vectors.json wire section." },
+            { name: "MTU split/reassemble", status: "bounded", detail: "Configurable MTU; chunk_count locked." }
+          ]},
+        { name: "Bootstrap (friendless)", status: "bounded", detail: "Hardest open question for p2p trust: a newcomer with no friends. Mitigated, not solved.",
+          children: [
+            { name: "Unsigned fold", status: "bounded", detail: "Test-locked invariant; pinned in v6 (F4 fix)." },
+            { name: "Acquaintance → witness", status: "bounded", detail: "v3's mitigation: weak-tie inclusion when no friend witnesses." },
+            { name: "~90% @ 10k sim", status: "bounded", detail: "Orphan recoverability up to 90.5% in 10k-user simulation. ~10% tail is honest, not papered over." }
+          ]},
+        { name: "Findings · closed", status: "real", detail: "Specification ambiguities the audit surfaced and the contract resolved.",
+          children: [
+            { name: "F1 — seed = RFC 8032 priv", status: "real", detail: "Resolved by aligning the contract with the RFC." },
+            { name: "F3 — both witnesses hold fact", status: "real", detail: "Witness-set semantics clarified in v5." },
+            { name: "F4 — bootstrap pinned", status: "real", detail: "v6's bootstrap fold is now explicit; unsigned by contract." },
+            { name: "F7 — rank-fold model", status: "real", detail: "Sum of deltas, clamp 30..100; documented unambiguously." }
+          ]},
+        { name: "Frontier · open", status: "frontier", detail: "Known ambiguities that future clean-room implementations may surface.",
+          children: [
+            { name: "R1 — delta_milli decimal vs binary64", status: "frontier", detail: "API-boundary ambiguity above the wire form." },
+            { name: "R2 — Ed25519 verify variant", status: "frontier", detail: "Strict vs cofactor verify — out of conformance scope." }
+          ]},
+        { name: "Independent audit", status: "bounded", detail: "Python conformance impl. 31/31 v6 vectors reproduced. Contaminated author → spec-sufficiency audit, NOT clean-room.",
+          children: [
+            { name: "Vendored Ed25519", status: "bounded", detail: "Pure-Python RFC 8032; zero non-stdlib deps." },
+            { name: "31/31 vectors reproduced", status: "bounded", detail: "Every section passes byte-exactly." },
+            { name: "Contaminated → audit-only", status: "bounded", detail: "Author had read the Elixir reference; not clean-room." },
+            { name: "Clean-room NOT crossed", status: "frontier", detail: "The legitimacy threshold — an implementation that reads only the spec — is not yet crossed." },
+            { name: "Dual-runtime CI", status: "bounded", detail: "Elixir self-check + Python independent job, failing independently." }
+          ]}
+      ]},
+
+    { name: "③ Aspirational Runtime", status: "aspirational",
+      detail: "Named targets in the docs. Zero of it exists. Never describe in present tense.",
+      children: [
+        { name: "Rust runtime", status: "aspirational", detail: "Intended host for the protocol kernel; replaces /lab simulator. Not built." },
+        { name: "Radio transport", status: "aspirational", detail: "Real proximity — the missing primitive.",
+          children: [
+            { name: "BLE", status: "aspirational", detail: "Cheap, always-on presence and gossip. No code." },
+            { name: "NFC", status: "aspirational", detail: "High-trust channel: key exchange, co-sign. No code." },
+            { name: "Wi-Fi-Aware", status: "aspirational", detail: "Higher bandwidth peer discovery. No code." }
+          ]},
+        { name: "Phone client", status: "aspirational", detail: "Native iOS/Android app. Not built." },
+        { name: "Solid Node", status: "aspirational", detail: "25-layer venue-node spec (redefinition/archive/fu-node.html)." },
+        { name: "Persona-native identity", status: "aspirational", detail: "Ed25519 key = persona; replaces phone-OTP at node layer. Designed." },
+        { name: "Six kernel primitives", status: "aspirational", detail: "Kernel formulation a runtime would expose. Designed, not implemented.",
+          children: [
+            { name: "Object", status: "aspirational", detail: "Identity-stamped opaque thing." },
+            { name: "Authority", status: "aspirational", detail: "Who may speak about an object." },
+            { name: "Propagation", status: "aspirational", detail: "How facts spread across the mesh." },
+            { name: "Projection", status: "aspirational", detail: "Local materialisation of remote facts." },
+            { name: "Anchor", status: "aspirational", detail: "Witnessed median + proximity." },
+            { name: "Expiry", status: "aspirational", detail: "Time-bounded validity of any claim." }
+          ]},
+        { name: "Ecosystem", status: "aspirational", detail: "Third-party implementations; standards body; interop. No external adoption yet." }
+      ]},
+
+    { name: "Cross-cutting", status: "methodology",
+      detail: "The repository's epistemic spine — survives even if every other layer is deleted.",
+      children: [
+        { name: "Methodology · durable asset", status: "methodology", detail: "Formalize behaviour → freeze semantics → verify. Reusable across domains.",
+          children: [
+            { name: "Property tests", status: "methodology", detail: "Assert relationships, not snapshots." },
+            { name: "Generated-from-reference vectors", status: "methodology", detail: "Emitted by running the reference, then frozen." },
+            { name: "Independent code path re-derives them", status: "methodology", detail: "Python audit re-derives every vector, surfacing F1/F3/F4/F7." }
+          ]},
+        { name: "Ethos", status: "methodology", detail: "Why this repo's value is its epistemic honesty.",
+          children: [
+            { name: "Calibrated honesty", status: "methodology", detail: "State strength with evidence; state what does not exist plainly." },
+            { name: "Ambiguity = success", status: "methodology", detail: "Surface underspecification; don't paper over it." },
+            { name: "Don't mark own homework", status: "methodology", detail: "If you read the reference, you are contaminated — disclose it." },
+            { name: "Lean beats official-looking", status: "methodology", detail: "Doc proliferation rejected; canonical narrative is one file." },
+            { name: "Take the true part", status: "methodology", detail: "When pushed back, even when unflattering." }
+          ]},
+        { name: "Operating constraints", status: "methodology", detail: "Hard-won rules from doing it the wrong way.",
+          children: [
+            { name: "git-bash for mix", status: "methodology", detail: "Never WSL/PowerShell. Source ../devenv.sh from fu/." },
+            { name: "One mix process", status: "methodology", detail: "Compile lock — kill erl.exe/beam.smp/epmd.exe first." },
+            { name: "Strict TDD", status: "methodology", detail: "RED → GREEN → refactor. No production code without a failing test." },
+            { name: "No force-push", status: "methodology", detail: "Branch FU_no-p2p reconciles by rebase." },
+            { name: "Commit only on explicit ask", status: "methodology", detail: "Humans commit. Agents don't push." },
+            { name: "Co-Authored-By trailer", status: "methodology", detail: "Every commit message ends with the trailer line." }
+          ]},
+        { name: "Docs · lean set", status: "methodology", detail: "Six surfaces. No proliferation.",
+          children: [
+            { name: "README.md", status: "methodology", detail: "Root run-it recipe + route table." },
+            { name: "CLAUDE.md", status: "methodology", detail: "Cold-start brief — the rulebook." },
+            { name: "CHANGELOG.md", status: "methodology", detail: "Phases 0 → 5, append-only history." },
+            { name: "AUDIT.md", status: "methodology", detail: "WIRED matrix + integration-break findings." },
+            { name: "fu-protocol.html", status: "methodology", detail: "Wire-level v6 specification." },
+            { name: "FU_END_TO_END.html", status: "methodology", detail: "Canonical narrative — start here." }
+          ]}
+      ]}
+  ]
+};
+
+/* =====================================================================
+   PALETTE
+   ===================================================================== */
+const STATUS_COLOR = {
+  root:         "#ECEAE3",
+  real:         "#7ED957",
+  bounded:      "#F2B441",
+  aspirational: "#FF6B5A",
+  frontier:     "#6BAEFF",
+  methodology:  "#C5FF3D"
+};
+const STATUS_LABEL = {
+  root:         "Root",
+  real:         "Real · tested",
+  bounded:      "Real · bounded",
+  aspirational: "Aspirational · not built",
+  frontier:     "Open frontier",
+  methodology:  "Methodology · cross-cutting"
+};
+
+/* z-pin per status — the layer geometry */
+const Z_BY_STATUS = {
+  root:          -50,
+  aspirational:  260,
+  frontier:      110,
+  bounded:         0,
+  real:         -160,
+  methodology:  -320
+};
+
+/* =====================================================================
+   FLATTEN tree → nodes + parent-child links (with unique path ids)
+   ===================================================================== */
+const nodes = [];
+const links = [];
+const byId  = new Map();
+
+function flatten(n, parentId) {
+  const id = parentId ? `${parentId} › ${n.name}` : n.name;
+  const node = {
+    id,
+    name: n.name,
+    status: n.status,
+    detail: n.detail,
+    depth: id.split(" › ").length - 1,
+    fz: Z_BY_STATUS[n.status] ?? 0
+  };
+  nodes.push(node);
+  byId.set(id, node);
+  if (parentId) links.push({ source: parentId, target: id, kind: "tree" });
+  (n.children || []).forEach(c => flatten(c, id));
+}
+flatten(DATA, null);
+
+/* =====================================================================
+   SPINE — hand-curated cross-layer ties showing the project's epistemic
+   structure. These are the edges that make the 3D shape meaningful.
+   ===================================================================== */
+function find(suffix) {
+  // suffix-match; prefer the longest (most specific) match
+  let best = null;
+  for (const n of nodes) {
+    if (n.id.endsWith(suffix) && (!best || n.id.length > best.id.length)) best = n;
+  }
+  return best ? best.id : null;
+}
+const SPINE_SPECS = [
+  { from: "Tests (156/0) › Conformance test",        to: "② Protocol Kernel › Conformance v6",                   label: "validates" },
+  { from: "LiveViews › MeshLab (/lab)",               to: "② Protocol Kernel › Mesh lineage › V3 — subject-directed relay", label: "simulates" },
+  { from: "② Protocol Kernel › Conformance v6",       to: "③ Aspirational Runtime › Rust runtime",                label: "contract a future runtime must implement" },
+  { from: "② Protocol Kernel › Independent audit",    to: "Cross-cutting › Methodology · durable asset",          label: "instance of" },
+  { from: "Cross-cutting › Docs · lean set › FU_END_TO_END.html", to: "Football United",                          label: "canonical narrative" },
+  { from: "Phoenix contexts › Ranking",               to: "② Protocol Kernel › Findings · closed › F7 — rank-fold model", label: "implements" },
+  { from: "Phoenix contexts › SMS",                   to: "Cross-cutting › Methodology · durable asset",          label: "strategy boundary (ports & adapters)" }
+];
+const spineLinks = SPINE_SPECS.map(s => {
+  const sId = find(s.from.split(" › ").pop()) || s.from;
+  const tId = find(s.to.split(" › ").pop())   || s.to;
+  return (byId.has(sId) && byId.has(tId)) ? { source: sId, target: tId, label: s.label, kind: "spine" } : null;
+}).filter(Boolean);
+
+/* HUD counts */
+document.getElementById("m-nodes").textContent = nodes.length;
+document.getElementById("m-edges").textContent = links.length;
+document.getElementById("m-spine").textContent = spineLinks.length;
+
+/* =====================================================================
+   BUILD the 3D graph
+   ===================================================================== */
+let showSpine  = true;
+let showLabels = false;
+let autoRotate = false;
+
+const allLinks = () => links.concat(showSpine ? spineLinks : []);
+
+const Graph = ForceGraph3D({ controlType: "orbit" })
+  (document.getElementById("viz3d"))
+  .backgroundColor("#06070a")
+  .graphData({ nodes, links: allLinks() })
+  .nodeRelSize(4.5)
+  .nodeVal(n => Math.max(0.8, 6.5 - n.depth * 1.1))
+  .nodeColor(n => STATUS_COLOR[n.status] || "#888")
+  .nodeOpacity(0.92)
+  .nodeResolution(16)
+  .nodeLabel(n => `<strong>${escapeHtml(n.name)}</strong><span class="det">${escapeHtml(n.detail || "")}</span>`)
+  .linkColor(l => l.kind === "spine" ? "#C5FF3D" : "#3a3f48")
+  .linkOpacity(l => l.kind === "spine" ? 0.55 : 0.32)
+  .linkWidth(l => l.kind === "spine" ? 0.9 : 0.4)
+  .linkCurvature(l => l.kind === "spine" ? 0.25 : 0)
+  .linkDirectionalParticles(l => l.kind === "spine" ? 2 : 0)
+  .linkDirectionalParticleSpeed(0.006)
+  .linkDirectionalParticleWidth(1.6)
+  .linkDirectionalParticleColor(() => "#C5FF3D")
+  .onNodeClick(n => {
+    // Focus camera on node
+    const distance = 110;
+    const dist = Math.hypot(n.x, n.y, n.z) || 1;
+    Graph.cameraPosition(
+      { x: n.x * (1 + distance / dist), y: n.y * (1 + distance / dist), z: n.z * (1 + distance / dist) },
+      n,
+      750
+    );
+    selectNode(n);
+  });
+
+// Slightly weaker repulsion so layers compress nicely on their z-slabs
+Graph.d3Force("charge").strength(-110);
+// Pull each node's z toward its pinned z (in case fz constraint isn't enough)
+Graph.d3Force("link").distance(28).strength(0.55);
+
+/* =====================================================================
+   PANEL
+   ===================================================================== */
+function selectNode(n) {
+  document.getElementById("p-name").textContent = n.name;
+  const badge = document.getElementById("p-status");
+  badge.textContent = STATUS_LABEL[n.status] || n.status;
+  badge.style.background = (STATUS_COLOR[n.status] || "#888") + "22";
+  badge.style.color      =  STATUS_COLOR[n.status] || "#888";
+  badge.style.border     = "1px solid " + (STATUS_COLOR[n.status] || "#888") + "55";
+
+  document.getElementById("p-path").innerHTML =
+    n.id.split(" › ").map(s => `<span>${escapeHtml(s)}</span>`).join('<span class="sep">›</span>');
+
+  document.getElementById("p-detail").textContent = n.detail || "—";
+}
+
+/* =====================================================================
+   CONTROL BUTTONS
+   ===================================================================== */
+document.getElementById("btn-reset").addEventListener("click", () => {
+  Graph.zoomToFit(900, 60);
+});
+
+document.getElementById("btn-spine").addEventListener("click", function () {
+  showSpine = !showSpine;
+  this.classList.toggle("on", showSpine);
+  Graph.graphData({ nodes, links: allLinks() });
+  document.getElementById("m-spine").textContent = showSpine ? spineLinks.length : 0;
+});
+
+document.getElementById("btn-labels").addEventListener("click", function () {
+  showLabels = !showLabels;
+  this.classList.toggle("on", showLabels);
+  // Toggle always-on text sprites (cheap impl: just use threeObject)
+  if (showLabels) {
+    Graph.nodeThreeObjectExtend(true).nodeThreeObject(n => {
+      const sprite = new SpriteText(n.name);
+      sprite.material.depthWrite = false;
+      sprite.color = "#ECEAE3";
+      sprite.backgroundColor = "rgba(11,12,14,0.55)";
+      sprite.padding = 2;
+      sprite.textHeight = Math.max(3.5, 6 - n.depth);
+      sprite.position.y = -10 - n.depth * 1.4;
+      return sprite;
+    });
+  } else {
+    Graph.nodeThreeObject(() => null);
+  }
+});
+
+document.getElementById("btn-rotate").addEventListener("click", function () {
+  autoRotate = !autoRotate;
+  this.classList.toggle("on", autoRotate);
+  const ctrls = Graph.controls();
+  ctrls.autoRotate = autoRotate;
+  ctrls.autoRotateSpeed = 0.6;
+});
+
+/* SpriteText is bundled inside 3d-force-graph; if missing fall back gracefully */
+const SpriteText = window.SpriteText || class { constructor(t){ this.text = t; this.material = {}; this.position = {x:0,y:0,z:0}; } };
+
+/* =====================================================================
+   ESCAPE for tooltip HTML
+   ===================================================================== */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* Initial select */
+selectNode(byId.get("Football United"));
+// Initial camera nudge — give it a nice 3/4 view
+setTimeout(() => Graph.zoomToFit(900, 80), 600);
+</script>
+
+</body>
+</html>

@@ -549,6 +549,134 @@
     </div>
   </section>
 
+  <!-- Absorbed from fu-dossier.html on 2026-05-21; refreshed against current repo facts. -->
+  <section id="technical-appendix">
+    <div class="sec-no">A — TECHNICAL DETAIL</div>
+    <h2>Appendix: architecture, lifecycle, ranking, mesh comparison</h2>
+    <p>Reference material absorbed from the retired project dossier. Numbers
+      are current as of this build (156 tests · 0 failures · conformance v6 ·
+      admin credential out of source · SMS boundary release-grade, vendor
+      deferred). Source of truth for behaviour remains the code and the
+      conformance vectors; precedence is <code>prose &lt; vectors.json &lt;
+      reference code</code>.</p>
+
+    <h3>Domain contexts (the app)</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Context</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td>Accounts</td><td>Players, phone-OTP auth (rate-limited + attempt-capped), profile, sub-position defaults, age/nation</td></tr>
+        <tr><td>Positions</td><td>Main-4 vocabulary (GK/DEF/MID/FWD), per-main sub-positions, formation quotas, rated formats</td></tr>
+        <tr><td>Queues</td><td>Queue creation, position-aware browser, join/leave, soft-join → hard-lock, T-3h resolution</td></tr>
+        <tr><td>Matching</td><td>Auto-match scoring, quick-match "pops" (joinable + fitting, soonest-first)</td></tr>
+        <tr><td>Balance</td><td>Team auto-balance (terminating for all formats — strict-progress + fuel cap)</td></tr>
+        <tr><td>Lobby</td><td>Rosters, sequenced captain claim, mutual-consent position swaps, ephemeral chat</td></tr>
+        <tr><td>Matches</td><td>Score/goals, completion, in-play clock (kickoff/pause/resume), idempotent <code>submit_result/3</code></td></tr>
+        <tr><td>Tactics</td><td>Per-team formation/style/notes — captain-guarded edit, squad preview</td></tr>
+        <tr><td>Voting</td><td>Post-match peer voting (MVP/defender/keeper), skip tracking</td></tr>
+        <tr><td>Ranking</td><td>Deterministic append-only rank ledger, decay, no-show, disputes-as-amendments</td></tr>
+        <tr><td>Friends / Groups</td><td>Friend requests/accept, friend-groups that queue as a unit</td></tr>
+        <tr><td>QueueChat</td><td>Persistent per-queue chatroom (opens at ≥3 queued)</td></tr>
+        <tr><td>Events</td><td>Semantic event log — side-effect-only, JSONL export</td></tr>
+        <tr><td>Admin</td><td>Console gated by <code>FU_ADMIN_PASSWORD</code> (fail-closed, constant-time compare; unset ⇒ admin login disabled)</td></tr>
+        <tr><td>SMS</td><td>Release-grade boundary: <code>Fu.SMS.Provider</code> strategy + injected <code>Fu.SMS.Transport</code> + fail-closed <code>HTTPAdapter</code>. <code>LogAdapter</code> is still the default — no real texts send until a concrete provider+transport is wired.</td></tr>
+        <tr><td>Mesh / Mesh.V2 / Mesh.V3</td><td>Pure in-memory P2P simulation models (research; oracle for the conformance contract)</td></tr>
+      </tbody>
+    </table></div>
+    <p>Rank is an append-only <code>RankEvent</code> ledger; every change
+      carries a <code>breakdown</code> map so "why did my rank move?" is
+      always derivable. Corrections are amendments (<code>Dispute</code>),
+      never mutations. This is exactly the structure a gossip-replicated P2P
+      transport is made of — the migration path swaps transport, not the
+      domain.</p>
+
+    <h3>Match lifecycle (queue → lock → confirm → match → rank)</h3>
+    <p>Queue <code>state</code> is the spine:
+      <strong>open → locked → confirmed → completed</strong> (or
+      <strong>cancelled</strong>), with a soft-join / hard-lock overlay on
+      memberships.</p>
+    <pre>  JOIN (soft, status:"queued")            BROWSE: deliberate    QUEUE: Accept-a-pop
+        │                                        │                    │ (Accept = join+lock)
+        ▼                                        ▼                    ▼
+  ┌───────────── interested ─────────────┐   LOCK IN ──────────────────┐
+  │  can still leave                      │   (locked_at set, committed)│
+  └───────────────────────────────────────┘             │             │
+                                                         ▼             │
+                       ┌─ every quota slot filled by LOCKED members ───┘
+                       │        → FAST PATH: state = "confirmed" (no Resolver wait)
+                       │
+   T-3h lock deadline ─┤  Resolver: lock_all_queued (timer expiry = forced lock)
+                       │        → confirm | extend-once (30m) | cancel
+                       ▼
+              LOBBY  (/lobby/:id)  Balance.assign_teams → A/B · sequenced captain claim
+                       │           · mutual-consent swaps · chat · lock progress
+                       ▼
+              MATCH  (/match/:id)  synced clock · captain kickoff/pause/resume
+                       │           · captain TACTICS (squad previews) · "final whistle"
+                       ▼
+        Matches.submit_result/3  → complete · Ranking.finalize_match (idempotent)
+                       ▼
+           POST-MATCH (/postmatch/:id)  peer voting (MVP/defender/keeper, 24h)
+                       ▼
+                RANK LEDGER  append-only RankEvent + breakdown</pre>
+    <ul class="clean">
+      <li><strong>Soft join</strong> = "interested", can leave freely.</li>
+      <li><strong>Lock in</strong> = commitment; bailing after lock-in costs
+        1 day &gt;24h before kickoff, 1 week within 24h (stacking).</li>
+      <li><strong>All locked → instant confirm</strong> (fast path on every
+        lock; no Resolver tick needed).</li>
+      <li><strong>Timer expiry = forced lock</strong>: the Resolver locks
+        everyone still queued, then resolves on the locked set.</li>
+      <li><strong>Quick-match Accept = lock-in</strong> (a pop is a
+        commitment; decline if too far / rating too low).</li>
+    </ul>
+
+    <h3>Ranking engine — weighted components</h3>
+    <p>Every rated match writes one <code>RankEvent</code> per participant
+      whose <code>breakdown</code> enumerates each weighted component.
+      Idempotent via a <code>(player, queue, "match")</code> unique index.
+      Rank is clamped to [30.0, 100.0]; starting rank is 50.0. Rated
+      formats: <strong>8v8 and 7v7</strong>.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Component</th><th>Weight</th></tr></thead>
+      <tbody>
+        <tr><td>Outcome</td><td class="mono">win +1.5 · draw +0.3 · loss −0.8</td></tr>
+        <tr><td>Goal / assist</td><td class="mono">+0.6 each / +0.4 each</td></tr>
+        <tr><td>Opponent MVP / best-defender vote</td><td class="mono">+2.0 / +1.6</td></tr>
+        <tr><td>Own-team MVP / defender</td><td class="mono">+0.6 (flat, weighted lower)</td></tr>
+        <tr><td>Opponent keeper score (GK only)</td><td class="mono">(median − 5) × 0.3, clamp ±1.5</td></tr>
+        <tr><td>Skip-vote penalty</td><td class="mono">−10 (2nd consecutive full skip)</td></tr>
+        <tr><td>No-show</td><td class="mono">−15; 2nd in 60d → −15 + 14-day suspension</td></tr>
+        <tr><td>Decay</td><td class="mono">0.3 / idle week toward 50 after 90d idle (suspended exempt)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Mesh model evolution v1 → v2 → v3 (simulation, @10k)</h3>
+    <p>Three pure in-memory models (<code>Fu.Mesh</code> /
+      <code>.V2</code> / <code>.V3</code>), each TDD'd for its invariants
+      and each with a seeded scale harness run at 100 / 1k / 10k over 60
+      rounds on a geographically-clustered swarm. v3 is the model frozen
+      into the conformance contract.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Model @10k</th><th>Per-device storage</th><th>Witness delivery</th><th>Typical payload</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>v1 · replicate-all</td><td class="mono">2.3 MB, growing</td><td class="mono">— (global)</td><td class="mono">219 KB</td><td>Scuttlebutt blow-up</td></tr>
+        <tr><td>v2 · friends + TTL</td><td class="mono">40 KB flat</td><td class="mono">5.5%</td><td class="mono">p95 240 B</td><td>Storage solved, delivery starved</td></tr>
+        <tr><td>v3 · + relay + acquaintance</td><td class="mono">146 KB flat</td><td class="mono">~100% (97% maj / 100% ≥2)</td><td class="mono">p95 480 B (avg 6.6 KB)</td><td>Holds end-to-end</td></tr>
+      </tbody>
+    </table></div>
+    <p>What v3 added: <strong>subject-directed relay</strong> (a carrier
+      pushes your record toward <em>your</em> witnesses, not just holds
+      it); <strong>instant friend-share</strong> at a match;
+      <strong>proximity-over-time → acquaintance</strong> (a long-retention
+      tier promoted by repeated co-presence, ~8.6 acquaintances/node
+      bounded); and a <strong>closeness filter</strong> so storage stays
+      bounded (no blind-flooding strangers' data). Payload p95 480 B fits
+      an NFC tap; the rare 6–37 KB relay catch-ups want BLE/Wi-Fi-Aware —
+      the two-tier transport is justified by data, not hand-wave. Open:
+      friendless bootstrap is mitigated to ~90% @10k, not solved; real
+      BLE/NFC is untested (this is simulation).</p>
+  </section>
+
 </div>
 
 <footer><div class="wrap"><div>

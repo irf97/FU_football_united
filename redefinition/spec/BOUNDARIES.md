@@ -71,7 +71,7 @@ the kernel, not part of it; it is disposable.
 - The Rust node runtime (named target only — no Rust in the tree).
 - Real BLE/NFC transport / radios.
 - The phone client and the solid-node OS layers (the 25-layer
-  `fu-node.html` architecture is a *design document*, not an
+  `../archive/fu-node.html` architecture is a *design document*, not an
   implementation).
 - Any third-party implementation, adoption, or interop.
 

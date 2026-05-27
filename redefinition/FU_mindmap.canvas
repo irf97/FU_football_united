@@ -1,0 +1,68 @@
+{
+  "nodes": [
+    {"id": "center", "type": "text", "text": "# Football United\n\n_Phoenix matchmaking app · frozen protocol kernel · honest about what's not built_", "x": -200, "y": -150, "width": 400, "height": 130, "color": "5"},
+
+    {"id": "layer_app", "type": "text", "text": "## ① APP\n\nPhoenix · LiveView · Postgres\n**Real, tested, runnable**", "x": -1100, "y": 200, "width": 320, "height": 110, "color": "4"},
+    {"id": "layer_proto", "type": "text", "text": "## ② PROTOCOL KERNEL\n\nDeterministic Elixir mesh\n**Real but bounded — self-consistent reference, NOT proven interop**", "x": -160, "y": 200, "width": 320, "height": 130, "color": "2"},
+    {"id": "layer_asp", "type": "text", "text": "## ③ ASPIRATIONAL RUNTIME\n\nRust runtime · radios · network · ecosystem\n**Zero of it exists**\n_Never describe in present tense_", "x": 780, "y": 200, "width": 320, "height": 150, "color": "1"},
+
+    {"id": "app_ctx", "type": "text", "text": "**Phoenix contexts**\nAccounts · Queues · Matching · Lobby · Ranking · Matches · Voting · Balance · Booking · Friends · Groups · Tactics · QueueChat · Admin", "x": -1500, "y": 430, "width": 320, "height": 130, "color": "4"},
+    {"id": "app_lv", "type": "text", "text": "**LiveViews**\nHome · Browse · Lobby · Match · Matchmaking · Post-match · Profile · QueueChat · Admin · MeshLab (in-app simulator)", "x": -1500, "y": 590, "width": 320, "height": 120, "color": "4"},
+    {"id": "app_auth", "type": "text", "text": "**Auth & SMS**\nPhone-OTP login · Admin gate via `FU_ADMIN_PASSWORD` (fail-closed, constant-time, no fallback)\nSMS strategy boundary: `Fu.SMS.Provider` + `Transport` · `LogAdapter` default (vendor pending)", "x": -1100, "y": 750, "width": 360, "height": 150, "color": "4"},
+    {"id": "app_rank", "type": "text", "text": "**Rank ledger**\nAppend-only · idempotent · disputes-as-amendments · spec §2.9\nNo-show: rank penalty + 14d suspension\nDecay worker (periodic tick)", "x": -700, "y": 430, "width": 320, "height": 140, "color": "4"},
+    {"id": "app_tests", "type": "text", "text": "**Tests: 156 / 0**\nStrict TDD · RED→GREEN→refactor\nSuite fully green; sub-position-never-matchmade invariant test-locked", "x": -700, "y": 600, "width": 320, "height": 130, "color": "4"},
+
+    {"id": "proto_v6", "type": "text", "text": "**Conformance contract v6**\n31 vectors · `vectors.json`\nPrecedence: `prose < vectors.json < reference code`\nBootstrap scenario pinned in v6 (F4 fix)", "x": -560, "y": 400, "width": 320, "height": 140, "color": "2"},
+    {"id": "proto_mesh", "type": "text", "text": "**Mesh lineage**\n`Fu.Mesh.V1` — append-only log\n`Fu.Mesh.V2` — friend-graph + proximity TTL _(superseded)_\n`Fu.Mesh.V3` — subject-directed relay + acquaintance tier _(current)_", "x": -160, "y": 400, "width": 360, "height": 150, "color": "2"},
+    {"id": "proto_id", "type": "text", "text": "**Identity**\n`Fu.Mesh.Identity` — Ed25519 (RFC 8032)\nseed = RFC 8032 private key (F1 fix)\nCanonical encoding · sign · verify", "x": 230, "y": 400, "width": 320, "height": 130, "color": "2"},
+    {"id": "proto_wire", "type": "text", "text": "**Wire codec**\n`Fu.Mesh.Wire` — length-delimited byte-exact framing\nMTU split / reassemble · round-trip locked by vectors", "x": -560, "y": 580, "width": 320, "height": 120, "color": "2"},
+    {"id": "proto_boot", "type": "text", "text": "**Friendless bootstrap**\nUnsigned fold (test-locked invariant)\nAcquaintance→provisional-witness fix\n~90% @ 10k sim — **mitigated, not solved**", "x": -160, "y": 580, "width": 320, "height": 130, "color": "3"},
+    {"id": "proto_findings", "type": "text", "text": "**Findings**\n✅ F1/F3/F4/F7 closed\n🟡 R1 — `delta_milli` decimal vs binary64 _(open)_\n🟡 R2 — Ed25519 verify variant _(open)_", "x": 230, "y": 580, "width": 320, "height": 140, "color": "3"},
+
+    {"id": "asp_runtime", "type": "text", "text": "**Rust runtime**\nNot built. `/lab` LiveView is the disposable window onto the kernel logic for now.", "x": 780, "y": 430, "width": 320, "height": 110, "color": "1"},
+    {"id": "asp_transport", "type": "text", "text": "**Transport: BLE · NFC · Wi-Fi-Aware**\nNot built. No radios, no proximity proofs, no real co-presence.", "x": 1130, "y": 430, "width": 320, "height": 110, "color": "1"},
+    {"id": "asp_client", "type": "text", "text": "**Phone client / Solid Node**\n25-layer venue-node spec (archived as aspirational architecture).\nNo client app, no node OS, no fleet.", "x": 780, "y": 580, "width": 320, "height": 130, "color": "1"},
+    {"id": "asp_primitives", "type": "text", "text": "**Six kernel primitives**\nObject · Authority · Propagation · Projection · Anchor · Expiry\n_Designed. Not implemented as a runtime._", "x": 1130, "y": 580, "width": 320, "height": 130, "color": "1"},
+
+    {"id": "audit", "type": "text", "text": "## Independent audit\n**Python conformance impl**\nVendored RFC 8032 · zero deps · 31/31 v6 vectors\n_Author had contaminated context_\n→ **spec-sufficiency audit, NOT clean-room**\nClean-room threshold **NOT crossed**\nDual CI (Elixir + Python)", "x": 780, "y": -30, "width": 360, "height": 200, "color": "6"},
+
+    {"id": "ethos", "type": "text", "text": "## Ethos\n• Calibrated honesty over impressiveness\n• Ambiguity discovery = success, not failure\n• Don't mark your own homework (disclose contamination)\n• Lean beats official-looking\n• Take the true part when pushed back, even if unflattering", "x": -1500, "y": -50, "width": 360, "height": 200, "color": "6"},
+
+    {"id": "ops", "type": "text", "text": "## Operating constraints\n• git-bash only for `mix` (never WSL/PowerShell)\n• One mix process at a time (compile lock)\n• Commit/push only when human asks\n• Branch: `FU_no-p2p` → rebase, never force-push\n• Co-Authored-By trailer on every commit", "x": -200, "y": -370, "width": 400, "height": 180, "color": "6"},
+
+    {"id": "doc_canon", "type": "text", "text": "## Canonical narrative\n`redefinition/FU_END_TO_END.html`\n(absorbed fu-dossier; appendix has architecture + ranking weights + mesh comparison)\n\nKept: `README.md` · `CLAUDE.md` · `fu-protocol.html`\nArchived: `redefinition/archive/{fu-node,fu-spec}.html`", "x": 230, "y": -30, "width": 360, "height": 200, "color": "6"}
+  ],
+  "edges": [
+    {"id": "e_c_app",   "fromNode": "center", "fromSide": "left",   "toNode": "layer_app",   "toSide": "right",  "color": "4"},
+    {"id": "e_c_proto", "fromNode": "center", "fromSide": "bottom", "toNode": "layer_proto", "toSide": "top",    "color": "2"},
+    {"id": "e_c_asp",   "fromNode": "center", "fromSide": "right",  "toNode": "layer_asp",   "toSide": "left",   "color": "1"},
+
+    {"id": "e_app_ctx",   "fromNode": "layer_app", "fromSide": "left",   "toNode": "app_ctx",   "toSide": "top",    "color": "4"},
+    {"id": "e_app_lv",    "fromNode": "layer_app", "fromSide": "left",   "toNode": "app_lv",    "toSide": "top",    "color": "4"},
+    {"id": "e_app_auth",  "fromNode": "layer_app", "fromSide": "bottom", "toNode": "app_auth",  "toSide": "top",    "color": "4"},
+    {"id": "e_app_rank",  "fromNode": "layer_app", "fromSide": "right",  "toNode": "app_rank",  "toSide": "top",    "color": "4"},
+    {"id": "e_app_tests", "fromNode": "layer_app", "fromSide": "right",  "toNode": "app_tests", "toSide": "top",    "color": "4"},
+
+    {"id": "e_proto_v6",       "fromNode": "layer_proto", "fromSide": "left",   "toNode": "proto_v6",       "toSide": "top",    "color": "2"},
+    {"id": "e_proto_mesh",     "fromNode": "layer_proto", "fromSide": "bottom", "toNode": "proto_mesh",     "toSide": "top",    "color": "2"},
+    {"id": "e_proto_id",       "fromNode": "layer_proto", "fromSide": "right",  "toNode": "proto_id",       "toSide": "top",    "color": "2"},
+    {"id": "e_proto_wire",     "fromNode": "proto_v6",    "fromSide": "bottom", "toNode": "proto_wire",     "toSide": "top",    "color": "2"},
+    {"id": "e_proto_boot",     "fromNode": "proto_mesh",  "fromSide": "bottom", "toNode": "proto_boot",     "toSide": "top",    "color": "3"},
+    {"id": "e_proto_findings", "fromNode": "proto_id",    "fromSide": "bottom", "toNode": "proto_findings", "toSide": "top",    "color": "3"},
+
+    {"id": "e_asp_runtime",    "fromNode": "layer_asp",   "fromSide": "left",   "toNode": "asp_runtime",    "toSide": "top",    "color": "1"},
+    {"id": "e_asp_transport",  "fromNode": "layer_asp",   "fromSide": "right",  "toNode": "asp_transport",  "toSide": "top",    "color": "1"},
+    {"id": "e_asp_client",     "fromNode": "asp_runtime", "fromSide": "bottom", "toNode": "asp_client",     "toSide": "top",    "color": "1"},
+    {"id": "e_asp_primitives", "fromNode": "asp_transport","fromSide": "bottom","toNode": "asp_primitives", "toSide": "top",    "color": "1"},
+
+    {"id": "e_proto_audit", "fromNode": "layer_proto", "fromSide": "right", "toNode": "audit", "toSide": "left", "label": "validated by (audit, not clean-room)", "color": "6"},
+    {"id": "e_audit_v6",    "fromNode": "audit", "fromSide": "left", "toNode": "proto_v6", "toSide": "right", "label": "31/31 vectors reproduced", "color": "6"},
+
+    {"id": "e_proto_asp", "fromNode": "layer_proto", "fromSide": "right", "toNode": "layer_asp", "toSide": "left", "label": "contract a future runtime must implement", "color": "3"},
+    {"id": "e_app_proto", "fromNode": "layer_app",   "fromSide": "right", "toNode": "layer_proto", "toSide": "left", "label": "app simulates / oracles the kernel", "color": "5"},
+
+    {"id": "e_center_canon", "fromNode": "center", "fromSide": "right", "toNode": "doc_canon", "toSide": "left",  "color": "6"},
+    {"id": "e_center_ops",   "fromNode": "center", "fromSide": "top",   "toNode": "ops",       "toSide": "bottom","color": "6"},
+    {"id": "e_app_ethos",    "fromNode": "layer_app", "fromSide": "left", "toNode": "ethos",   "toSide": "right", "color": "6"}
+  ]
+}

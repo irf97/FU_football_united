@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Football United — Architecture Deconstruction</title>
+<style>
+  :root{
+    --bg:#0b0c0e; --bg-soft:#131519; --panel:#16181d; --panel-2:#1b1e24;
+    --line:#23272f;
+    --ink:#ECEAE3; --muted:#9aa0a8; --faint:#646a73;
+    --accent:#C5FF3D; --good:#7ED957; --warn:#F2B441; --bad:#FF6B5A; --info:#6BAEFF;
+    --serif: ui-serif, Georgia, "Source Serif Pro", "Times New Roman", serif;
+    --sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    --mono:  ui-monospace, Menlo, "JetBrains Mono", "Cascadia Code", monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); line-height:1.55;
+    overflow:hidden;
+  }
+  header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:14px 22px; border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, #0d0e11 0%, var(--bg) 100%);
+  }
+  .brand{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.22em;
+    color:var(--accent); text-transform:uppercase;
+  }
+  .title{ font-family:var(--serif); font-size:17px; color:var(--ink); }
+  .breadcrumb{
+    font-family:var(--mono); font-size:11px; letter-spacing:.05em;
+    color:var(--muted);
+  }
+  .breadcrumb span.sep{ color:var(--faint); margin:0 6px; }
+  .breadcrumb span.cur{ color:var(--accent); }
+
+  main{
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    height:calc(100vh - 51px - 38px);
+  }
+  .viz{
+    position:relative; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, #0e1013 0%, var(--bg) 70%);
+  }
+  .viz svg{ width:100%; height:100%; max-height:100%; }
+  .center-label{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    text-align:center; pointer-events:none; user-select:none;
+  }
+  .center-label .name{
+    font-family:var(--serif); font-size:18px; color:var(--ink);
+    line-height:1.2;
+  }
+  .center-label .kind{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.18em;
+    color:var(--muted); margin-top:6px; text-transform:uppercase;
+  }
+  aside{
+    border-left:1px solid var(--line);
+    background:var(--panel);
+    padding:22px 22px 18px; overflow:auto;
+  }
+  aside h2{
+    font-family:var(--serif); font-weight:600; font-size:20px;
+    margin:0 0 4px; color:var(--ink); line-height:1.25;
+  }
+  aside .status{
+    display:inline-block;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+    padding:3px 9px; border-radius:3px; text-transform:uppercase;
+    margin-top:4px;
+  }
+  aside .path{
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    margin:14px 0 18px; line-height:1.5;
+  }
+  aside .path span.sep{ color:var(--faint); margin:0 5px; }
+  aside .detail{
+    color:#d4d2c8; font-size:.96rem; line-height:1.6;
+    border-top:1px solid var(--line); padding-top:14px;
+  }
+  aside .children{
+    margin-top:18px; border-top:1px solid var(--line); padding-top:14px;
+  }
+  aside .children .label{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+    color:var(--muted); text-transform:uppercase; margin-bottom:8px;
+  }
+  aside .children ul{ list-style:none; padding:0; margin:0; }
+  aside .children li{
+    padding:5px 0 5px 14px; position:relative;
+    color:#d4d2c8; font-size:.93rem; cursor:pointer;
+    border-radius:3px;
+  }
+  aside .children li::before{
+    content:"›"; position:absolute; left:0; color:var(--faint);
+  }
+  aside .children li:hover{
+    color:var(--accent); background:rgba(197,255,61,.04);
+  }
+  aside .children li.leaf::before{ content:"·"; color:var(--faint); }
+
+  footer{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 22px; border-top:1px solid var(--line);
+    background:#0a0b0d;
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+  }
+  .legend{ display:flex; gap:18px; align-items:center; }
+  .legend .item{ display:flex; gap:7px; align-items:center; }
+  .legend .sw{ width:11px; height:11px; border-radius:2px; }
+
+  /* sunburst path interactions */
+  path.arc{ cursor:pointer; transition:opacity .18s ease; }
+  path.arc:hover{ opacity:1 !important; filter:brightness(1.18); }
+  text.arc-label{
+    font-family:var(--mono); font-size:9.5px; fill:#0b0c0e;
+    pointer-events:none; user-select:none;
+  }
+  text.arc-label.light{ fill:#0b0c0e; }
+  .reset{
+    position:absolute; top:14px; left:18px;
+    font-family:var(--mono); font-size:10px; letter-spacing:.18em;
+    color:var(--muted); text-transform:uppercase;
+    background:transparent; border:1px solid var(--line); border-radius:3px;
+    padding:5px 10px; cursor:pointer; transition:all .15s ease;
+  }
+  .reset:hover{ color:var(--accent); border-color:var(--accent); }
+  .reset[disabled]{ opacity:.35; cursor:default; }
+  .reset[disabled]:hover{ color:var(--muted); border-color:var(--line); }
+</style>
+</head>
+<body>
+
+<header>
+  <div><span class="brand">▎ Football United</span> &nbsp; <span class="title">Architecture deconstruction</span></div>
+  <div class="breadcrumb" id="breadcrumb"><span class="cur">Football United</span></div>
+</header>
+
+<main>
+  <div class="viz">
+    <button class="reset" id="reset" disabled>↑ ZOOM OUT</button>
+    <svg id="sunburst" viewBox="-460 -460 920 920" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="center-label" id="centerLabel">
+      <div class="name">Football United</div>
+      <div class="kind">three layers · honest scope</div>
+    </div>
+  </div>
+
+  <aside id="panel">
+    <h2 id="p-name">Football United</h2>
+    <span class="status" id="p-status">Root</span>
+    <div class="path" id="p-path"></div>
+    <div class="detail" id="p-detail">
+      A repository that is three distinct things grown in one place. Each layer has different maturity, different value, and different claims. Conflating them is the single biggest way to misread this repo.
+      <br><br>
+      <strong>Hover or click any segment</strong> in the sunburst to drill in. Click the centre or the <em>↑ ZOOM OUT</em> button to step back.
+    </div>
+    <div class="children" id="p-children">
+      <div class="label">Layers</div>
+      <ul id="p-children-list"></ul>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div class="legend">
+    <div class="item"><span class="sw" style="background:#7ED957"></span> real, tested</div>
+    <div class="item"><span class="sw" style="background:#F2B441"></span> real but bounded</div>
+    <div class="item"><span class="sw" style="background:#FF6B5A"></span> aspirational · not built</div>
+    <div class="item"><span class="sw" style="background:#6BAEFF"></span> open frontier</div>
+    <div class="item"><span class="sw" style="background:#C5FF3D"></span> methodology · cross-cutting</div>
+  </div>
+  <div>source: CLAUDE.md · redefinition/README.md · v6 contract</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script>
+/* =====================================================================
+   DATA — deconstructed from CLAUDE.md + redefinition/README.md
+   status: real | bounded | aspirational | frontier | methodology
+   detail: one-sentence explanation surfaced in the side panel
+   value:  optional — used as size weight; defaults to 1 per leaf
+   ===================================================================== */
+const DATA = {
+  name: "Football United",
+  status: "root",
+  detail: "Three layers, one repo. Phoenix matchmaking app · frozen protocol kernel · aspirational runtime.",
+  children: [
+    {
+      name: "① App",
+      status: "real",
+      detail: "Amateur-football matchmaking — Elixir / Phoenix LiveView / Postgres. 156 tests / 0 fail. Runnable today. Pre-launch blockers documented.",
+      children: [
+        {
+          name: "Phoenix contexts",
+          status: "real",
+          detail: "15 bounded contexts; cross-context glue lives in Fu.Queues (the gravity well per god-node analysis).",
+          children: [
+            { name: "Accounts", status: "real", detail: "Phone-OTP signup/login with attempt cap and hardening." },
+            { name: "Queues", status: "real", detail: "Browse/join/lock/confirm/complete lifecycle. The most-connected module." },
+            { name: "Matching", status: "real", detail: "Position-aware pops; geo + rank-close heuristics." },
+            { name: "Lobby", status: "real", detail: "Sequenced captain claim (keeper 60s → ranked 60s → free 120s → random)." },
+            { name: "Ranking", status: "real", detail: "Append-only rank ledger; deterministic; disputes-as-amendments (spec §2.9)." },
+            { name: "Matches", status: "real", detail: "Clock (kickoff/pause/resume), result submit, voting window." },
+            { name: "Voting", status: "real", detail: "MOTM / category tally; skip protection." },
+            { name: "Balance", status: "real", detail: "Snake-draft team balancing with strict-progress + fuel cap." },
+            { name: "Booking", status: "real", detail: "speculative → provisional → confirmed → released; operator stub for adapter." },
+            { name: "Friends", status: "real", detail: "Requester/addressee model; phone-based invite." },
+            { name: "Groups", status: "real", detail: "Leader + invite_code; atomic group-queue join." },
+            { name: "Tactics", status: "real", detail: "Formation + per-match overrides." },
+            { name: "QueueChat", status: "real", detail: "In-queue messaging gated by membership." },
+            { name: "Admin", status: "real", detail: "Suspend toggles; overview dashboard; gated behind FU_ADMIN_PASSWORD." },
+            { name: "SMS", status: "real", detail: "Strategy boundary: Fu.SMS.Provider + Fu.SMS.Transport. LogAdapter default; vendor pending." }
+          ]
+        },
+        {
+          name: "LiveViews",
+          status: "real",
+          detail: "Server-rendered UI surface; minimal JS.",
+          children: [
+            { name: "Home", status: "real", detail: "Recent form, friends, group queues." },
+            { name: "Browse", status: "real", detail: "Open queues filtered by position, distance." },
+            { name: "Lobby", status: "real", detail: "Captain claim, position swap, kickoff." },
+            { name: "Match", status: "real", detail: "Live clock, goal recording, submit-result." },
+            { name: "Matchmaking", status: "real", detail: "Auto-refresh of queue pops." },
+            { name: "Post-match", status: "real", detail: "Voting + rank delta visualisation." },
+            { name: "Profile", status: "real", detail: "Display name, availability windows, rank history." },
+            { name: "QueueChat", status: "real", detail: "Realtime PubSub-backed chat." },
+            { name: "Admin", status: "real", detail: "Suspended-user view, status badges." },
+            { name: "MeshLab (/lab)", status: "real", detail: "In-app simulator that exercises the protocol kernel — the disposable window onto kernel logic until a Rust runtime exists." }
+          ]
+        },
+        {
+          name: "Auth",
+          status: "real",
+          detail: "Two gates with very different threat models.",
+          children: [
+            { name: "Phone-OTP login", status: "real", detail: "rate-limited + attempt-capped (post-AUDIT-#1 hardening)." },
+            { name: "Admin gate", status: "real", detail: "FU_ADMIN_PASSWORD env var only · constant-time compare · fail-closed (unset ⇒ disabled, never fallback). No hardcoded fallback." }
+          ]
+        },
+        {
+          name: "Lifecycle",
+          status: "real",
+          detail: "Browse → Join → Lock → Match → Post-match → Rank. Test-locked.",
+          children: [
+            { name: "Bail penalty", status: "real", detail: "1d / 1w suspensions, stacking; locked-period only." },
+            { name: "No-show", status: "real", detail: "Rank penalty + 14d suspension + operator-review dispute." },
+            { name: "Sub-position invariant", status: "real", detail: "Sub positions are display-only; never reach matchmaking. Test-locked." }
+          ]
+        },
+        {
+          name: "Tests",
+          status: "real",
+          detail: "156 passing / 0 failing. Strict TDD: RED → GREEN → refactor.",
+          children: [
+            { name: "Context tests", status: "real", detail: "Per-context behavioural specs." },
+            { name: "LiveView integration tests", status: "real", detail: "End-to-end through the HTTP/LiveView surface." },
+            { name: "Conformance test", status: "real", detail: "Locks the v6 contract against vectors.json. Bridges to Layer ②." },
+            { name: "Property/invariant tests", status: "real", detail: "sub-position invariant, balance termination, fold idempotence." }
+          ]
+        }
+      ]
+    },
+    {
+      name: "② Protocol Kernel",
+      status: "bounded",
+      detail: "Deterministic Elixir mesh modules + a byte-exact, versioned conformance contract. A self-consistent reference kernel — NOT a proven interop standard. Frozen at v6.",
+      children: [
+        {
+          name: "Conformance v6",
+          status: "bounded",
+          detail: "31 vectors. Precedence: prose < vectors.json < reference code. Regenerated by running the reference, not hand-typed.",
+          children: [
+            { name: "vectors.json", status: "bounded", detail: "Frozen byte-exact test fixtures, organized by section (mesh, wire, adversarial, pipeline, identity)." },
+            { name: "PROTOCOL_CHANGELOG", status: "bounded", detail: "v1 → v6 evolution; F4 (bootstrap) is the only behaviour-adjacent bump, additive." },
+            { name: "Bootstrap pinned (F4)", status: "bounded", detail: "The friendless-newcomer scenario is now explicit in v6 — unsigned fold." },
+            { name: "Vector generator", status: "bounded", detail: "bench/conformance_vectors.exs — vectors are emitted, not authored." }
+          ]
+        },
+        {
+          name: "Mesh lineage",
+          status: "bounded",
+          detail: "Three generations; v3 is the current routed mesh. v1 and v2 are preserved for benchmark continuity.",
+          children: [
+            { name: "V1 — append-only log", status: "bounded", detail: "Original proximity-gossip; benchmark baseline." },
+            { name: "V2 — friend-graph + TTL", status: "bounded", detail: "Superseded; proximity-bounded relay; retained for benchmark comparison." },
+            { name: "V3 — subject-directed relay", status: "bounded", detail: "Current. Acquaintance tier + provisional-witness fold. The protocol kernel as it stands today." }
+          ]
+        },
+        {
+          name: "Identity",
+          status: "bounded",
+          detail: "Fu.Mesh.Identity — Ed25519 (RFC 8032), pure deterministic crypto.",
+          children: [
+            { name: "Keypair", status: "bounded", detail: "Generated from a seed; seed == RFC 8032 private key (F1 closed)." },
+            { name: "Canonical encoding", status: "bounded", detail: "match | player | delta_milli encoded byte-exactly." },
+            { name: "Sign / verify", status: "bounded", detail: "Locked by vectors; cross-runtime variants are R2 frontier." }
+          ]
+        },
+        {
+          name: "Wire codec",
+          status: "bounded",
+          detail: "Fu.Mesh.Wire — length-delimited byte-exact framing.",
+          children: [
+            { name: "Encode / decode", status: "bounded", detail: "Round-trip locked by vectors.json wire section." },
+            { name: "MTU split / reassemble", status: "bounded", detail: "Configurable MTU; chunk_count locked." }
+          ]
+        },
+        {
+          name: "Bootstrap (friendless)",
+          status: "bounded",
+          detail: "The hardest open question for any p2p trust system: a newcomer with no friends. Mitigated, not solved.",
+          children: [
+            { name: "Unsigned fold", status: "bounded", detail: "Test-locked invariant; pinned in v6 (F4 fix). Cannot become signed without contract bump." },
+            { name: "Acquaintance → provisional witness", status: "bounded", detail: "v3's mitigation: weak-tie inclusion when no friend witnesses exist." },
+            { name: "~90% @ 10k sim", status: "bounded", detail: "Orphan recoverability up to 90.5% in deterministic 10k-user simulation. The residual ~10% tail is honest, not papered over." }
+          ]
+        },
+        {
+          name: "Findings · closed",
+          status: "real",
+          detail: "Specification ambiguities the audit surfaced and the contract resolved.",
+          children: [
+            { name: "F1 — seed = RFC 8032 private key", status: "real", detail: "Resolved by aligning the contract with the RFC. Audit Finding #1." },
+            { name: "F3 — both witnesses must hold the fact", status: "real", detail: "Witness-set semantics clarified in v5." },
+            { name: "F4 — bootstrap scenario pinned", status: "real", detail: "v6's bootstrap fold is now explicit; unsigned by contract." },
+            { name: "F7 — rank-fold model", status: "real", detail: "Sum of deltas, clamp 30..100; documented unambiguously." }
+          ]
+        },
+        {
+          name: "Frontier · open",
+          status: "frontier",
+          detail: "Known ambiguities that future clean-room implementations may surface. Honest, not pretended-covered.",
+          children: [
+            { name: "R1 — delta_milli decimal vs binary64", status: "frontier", detail: "API-boundary ambiguity above the wire form (wire is integer milli; API representation differs across runtimes)." },
+            { name: "R2 — Ed25519 verify variant", status: "frontier", detail: "Implementation differences in Ed25519 verify (strict vs cofactor, batch normalisation) — out of conformance scope, will require a clean-room verifier to surface." }
+          ]
+        },
+        {
+          name: "Independent audit",
+          status: "bounded",
+          detail: "Python conformance implementation. Vendored RFC 8032, zero deps. Reproduces 31/31 v6 vectors. By the author's own disclosure: contaminated context → spec-sufficiency audit, NOT clean-room.",
+          children: [
+            { name: "Vendored Ed25519", status: "bounded", detail: "Pure-Python RFC 8032 implementation; zero non-stdlib deps." },
+            { name: "31/31 vectors reproduced", status: "bounded", detail: "Every section passes byte-exactly." },
+            { name: "Contaminated → audit-only", status: "bounded", detail: "The author had read the Elixir reference; cannot be claimed as clean-room." },
+            { name: "Clean-room NOT crossed", status: "frontier", detail: "The legitimacy threshold — an implementation that reads only the spec, never the reference — is not yet crossed." },
+            { name: "Dual-runtime CI", status: "bounded", detail: "Elixir self-check + Python independent job, failing independently." }
+          ]
+        }
+      ]
+    },
+    {
+      name: "③ Aspirational Runtime",
+      status: "aspirational",
+      detail: "Named targets in the docs. Zero of it exists. Never describe in present tense.",
+      children: [
+        { name: "Rust runtime", status: "aspirational", detail: "Intended host for the protocol kernel; replaces the in-app /lab simulator. Not built." },
+        {
+          name: "Radio transport",
+          status: "aspirational",
+          detail: "Real proximity is the missing primitive.",
+          children: [
+            { name: "BLE", status: "aspirational", detail: "Cheap, always-on presence and gossip. No code." },
+            { name: "NFC", status: "aspirational", detail: "High-trust channel: key exchange, co-sign. No code." },
+            { name: "Wi-Fi-Aware", status: "aspirational", detail: "Higher bandwidth peer discovery. No code." }
+          ]
+        },
+        { name: "Phone client", status: "aspirational", detail: "Native iOS/Android app would consume the runtime + radios. Not built." },
+        { name: "Solid Node", status: "aspirational", detail: "25-layer venue-node spec. Archived as aspirational architecture (redefinition/archive/fu-node.html)." },
+        { name: "Persona-native identity", status: "aspirational", detail: "Ed25519 key = persona; replaces phone-OTP at the node layer. Designed only." },
+        {
+          name: "Six kernel primitives",
+          status: "aspirational",
+          detail: "The kernel formulation a runtime would expose. Designed, not implemented.",
+          children: [
+            { name: "Object", status: "aspirational", detail: "Identity-stamped opaque thing." },
+            { name: "Authority", status: "aspirational", detail: "Who may speak about an object." },
+            { name: "Propagation", status: "aspirational", detail: "How facts spread across the mesh." },
+            { name: "Projection", status: "aspirational", detail: "Local materialisation of remote facts." },
+            { name: "Anchor", status: "aspirational", detail: "Witnessed median + proximity." },
+            { name: "Expiry", status: "aspirational", detail: "Time-bounded validity of any claim." }
+          ]
+        },
+        { name: "Ecosystem", status: "aspirational", detail: "Third-party implementations; standards body; interop. No external adoption yet." }
+      ]
+    },
+    {
+      name: "Cross-cutting",
+      status: "methodology",
+      detail: "The repository's epistemic spine — survives even if every other layer is deleted.",
+      children: [
+        {
+          name: "Methodology · the durable asset",
+          status: "methodology",
+          detail: "Formalize behaviour → freeze semantics → verify implementations. Reusable across domains, independent of whether FU ships.",
+          children: [
+            { name: "Property tests", status: "methodology", detail: "Assert relationships (sign/verify round-trips, encode/decode invariants, median bounds), not snapshots." },
+            { name: "Generated-from-reference vectors", status: "methodology", detail: "Vectors are emitted by running the reference, then frozen — never hand-typed." },
+            { name: "Independent code path re-derives them", status: "methodology", detail: "The Python audit re-derives every vector through unrelated code, surfacing F1/F3/F4/F7." }
+          ]
+        },
+        {
+          name: "Ethos",
+          status: "methodology",
+          detail: "Why this repo's value is its epistemic honesty.",
+          children: [
+            { name: "Calibrated honesty over impressiveness", status: "methodology", detail: "State strength with evidence; state what does not exist plainly." },
+            { name: "Ambiguity discovery = success", status: "methodology", detail: "Surface underspecification; don't paper over it." },
+            { name: "Don't mark your own homework", status: "methodology", detail: "If you read the reference, you are contaminated for clean-room purposes — disclose it." },
+            { name: "Lean beats official-looking", status: "methodology", detail: "Doc proliferation rejected; canonical narrative is one file." },
+            { name: "Take the true part when pushed back", status: "methodology", detail: "Even when unflattering. The honesty is the asset." }
+          ]
+        },
+        {
+          name: "Operating constraints",
+          status: "methodology",
+          detail: "The hard-won rules from doing it the wrong way.",
+          children: [
+            { name: "git-bash for mix only", status: "methodology", detail: "Never WSL/PowerShell. Source ../devenv.sh from fu/." },
+            { name: "One mix process at a time", status: "methodology", detail: "Compile lock — kill erl.exe/beam.smp/epmd.exe before any server/test run." },
+            { name: "Strict TDD", status: "methodology", detail: "Write the test, watch it fail for the right reason, minimal GREEN, refactor. No production code without a failing test." },
+            { name: "No force-push", status: "methodology", detail: "Branch FU_no-p2p reconciles by rebase." },
+            { name: "Commit only on explicit ask", status: "methodology", detail: "Humans commit. Agents don't push." },
+            { name: "Co-Authored-By trailer", status: "methodology", detail: "Every commit message ends with the trailer line." }
+          ]
+        },
+        {
+          name: "Docs · the lean set",
+          status: "methodology",
+          detail: "What survived the deletion sweep. Six surfaces, no proliferation.",
+          children: [
+            { name: "README.md", status: "methodology", detail: "Root run-it recipe + route table." },
+            { name: "CLAUDE.md", status: "methodology", detail: "Cold-start brief for AI agents — the rulebook." },
+            { name: "CHANGELOG.md", status: "methodology", detail: "Phases 0 → 5, append-only history." },
+            { name: "AUDIT.md", status: "methodology", detail: "WIRED matrix + integration-break findings." },
+            { name: "fu-protocol.html", status: "methodology", detail: "Wire-level v6 specification — the kernel's normative contract for human readers." },
+            { name: "redefinition/FU_END_TO_END.html", status: "methodology", detail: "Canonical narrative — start here for the whole story (absorbed fu-dossier's technical appendix)." }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+/* =====================================================================
+   STATUS palette
+   ===================================================================== */
+const STATUS_COLOR = {
+  root:         "#ECEAE3",
+  real:         "#7ED957",
+  bounded:      "#F2B441",
+  aspirational: "#FF6B5A",
+  frontier:     "#6BAEFF",
+  methodology:  "#C5FF3D"
+};
+const STATUS_LABEL = {
+  root:         "Root",
+  real:         "Real · tested",
+  bounded:      "Real · bounded",
+  aspirational: "Aspirational · not built",
+  frontier:     "Open frontier",
+  methodology:  "Methodology · cross-cutting"
+};
+
+/* =====================================================================
+   SUNBURST — zoomable, Mike Bostock pattern adapted to project palette
+   ===================================================================== */
+const RADIUS = 440;
+
+// Pre-compute hierarchy
+const root = d3.hierarchy(DATA)
+  .sum(d => d.children ? 0 : 1)                  // equal-weight leaves
+  .sort((a, b) => b.value - a.value);
+
+d3.partition().size([2 * Math.PI, root.height + 1])(root);
+root.each(d => d.current = d);
+
+const svg = d3.select("#sunburst");
+const g   = svg.append("g");
+
+const arc = d3.arc()
+  .startAngle  (d => d.x0)
+  .endAngle    (d => d.x1)
+  .padAngle    (d => Math.min((d.x1 - d.x0) / 2, 0.005))
+  .padRadius   (RADIUS * 1.5)
+  .innerRadius (d => d.y0 * RADIUS / (root.height + 1))
+  .outerRadius (d => Math.max(d.y0 * RADIUS / (root.height + 1),
+                              d.y1 * RADIUS / (root.height + 1) - 1));
+
+function colorFor(d){
+  return STATUS_COLOR[d.data.status] || STATUS_COLOR.bounded;
+}
+function opacityFor(d){
+  if (!d.depth) return 0;
+  // Slight depth-fade
+  return Math.max(0.55, 1 - (d.depth - 1) * 0.10);
+}
+
+const path = g.append("g")
+  .selectAll("path")
+  .data(root.descendants().slice(1))
+  .join("path")
+    .attr("class", "arc")
+    .attr("fill", colorFor)
+    .attr("fill-opacity", opacityFor)
+    .attr("d", d => arc(d.current))
+    .style("cursor", d => d.children ? "pointer" : "default");
+
+path
+  .on("mouseover", (event, d) => selectNode(d, /*zoom*/ false))
+  .on("click",     (event, d) => {
+    if (d.children) zoomTo(d);
+    else selectNode(d, /*zoom*/ false);
+  });
+
+// Optional arc labels — only on arcs big enough to read
+const label = g.append("g")
+  .attr("pointer-events", "none")
+  .attr("text-anchor", "middle")
+  .selectAll("text")
+  .data(root.descendants().slice(1))
+  .join("text")
+    .attr("class", "arc-label")
+    .attr("transform", d => labelTransform(d.current))
+    .attr("fill-opacity", d => labelVisible(d.current) ? 1 : 0)
+    .text(d => trimLabel(d.data.name));
+
+function labelVisible(d) {
+  const angularWidth = (d.x1 - d.x0);
+  const radialDepth  = (d.y1 - d.y0);
+  // Visible if at least ~35px of arc length AND at least depth 1
+  const arcLen = angularWidth * ((d.y0 + d.y1) / 2) * RADIUS / (root.height + 1);
+  return arcLen > 28 && radialDepth > 0;
+}
+function labelTransform(d) {
+  const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+  const y = (d.y0 + d.y1) / 2 * RADIUS / (root.height + 1);
+  return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+}
+function trimLabel(s){
+  // Truncate so labels don't overflow narrow arcs
+  if (s.length <= 22) return s;
+  return s.slice(0, 21) + "…";
+}
+
+// Centre click = zoom out
+svg.append("circle")
+  .attr("r", RADIUS / (root.height + 1) * 0.95)
+  .attr("fill", "transparent")
+  .style("cursor", "pointer")
+  .on("click", () => zoomTo(root));
+
+/* =====================================================================
+   ZOOM transition
+   ===================================================================== */
+let zoomRoot = root;
+
+function zoomTo(p) {
+  zoomRoot = p;
+  document.getElementById("reset").disabled = (p === root);
+  updateBreadcrumb(p);
+  updateCenterLabel(p);
+
+  root.each(d => d.target = {
+    x0: Math.max(0, Math.min(1, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+    x1: Math.max(0, Math.min(1, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+    y0: Math.max(0, d.y0 - p.depth),
+    y1: Math.max(0, d.y1 - p.depth)
+  });
+
+  const t = g.transition().duration(620).ease(d3.easeCubicInOut);
+
+  path.transition(t)
+    .tween("data", d => {
+      const i = d3.interpolate(d.current, d.target);
+      return tt => d.current = i(tt);
+    })
+    .attr("fill-opacity", d => {
+      if (d.y0 < p.depth) return 0;
+      if (d.x1 <= d.x0) return 0;
+      return opacityFor(d);
+    })
+    .attrTween("d", d => () => arc(d.current));
+
+  label.transition(t)
+    .attr("fill-opacity", d => labelVisible(d.target) ? 1 : 0)
+    .attrTween("transform", d => () => labelTransform(d.current));
+
+  selectNode(p, /*zoom*/ true);
+}
+
+document.getElementById("reset").addEventListener("click", () => zoomTo(root));
+
+/* =====================================================================
+   PANEL + BREADCRUMB
+   ===================================================================== */
+function selectNode(d, zoomedHere) {
+  const n  = d.data;
+  document.getElementById("p-name").textContent   = n.name;
+  document.getElementById("p-detail").innerHTML   = n.detail || "—";
+
+  const status = n.status || "bounded";
+  const badge  = document.getElementById("p-status");
+  badge.textContent = STATUS_LABEL[status] || status;
+  badge.style.background = STATUS_COLOR[status] + "22";
+  badge.style.color      = STATUS_COLOR[status];
+  badge.style.border     = "1px solid " + STATUS_COLOR[status] + "55";
+
+  // Ancestry path
+  const ancestors = d.ancestors().reverse();
+  const pathEl = document.getElementById("p-path");
+  pathEl.innerHTML = ancestors.map(a => a.data.name)
+    .join('<span class="sep">›</span>');
+
+  // Children list
+  const childWrap = document.getElementById("p-children");
+  const ul        = document.getElementById("p-children-list");
+  if (d.children && d.children.length) {
+    childWrap.style.display = "block";
+    childWrap.querySelector(".label").textContent =
+      (d === root) ? "Layers"
+      : (d.children.length + " " + (d.children.length === 1 ? "child" : "children"));
+    ul.innerHTML = "";
+    d.children.forEach(c => {
+      const li = document.createElement("li");
+      li.textContent = c.data.name;
+      if (!c.children) li.classList.add("leaf");
+      li.addEventListener("click", () => {
+        if (c.children) zoomTo(c);
+        else selectNode(c, false);
+      });
+      ul.appendChild(li);
+    });
+  } else {
+    childWrap.style.display = "none";
+  }
+
+  if (zoomedHere) updateBreadcrumb(d);
+}
+
+function updateBreadcrumb(d) {
+  const ancestors = d.ancestors().reverse();
+  const el = document.getElementById("breadcrumb");
+  el.innerHTML = ancestors.map((a, i) => {
+    const cls = (i === ancestors.length - 1) ? "cur" : "";
+    return `<span class="${cls}">${a.data.name}</span>`;
+  }).join('<span class="sep">›</span>');
+}
+
+function updateCenterLabel(d) {
+  const lbl  = document.getElementById("centerLabel");
+  const name = lbl.querySelector(".name");
+  const kind = lbl.querySelector(".kind");
+  name.textContent = d.data.name;
+  kind.textContent = (d === root)
+    ? "three layers · honest scope"
+    : (STATUS_LABEL[d.data.status] || "");
+}
+
+// Initial paint
+selectNode(root, false);
+</script>
+
+</body>
+</html>
