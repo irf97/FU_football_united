@@ -16,7 +16,7 @@ Two things live in this repo:
 
 **Status (2026-05-19):** 156 tests / 0 failures · 17/17 audited app features
 WIRED · mesh protocol conformance **v6** · branch
-`feat/audit-test-deploy-polish` · commits are **local-only** (not yet pushed).
+`feat/audit-test-deploy-polish`.
 
 ---
 
@@ -131,5 +131,5 @@ client are the genuine remaining build — outside this repo.
 - **Network:** simulation + frozen contract only. Real BLE/NFC transport,
   the Rust runtime, the phone client, and the node OS layer are unbuilt.
   Friendless-bootstrap is mitigated (~90%), not zero.
-- Nothing has been pushed to a remote; all work is local commits on
-  `feat/audit-test-deploy-polish`.
+- Published to GitHub (this repo). A public live deployment is planned;
+  until then, run locally as above.
