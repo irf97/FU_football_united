@@ -53,10 +53,11 @@ defmodule Fu.Hobbies.ExploreTest do
     host = player_fixture()
     guest = player_fixture()
     mine = event(host, %{})
-    event(player_fixture(), %{title: "Unrelated"})
+    unrelated = event(player_fixture(), %{title: "Unrelated"})
     {:ok, _} = Hobbies.join(mine.id, guest)
     {:ok, _} = Hobbies.cancel(mine.id, host, "Room closed")
-    assert %{entries: []} = Hobbies.discover(%{}, guest)
+    assert %{entries: [public_event]} = Hobbies.discover(%{}, guest)
+    assert public_event.id == unrelated.id
 
     assert %{entries: [%{id: id, status: "cancelled"}]} =
              Hobbies.discover(%{"scope" => "mine"}, guest)

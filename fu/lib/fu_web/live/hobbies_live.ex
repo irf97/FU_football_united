@@ -11,7 +11,13 @@ defmodule FuWeb.HobbiesLive do
         session: nil,
         member: nil,
         session_form:
-          to_form(Hobbies.change_session(Map.take(params, ["hobby", "category", "kind"]))),
+          to_form(
+            Hobbies.change_session(
+              params
+              |> Map.take(["hobby", "category", "kind"])
+              |> Map.reject(fn {_, value} -> value == "" end)
+            )
+          ),
         leave_form: to_form(%{"reason" => ""}, as: :leave),
         access_form: to_form(%{"note" => ""}, as: :access),
         cancel_form: to_form(%{"reason" => ""}, as: :cancel)
