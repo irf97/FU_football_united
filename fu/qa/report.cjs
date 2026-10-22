@@ -21,6 +21,7 @@ const report = {
     'Deployment on the chosen persistent host, database and TLS domain.',
     'Real SMS account, handset receipt and single-use login on intended devices.',
     'Venue permission and consenting participants completing real sessions.',
+    'Physical tag and collector integration, measured detection coverage and freshness on intended equipment.',
     'Operational monitoring, provider budgets, incident ownership and retention controls.',
     'A restore drill in the intended environment, and observed operation over an agreed period.',
     'Requalification after material code, schema, topology or provider changes.',

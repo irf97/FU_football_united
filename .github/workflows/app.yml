@@ -37,6 +37,8 @@ jobs:
           otp-version: "28"
           elixir-version: "1.19"
       - run: mix deps.get --check-locked
+      - name: Collector contract tests
+        run: python3 -m unittest qa/equipment_collector_test.py
       - name: Required compile, formatting and full application checks
         run: mix precommit
       - name: Build browser assets

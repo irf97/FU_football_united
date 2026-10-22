@@ -23,6 +23,8 @@
     "Sixty seconds of sustained requests is a bounded rehearsal, not long-term availability evidence.",
     "Restore is checked at a quiescent backup checkpoint; production backup RPO is not established.",
     "Configuration rollback is exercised; arbitrary future schema and code upgrades require new qualification.",
+    "Equipment receiver reports are simulated HTTP inputs; physical tag detection, RF coverage, zone accuracy and background scanning are untested.",
+    "Scores and result corrections are human-reported; no autonomous physical refereeing or sport federation certification is claimed.",
     "The mesh remains a reference kernel; no physical peer network is included."
   ]
 }

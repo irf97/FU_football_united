@@ -16,7 +16,8 @@ const pgExec = (...args) => docker('exec', pgContainer, ...args);
 
 async function snapshot(pool) {
   const result = {};
-  for (const table of ['players', 'otp_codes', 'hobby_sessions', 'hobby_participants', 'hobby_events']) {
+  for (const table of ['players', 'otp_codes', 'hobby_sessions', 'hobby_participants', 'hobby_events',
+    'equipment_assets', 'equipment_receivers', 'equipment_observations', 'equipment_reservations', 'assistant_boards', 'assistant_events']) {
     result[table] = (await pool.query(`SELECT * FROM ${table} ORDER BY id`)).rows;
   }
   result.sequences = (await pool.query("SELECT sequencename, last_value FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename")).rows;
@@ -56,6 +57,12 @@ async function restoreDrill(config) {
     await page.locator('#session-completed').waitFor();
     await page.waitForFunction(() => document.querySelector('[data-phx-main]')?.classList.contains('phx-connected'));
     assert.ok((await page.locator('#hobby-history').innerText()).includes('completed'));
+    await page.goto(`http://localhost:4001/hobbies/${auth.sessionId}/assistant`);
+    await page.locator('#result-finalized').waitFor();
+    assert.equal(await page.locator('#score-a').innerText(), '2');
+    assert.equal(await page.locator('#score-b').innerText(), '1');
+    assert.ok((await page.locator('#assistant-history').innerText()).includes('QA correction reviewed by both sides'));
+    assert.equal(await page.locator(`#shared-equipment-${auth.assetId}`).getAttribute('data-source'), 'unknown');
     await page.screenshot({ path: require('node:path').join(__dirname, 'results', 'restored-history.png'), fullPage: true });
   } finally { await browser.close(); }
   const maxId = Math.max(...before.hobby_sessions.map((s) => s.id));
@@ -112,7 +119,7 @@ async function configurationRollback(config) {
   try {
     const config = JSON.parse(docker('inspect', appContainer))[0];
     const restore = await restoreDrill(config);
-    console.log(`Restore: all five table snapshots and sequences match; browser and new write verified (${restore.elapsed_ms} ms)`);
+    console.log(`Restore: all ${restore.compared_tables.length} table snapshots and sequences match; event, scorekeeper, sharing scope and new write verified (${restore.elapsed_ms} ms)`);
     const outage = await outageDrill();
     console.log(`Database outage: 503 to 200, recovered in ${outage.recovery_ms} ms`);
     const rollback = await configurationRollback(config);

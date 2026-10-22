@@ -268,7 +268,7 @@ defmodule FuWeb.EquipmentLive do
           </.form>
         </article>
       </div>
-      <details class="fu-card p-5 space-y-3">
+      <details id="receiver-settings" open={@receiver_token != nil} class="fu-card p-5 space-y-3">
         <summary class="text-h2 cursor-pointer">Connect a zone receiver</summary>
         <p class="mt-3 text-sm fu-ink-soft">
           A collector sends timestamped tag observations to FU. Configure its physical zone here. Connecting a receiver requires a compatible collector; this page does not scan in the background.

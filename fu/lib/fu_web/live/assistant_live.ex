@@ -43,10 +43,13 @@ defmodule FuWeb.AssistantLive do
   end
 
   def handle_event("command", params, socket) do
+    nested = Map.get(params, "command", %{})
+    nested = if is_map(nested), do: nested, else: %{}
+
     attrs =
       params
       |> Map.take(~w(revision request_id side delta referee_id))
-      |> Map.merge(Map.get(params, "command", %{}))
+      |> Map.merge(nested)
 
     result =
       Assistant.command(

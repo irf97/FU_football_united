@@ -34,6 +34,25 @@ locked while capacity, participation and its event record change together.
 Duplicate joins/commitments/check-ins reuse existing state. PubSub refreshes
 connected views; reopening a page reads persisted state.
 
+`/explore` searches events by interest, format, hobby, participation mode,
+place and available space. Hobby names remain open-ended; categories organize
+discovery rather than restrict activities. **My events** includes persisted
+participation history and cancelled/completed events.
+
+`/equipment` keeps owner-scoped inventory, condition, interval reservations
+and last-reported zones separate. Scoped, revocable receiver credentials accept
+timestamped collector reports; retries are deduplicated, old reports become
+stale and radio signal strength is never displayed as a distance estimate.
+The included JSON-line collector bridge needs an external tag scanner/gateway;
+physical scanning and RF performance are not yet qualified.
+
+An event's **assistant** explains venue, people, time and gear readiness.
+Hosts can optionally configure a shared timer and scoreboard and appoint a
+current participant as referee. Commands have revisions and retry keys;
+corrections require reasons and remain in the audit history. A persistent
+deadline survives restarts. People adjudicate and confirm results; this does
+not introduce autonomous refereeing or cross-hobby ranking.
+
 Access confirmation records what the host checked with the venue operator.
 It does not reserve a venue. An optional MessageBird provider and bounded Req
 transport now support real SMS configuration; a local emulator exercises the
@@ -112,6 +131,10 @@ commitment model with bail penalties.
 | `/` | Home — player card, quick position swap, friends/groups, ⚡ QUEUE |
 | `/queue` | Quick-match auto-search — pops, **Accept = lock-in** |
 | `/browse` | Scheduled queues — join soft, **Lock in**, bail (penalty) |
+| `/explore` | Search all hobby events and personal event history |
+| `/hobbies`, `/hobbies/new`, `/hobbies/:id` | Create and run shared hobby events |
+| `/equipment` | Private inventory, event reservations and reported zone map |
+| `/hobbies/:id/assistant` | Member-scoped organizer, timer and human scorekeeper |
 | `/queue/:id/chat` | Persistent per-queue chatroom |
 | `/lobby/:id` | Rosters, sequenced captain claim, swaps, lock progress |
 | `/match/:id` | Synced clock, captain controls, **tactics manager** |
@@ -122,7 +145,7 @@ commitment model with bail penalties.
 
 Contexts: `Accounts · Positions · Queues · Matching · Balance · Lobby ·
 Matches · Tactics · Voting · Ranking · Friends · Groups · QueueChat · Events
-· Admin`, plus the research namespace `Fu.Mesh{,.V2,.V3,.Identity,.Wire}`.
+· Admin · Hobbies · Equipment · Assistant`, plus the research namespace `Fu.Mesh{,.V2,.V3,.Identity,.Wire}`.
 Supervised workers: `Queues.Resolver`, `Ranking.DecayWorker`.
 
 **Lock & penalty model:** join is soft (free to leave); locking in is a
@@ -176,8 +199,9 @@ client are the genuine remaining build — outside this repo.
 
 ## Honest state
 
-- **App:** complete and tested; pre-launch blockers remain — real SMS
-  adapter, admin credential out of source.
+- **App:** football and shared hobby workflows have executable validation.
+  A real host, provider account, physical collector integration and real
+  operational evidence remain pending; see DEPLOY.md for the current boundary.
 - **Network:** simulation + frozen contract only. Real BLE/NFC transport,
   the Rust runtime, the phone client, and the node OS layer are unbuilt.
   Friendless-bootstrap is mitigated (~90%), not zero.

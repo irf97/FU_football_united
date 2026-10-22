@@ -43,6 +43,8 @@ async function create(page, title, hobby, mode) {
     ends_at: new Date(Date.now() + 3_600_000).toISOString(),
   })) await form.locator(`[name="session[${field}]"]`).fill(value);
   await form.locator('[name="session[mode]"]').selectOption(mode);
+  await form.locator('[name="session[category]"]').selectOption(hobby === 'guitar' ? 'music' : 'sport');
+  await form.locator('[name="session[kind]"]').selectOption('event');
   await page.locator('#create-session').click();
   await expect(page).toHaveURL(/\/hobbies\/\d+$/);
   await connected(page);
@@ -51,7 +53,7 @@ async function create(page, title, hobby, mode) {
 
 test.afterAll(async () => pool.end());
 
-test('same release: SMS failures, shared session, reconnect and restart', async ({ browser }, info) => {
+test('same release: SMS, Explore, equipment, referee, reconnect and restart', async ({ browser }, info) => {
   const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = info.project.use;
   const options = { baseURL: "http://localhost:4000", viewport, userAgent, deviceScaleFactor, isMobile, hasTouch };
   const hostContext = await browser.newContext(options);
@@ -103,15 +105,89 @@ test('same release: SMS failures, shared session, reconnect and restart', async 
     const { id, startsAt } = await create(host, title, hobby, 'committed');
     await expect(host.locator('#access-pending')).toBeVisible();
 
-    await guest.goto('/hobbies');
+    await guest.goto('/explore');
     await connected(guest);
-    await guest.locator('[name="filter[hobby]"]').fill(hobby);
+    await expect(guest.locator('#football-rank')).toHaveCount(0);
+    await guest.locator('[name="filter[q]"]').fill(title);
+    await expect(guest).toHaveURL(/q=QA/);
+    await guest.locator('[name="filter[kind]"]').selectOption('event');
+    await expect(guest.locator(`#explore-event-${id}`)).toBeVisible();
+    await guest.reload();
+    await connected(guest);
+    await expect(guest.locator('[name="filter[q]"]')).toHaveValue(title);
+    await guest.screenshot({ path: info.outputPath(`${info.project.name}-explore.png`), fullPage: true });
     await guest.getByRole('link', { name: title, exact: true }).click();
     await connected(guest);
     await expect(guest.locator('#host-controls')).toHaveCount(0);
     await guest.locator('#join-session').click();
     await guest.locator('#commit-session').click();
     await expect(host.locator('#hobby-participants')).toContainText('committed');
+
+    await host.goto('/equipment');
+    await connected(host);
+    const gearName = `QA ${info.project.name} gear`;
+    const tag = `qa-tag-${suffix}`;
+    await host.locator('[name="asset[name]"]').fill(gearName);
+    await host.locator('[name="asset[home_zone]"]').fill('QA shelf');
+    await host.locator('[name="asset[beacon_id]"]').fill(tag);
+    await host.locator('#equipment-form button').click();
+    const gear = host.locator('article[id^="equipment-"]').filter({ has: host.getByRole('heading', { name: gearName, exact: true }) });
+    await expect(gear).toBeVisible();
+    const assetId = Number((await gear.getAttribute('id')).replace('equipment-', ''));
+    await gear.locator('[name="location[zone]"]').fill('QA manual shelf');
+    await gear.getByRole('button', { name: 'Save manual location', exact: true }).click();
+    await expect(gear.locator('[data-source="manual"]')).toContainText('QA manual shelf');
+    await gear.locator('[name="allocation[session_id]"]').selectOption(String(id));
+    await gear.getByRole('button', { name: 'Reserve and share', exact: true }).click();
+    await expect(gear.getByRole('link', { name: title, exact: true })).toBeVisible();
+    await host.getByText('Connect a zone receiver', { exact: true }).click();
+    await host.locator('[name="receiver[name]"]').fill(`QA receiver ${suffix}`);
+    await host.locator('[name="receiver[zone]"]').fill('QA court');
+    await host.locator('#receiver-form button').click();
+    const token = await host.locator('#receiver-token code').innerText();
+    expect(token).toMatch(/^fu-eq-/);
+    await host.getByRole('button', { name: 'I saved it · hide', exact: true }).click();
+    await expect(host.locator('#receiver-token')).toHaveCount(0);
+    const report = { beacon_id: tag, message_id: `qa-${suffix}-sample`, observed_at: new Date().toISOString(), rssi: -55, zone: 'Forged zone', source: 'verified' };
+    const ingest = (body, credential = token) => fetch('http://localhost:4000/api/equipment/observations', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${credential}` }, body: JSON.stringify(body),
+    });
+    expect((await ingest(report, 'invalid')).status).toBe(401);
+    const first = await ingest(report);
+    expect(first.status).toBe(200);
+    const receipt = await first.json();
+    expect(receipt.source).toBe('receiver_report');
+    expect(receipt.zone).toBe('QA court');
+    expect((await (await ingest(report)).json()).id).toBe(receipt.id);
+    expect((await ingest({ ...report, rssi: -70 })).status).toBe(409);
+    await expect(gear.locator('[data-source="receiver_report"]')).toContainText('QA court');
+    await expect(gear.locator('[data-freshness="fresh"]')).toBeVisible();
+    await host.screenshot({ path: info.outputPath(`${info.project.name}-equipment.png`), fullPage: true });
+    if ((await host.locator('#receiver-settings').getAttribute('open')) === null) await host.locator('#receiver-settings summary').click();
+    await host.getByRole('button', { name: 'Revoke credential', exact: true }).click();
+    expect((await ingest({ ...report, message_id: `qa-${suffix}-revoked` })).status).toBe(401);
+
+    await host.goto(`/hobbies/${id}/assistant`);
+    await connected(host);
+    await host.getByText('Add a timer and scorekeeper', { exact: true }).click();
+    const setup = host.locator('#configure-scorekeeper');
+    await setup.locator('[name="board[team_a]"]').fill('Blue');
+    await setup.locator('[name="board[team_b]"]').fill('Gold');
+    await setup.locator('[name="board[duration_seconds]"]').fill('600');
+    const referee = await setup.locator('[name="board[referee_id]"] option').last().getAttribute('value');
+    await setup.locator('[name="board[referee_id]"]').selectOption(referee);
+    await setup.locator('button').click();
+    await expect(host.locator('#scoreboard')).toBeVisible();
+    await guest.goto(`/hobbies/${id}/assistant`);
+    await connected(guest);
+    await expect(guest.locator('#event-equipment')).toContainText(gearName);
+    await expect(guest.locator('#event-equipment [data-source="receiver_report"]')).toContainText('QA court');
+    await expect(guest.locator('#referee-controls')).toBeVisible();
+    await expect(guest.locator('#start-clock')).toHaveCount(0);
+    await host.goto(`/hobbies/${id}`);
+    await guest.goto(`/hobbies/${id}`);
+    await connected(host);
+    await connected(guest);
 
     transportDropped = true;
     await guestContext.setOffline(true);
@@ -136,6 +212,53 @@ test('same release: SMS failures, shared session, reconnect and restart', async 
     await expect(host.locator('#finish-session')).toBeVisible();
     await guest.locator('#attend-session').click();
     await expect(guest.locator('#attendance-recorded')).toBeVisible();
+
+    await guest.goto(`/hobbies/${id}/assistant`);
+    await host.goto(`/hobbies/${id}/assistant`);
+    await connected(guest);
+    await connected(host);
+    await guest.locator('#start-clock').click();
+    await expect(host.locator('#clock-status')).toHaveText('running');
+    await guest.locator('#add-score-a').click();
+    await expect(host.locator('#score-a')).toHaveText('1');
+    await guest.locator('#add-score-b').click();
+    await expect(host.locator('#score-b')).toHaveText('1');
+    await guest.getByText('Correct a recorded score', { exact: true }).click();
+    const correction = guest.locator('#correct-score-form');
+    await correction.locator('[name="command[score_a]"]').fill('2');
+    await correction.locator('[name="command[score_b]"]').fill('1');
+    await correction.locator('[name="command[reason]"]').fill('QA correction reviewed by both sides');
+    await correction.locator('button').click();
+    await expect(host.locator('#score-a')).toHaveText('2');
+    await guest.locator('#pause-clock').click();
+    await expect(guest.locator('#clock-status')).toHaveText('paused');
+    const paused = await guest.locator('#match-clock').innerText();
+    const afterPause = Date.now() + 1200;
+    await expect.poll(() => Date.now()).toBeGreaterThan(afterPause);
+    await expect(guest.locator('#match-clock')).toHaveText(paused);
+    await guest.locator('#start-clock').click();
+    await expect(guest.locator('#clock-status')).toHaveText('running');
+    const beforeRestart = (await pool.query('SELECT deadline_at FROM assistant_boards WHERE session_id = $1', [id])).rows[0];
+    execFileSync('docker', ['restart', appContainer], { stdio: 'pipe', timeout: 30_000 });
+    await expect.poll(async () => { try { return (await host.request.get('/healthz')).status(); } catch { return 0; } }).toBe(200);
+    await guest.reload();
+    await host.reload();
+    await connected(guest);
+    await connected(host);
+    await expect(guest.locator('#score-a')).toHaveText('2');
+    await expect(guest.locator('#score-b')).toHaveText('1');
+    await expect(guest.locator('#clock-status')).toHaveText('running');
+    const afterRestart = (await pool.query('SELECT deadline_at FROM assistant_boards WHERE session_id = $1', [id])).rows[0];
+    expect(afterRestart.deadline_at).toEqual(beforeRestart.deadline_at);
+    await guest.locator('#finalize-reason').fill('Both sides reviewed this synthetic score');
+    await guest.locator('#finalize-score').click();
+    await expect(host.locator('#result-finalized')).toBeVisible();
+    await expect(host.locator('#assistant-history')).toContainText('QA correction reviewed by both sides');
+    await host.screenshot({ path: info.outputPath(`${info.project.name}-assistant.png`), fullPage: true });
+    await host.goto(`/hobbies/${id}`);
+    await guest.goto(`/hobbies/${id}`);
+    await connected(host);
+    await connected(guest);
     await host.locator('#finish-session').click();
     await expect(guest.locator('#session-completed')).toBeVisible();
     await expect(host.locator('#session-completed')).toBeVisible();
@@ -157,8 +280,15 @@ test('same release: SMS failures, shared session, reconnect and restart', async 
     await guest.screenshot({ path: screenshot, fullPage: true });
     await info.attach(`${info.project.name}-completed`, { path: screenshot, contentType: 'image/png' });
 
+    await guest.goto(`/explore?scope=mine&q=${encodeURIComponent(title)}`);
+    await connected(guest);
+    await expect(guest.locator(`#explore-event-${id}`)).toContainText('completed');
+    await guest.reload();
+    await connected(guest);
+    await expect(guest.locator(`#explore-event-${id}`)).toContainText('completed');
+
     fs.writeFileSync('/tmp/fu-rehearsal-browser-state.json', JSON.stringify({
-      state: await guestContext.storageState(), sessionId: id,
+      state: await guestContext.storageState(), sessionId: id, assetId,
     }), { mode: 0o600 });
 
     const { id: cancelled } = await create(host, `QA ${info.project.name} cancellation`, 'table tennis', 'practice');

@@ -12,6 +12,7 @@ fu/priv/static/assets/
 # Local dev
 *.log
 .DS_Store
+__pycache__/
 
 # Claude local settings
 .claude/settings.local.json

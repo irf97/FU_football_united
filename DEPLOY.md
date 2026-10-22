@@ -33,14 +33,16 @@ unobserved results. Source revision and image ID identify what was exercised.
 | --- | --- |
 | Runtime separation | Same image; production rejects a simulator endpoint; unconfigured SMS fails closed; no demo codes or admin fallback. |
 | Provider failures | Actual HTTP transport handles 503, malformed success, 401, 429 and timeout; one POST per request; undelivered codes consumed. |
-| Desktop and mobile | Login, create, discover, commit, access confirmation, start, self check-in, finish and cancellation. |
-| Reconnect and restart | Real WebSocket interruption catches up on missed updates; completed history persists after restarting the app. |
+| Desktop and mobile | Login, create, Explore filters and personal history, commit, access confirmation, start, self check-in, finish and cancellation. Create/reserve gear, ingest a synthetic zone report, revoke the collector and use the assigned referee's timer and scorekeeper. |
+| Reconnect and restart | Real WebSocket interruption catches up on missed updates; completed history persists. Restart with a running scorekeeper and verify its unchanged deadline, scores and correction history. |
 | Mission cycles | 48 synthetic participants; 12 sessions in each of open, practice and committed modes; 27 complete and 9 cancel. Four additional browser identities run two more completed and two cancelled sessions. |
 | Integrity | Capacity four under 24 contenders; 12 duplicate joins make one membership/event; withdrawal/rejoin resets commitment; unauthorized host changes rejected; player profiles unchanged. |
+| Equipment integrity | Separate database connections race eight overlapping reservations; one wins. Owner scoping, duplicate reports, altered retries, revoked tokens, stale/out-of-order reports and event-limited location sharing are tested. |
+| Referee integrity | Eight independent connections race one score revision; one wins. Retrying the winning request records one change. Host-only configuration/assignment, current membership, reasoned corrections and final-result boundaries are tested. |
 | Sustained reads | Eight authenticated HTTP readers plus eight domain readers, paced at 100 ms, for 60 seconds. Zero observed errors; HTTP p95 ≤ 1000 ms; context p95 ≤ 500 ms. Mutation p95 also ≤ 500 ms. |
 | Resource envelope | App container limited to one CPU and 512 MiB. This is a measured envelope, not an unlimited capacity promise. |
 | Interrupted transaction | Kill the app after a membership write, while its history INSERT waits on a table lock; no partial membership/event; retry produces exactly one of each. Readiness returns within 30 seconds. |
-| Restore | Quiescent dump/restore matches all rows in five identity/OTP/hobby tables and all public sequence values. Boot the same image on the restored database, open completed history in an authenticated browser, then create a new record. |
+| Restore | Quiescent dump/restore matches all rows in eleven identity/OTP/hobby/equipment/assistant tables and all public sequence values. Boot the same image on the restored database, open event and scorekeeper history, verify closed events hide current equipment zones, then create a new record. |
 | Database outage | Health changes to 503, then returns to 200 within 30 seconds after restarting PostgreSQL. |
 | Configuration rollback | A candidate with an invalid database configuration returns 503; resume the known-good image/configuration within 30 seconds. Arbitrary future code/schema rollback is outside this test. |
 
@@ -75,6 +77,61 @@ The emulator performs no outbound delivery. Its mailbox and failure controls
 require the dummy simulation token; all three exposed ports bind to loopback.
 `docker compose -p fu-rehearsal -f compose.rehearsal.yml down` stops this stack
 and preserves its local volume. Keep the exported secret while reusing it.
+
+## Connect equipment collectors
+
+Create an item in `/equipment` and set its exact collector tag identifier.
+Create a named receiver with a fixed zone and copy its one-time credential
+into the collector's secret configuration. The raw credential is not retained
+by FU. Revoking it immediately blocks new reports and retries.
+
+Collectors POST JSON to `/api/equipment/observations` using
+`Authorization: Bearer <receiver credential>`. The credential only reports
+tags belonging to its owner. It cannot change ownership, condition or event
+reservations. The server chooses the receiver's configured zone and labels
+the source `receiver_report`; client zone/source/owner fields have no authority.
+
+| Field | Contract |
+| --- | --- |
+| `beacon_id` | Exact owner-scoped tag identifier, 1–120 bytes. |
+| `message_id` | Stable per observation, 1–120 bytes. Same payload/key retries reuse the record; altered retries return 409. |
+| `observed_at` | UTC ISO-8601 timestamp, at most ten minutes old or five seconds ahead. Synchronize the collector clock. |
+| `rssi` | Optional integer −127 to 20; diagnostic signal strength, never a distance. |
+
+Responses: 200 accepted/deduplicated, 401 missing/revoked credential, 404
+unknown owned tag, 409 conflicting retry, 422 invalid observation, 429 receiver
+budget (120 new observations per minute). Reports older than two minutes are
+displayed as stale. A zone report does not prove physical presence or readiness.
+Inventory is private; reserving an item deliberately shares its name, condition
+and current reported zone with the host and current participants until the
+event closes or its time window ends. The UI shows at most 100 inventory items.
+
+`fu/priv/equipment_collector.py` is a Python standard-library JSON-line bridge
+for an external scanner/gateway. It validates observations, requires HTTPS,
+disables redirects and retries transient failures three times with the exact
+same message/payload. Supply `FU_EQUIPMENT_TOKEN` through the collector's secret
+environment; do not place it in command arguments or commit it. Feed scanner
+JSON objects containing the fields above on stdin:
+
+```sh
+python3 fu/priv/equipment_collector.py \
+  --endpoint https://<your-host>/api/equipment/observations < scanner.ndjson
+python3 -m unittest fu/qa/equipment_collector_test.py
+```
+
+`--dry-run` validates and prints without delivery. `--rehearsal` permits HTTP
+only on loopback. The bridge does not scan Bluetooth and has no durable offline
+queue: an upstream collector must retain undelivered input and reuse its message
+ID for replay. Stop on delivery failure and investigate before replaying.
+
+Choose a collector capable of background scanning on its intended OS. Browser
+Bluetooth requires secure context and user interaction and is not assumed to
+provide universal passive/background scanning. See the primary
+[Chrome Bluetooth documentation](https://developer.chrome.com/docs/capabilities/bluetooth)
+and [Android background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background).
+Qualify real tags and zone placement with measured detection delay, missed and
+wrong-zone reports, dead batteries, collector disconnects, clock skew, multiple
+tags and recovery. The current HTTP simulations supply none of that RF evidence.
 
 ## Transfer the same image to real conditions
 
