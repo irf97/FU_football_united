@@ -148,7 +148,9 @@ test('production login, shared session, recovery and cancellation', async ({ bro
       'SELECT s.status, p.status AS participant_status FROM hobby_sessions s JOIN hobby_participants p ON p.session_id = s.id WHERE s.id = $1', [id],
     );
     expect(persisted.rows).toEqual([{ status: 'completed', participant_status: 'attended' }]);
-    await info.attach(`${info.project.name}-completed`, { body: await guest.screenshot({ fullPage: true }), contentType: 'image/png' });
+    const screenshot = info.outputPath(`${info.project.name}-completed.png`);
+    await guest.screenshot({ path: screenshot, fullPage: true });
+    await info.attach(`${info.project.name}-completed`, { path: screenshot, contentType: 'image/png' });
 
     const cancelled = await create(host, `QA ${info.project.name} cancellation`, 'table tennis', 'practice');
     await guest.goto(`/hobbies/${cancelled}`);
