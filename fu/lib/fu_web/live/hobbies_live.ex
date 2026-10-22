@@ -304,6 +304,14 @@ defmodule FuWeb.HobbiesLive do
       <%= if @live_action == :show do %>
         <%= if @session do %>
           <article id="session-detail" class="fu-card p-5 space-y-3">
+            <.link
+              :if={@session.host_id == @current_player.id || present?(@member)}
+              navigate={~p"/hobbies/#{@session.id}/assistant"}
+              class="btn btn-sm"
+              id="open-assistant"
+            >
+              Open event assistant
+            </.link>
             <p class="text-caption">{@session.hobby} · {label(@session.mode)} · {@session.status}</p>
             <h2 class="text-h1">{@session.title}</h2>
             <p>{@session.place}</p>
