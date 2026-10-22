@@ -58,6 +58,16 @@ test('production login, shared session, recovery and cancellation', async ({ bro
   const options = { baseURL: "http://localhost:4000", viewport, userAgent, deviceScaleFactor, isMobile, hasTouch };
   const hostContext = await browser.newContext(options);
   const guestContext = await browser.newContext(options);
+  let guestSocket;
+  let transportDropped = false;
+  await guestContext.routeWebSocket(/\/live\/websocket/, async (socket) => {
+    if (transportDropped) {
+      await socket.close({ code: 1013, reason: 'Synthetic QA outage' });
+      return;
+    }
+    guestSocket = socket;
+    socket.connectToServer(); // Forward every application message unchanged.
+  });
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
   const errors = [];
@@ -98,11 +108,18 @@ test('production login, shared session, recovery and cancellation', async ({ bro
     await guest.locator('#commit-session').click();
     await expect(host.locator('#hobby-participants')).toContainText('committed');
 
+    transportDropped = true;
     await guestContext.setOffline(true);
+    // Chromium's offline emulation does not close an established WebSocket.
+    // Close the real transport explicitly and reject retries during the outage.
+    expect(guestSocket).toBeDefined();
+    await guestSocket.close({ code: 1012, reason: 'Synthetic QA transport drop' });
     await expect(guest.locator('[data-phx-main]')).toHaveClass(/phx-disconnected/);
     await host.locator('[name="access[note]"]').fill('Synthetic operator confirmation');
     await host.locator('#confirm-access-form button').click();
     await expect(host.locator('#access-confirmed')).toBeVisible();
+    await expect(guest.locator('#access-confirmed')).toHaveCount(0);
+    transportDropped = false;
     await guestContext.setOffline(false);
     await connected(guest);
     await expect(guest.locator('#access-confirmed')).toBeVisible();
