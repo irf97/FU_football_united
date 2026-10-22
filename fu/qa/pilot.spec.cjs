@@ -115,7 +115,7 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     await guest.reload();
     await connected(guest);
     await expect(guest.locator('[name="filter[q]"]')).toHaveValue(title);
-    await guest.screenshot({ path: info.outputPath(`${info.project.name}-explore.png`), fullPage: true });
+    await guest.screenshot({ path: info.outputPath(`${info.project.name}-explore.png`), fullPage: true, animations: 'disabled' });
     await guest.getByRole('link', { name: title, exact: true }).click();
     await connected(guest);
     await expect(guest.locator('#host-controls')).toHaveCount(0);
@@ -162,7 +162,7 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     expect((await ingest({ ...report, rssi: -70 })).status).toBe(409);
     await expect(gear.locator('[data-source="receiver_report"]')).toContainText('QA court');
     await expect(gear.locator('[data-freshness="fresh"]')).toBeVisible();
-    await host.screenshot({ path: info.outputPath(`${info.project.name}-equipment.png`), fullPage: true });
+    await host.screenshot({ path: info.outputPath(`${info.project.name}-equipment.png`), fullPage: true, animations: 'disabled' });
     if ((await host.locator('#receiver-settings').getAttribute('open')) === null) await host.locator('#receiver-settings summary').click();
     await host.getByRole('button', { name: 'Revoke credential', exact: true }).click();
     expect((await ingest({ ...report, message_id: `qa-${suffix}-revoked` })).status).toBe(401);
@@ -254,7 +254,7 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     await guest.locator('#finalize-score').click();
     await expect(host.locator('#result-finalized')).toBeVisible();
     await expect(host.locator('#assistant-history')).toContainText('QA correction reviewed by both sides');
-    await host.screenshot({ path: info.outputPath(`${info.project.name}-assistant.png`), fullPage: true });
+    await host.screenshot({ path: info.outputPath(`${info.project.name}-assistant.png`), fullPage: true, animations: 'disabled' });
     await host.goto(`/hobbies/${id}`);
     await guest.goto(`/hobbies/${id}`);
     await connected(host);
@@ -277,7 +277,7 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     );
     expect(persisted.rows).toEqual([{ status: 'completed', participant_status: 'attended' }]);
     const screenshot = info.outputPath(`${info.project.name}-completed.png`);
-    await guest.screenshot({ path: screenshot, fullPage: true });
+    await guest.screenshot({ path: screenshot, fullPage: true, animations: 'disabled' });
     await info.attach(`${info.project.name}-completed`, { path: screenshot, contentType: 'image/png' });
 
     await guest.goto(`/explore?scope=mine&q=${encodeURIComponent(title)}`);
