@@ -12,9 +12,11 @@ defmodule Fu.SMS.ReqTransport do
            retry: false,
            redirect: false,
            decode_body: false,
-           receive_timeout: 2_000,
-           pool_timeout: 1_000,
-           connect_options: [timeout: 1_000]
+           finch: [
+             receive_timeout: 2_000,
+             pool_timeout: 1_000,
+             conn_opts: [transport_opts: [timeout: 1_000]]
+           ]
          ) do
       {:ok, response} -> {:ok, %{status: response.status, body: response.body}}
       {:error, _} -> {:error, :unavailable}
