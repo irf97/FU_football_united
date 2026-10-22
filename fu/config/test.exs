@@ -11,7 +11,7 @@ config :fu, Fu.Repo,
   hostname: "localhost",
   database: "fu_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: String.to_integer(System.get_env("FU_TEST_POOL_SIZE", to_string(System.schedulers_online() * 2)))
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -33,3 +33,9 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Single-backend local validation can disable the migration coordinator lock.
+# Native PostgreSQL and CI retain the normal lock by default.
+if System.get_env("FU_TEST_MIGRATION_LOCK") == "false" do
+  config :fu, Fu.Repo, migration_lock: false
+end

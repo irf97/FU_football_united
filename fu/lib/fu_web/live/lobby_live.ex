@@ -162,12 +162,6 @@ defmodule FuWeb.LobbyLive do
     end
   end
 
-  defp to_int(s) do
-    case Integer.parse(to_string(s)) do
-      {n, _} when n >= 0 -> n
-      _ -> 0
-    end
-  end
 
   ## --- chat ---
 
@@ -572,4 +566,12 @@ defmodule FuWeb.LobbyLive do
     </div>
     """
   end
+
+  defp to_int(s) do
+    case Integer.parse(to_string(s)) do
+      {n, _} when n >= 0 -> n
+      _ -> 0
+    end
+  end
+
 end

@@ -27,14 +27,16 @@ defmodule FuWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_player, :map, default: nil
-  attr :active, :atom, default: nil, doc: "active tab: :home | :browse | :profile"
+  attr :active, :atom, default: nil, doc: "active tab: :home | :browse | :hobbies | :profile"
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
     <div class="fu-shell">
       <header class="flex items-center justify-between px-4 pt-6 pb-3">
-        <span class="text-caption">Football United</span>
+        <span class="text-caption">
+          {if @active == :hobbies, do: "FU · Hobbies", else: "Football United"}
+        </span>
         <div class="flex items-center gap-3">
           <a
             :if={@current_player && @current_player.is_admin}
@@ -43,7 +45,7 @@ defmodule FuWeb.Layouts do
           >
             Admin
           </a>
-          <span :if={@current_player} class="text-mono fu-ink-soft">
+          <span :if={@current_player && @active != :hobbies} class="text-mono fu-ink-soft">
             rank {:erlang.float_to_binary(@current_player.rank, decimals: 0)}
           </span>
         </div>
@@ -56,6 +58,7 @@ defmodule FuWeb.Layouts do
       <nav :if={@current_player} class="fu-tabbar flex">
         <.tab href="/" icon="hero-home" label="Home" active={@active == :home} />
         <.tab href="/browse" icon="hero-magnifying-glass" label="Browse" active={@active == :browse} />
+        <.tab href="/hobbies" icon="hero-sparkles" label="Hobbies" active={@active == :hobbies} />
         <.tab href="/profile" icon="hero-user" label="Profile" active={@active == :profile} />
       </nav>
     </div>

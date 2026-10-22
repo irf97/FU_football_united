@@ -20,6 +20,47 @@ WIRED · mesh protocol conformance **v6** · branch
 
 ---
 
+## Hobby sessions · 22 October 2026
+
+The authenticated `/hobbies` area adds a shared session model for futsal,
+table tennis, music and other hobbies. Open presence, practice and committed
+participation retain distinct obligations. Football matchmaking and its
+ranking remain in their existing domain.
+
+The flow is create → discover → join → optionally commit → confirm access →
+start → self check-in → finish. Hosts can cancel with a reason; participants
+can withdraw, explain a committed withdrawal and rejoin. The session row is
+locked while capacity, participation and its event record change together.
+Duplicate joins/commitments/check-ins reuse existing state. PubSub refreshes
+connected views; reopening a page reads persisted state.
+
+Access confirmation records what the host checked with the venue operator.
+It does not reserve a venue. This extension does not provide a new SMS vendor
+or a deployed mesh network. The existing phone login configuration still
+needs a real delivery provider before a public pilot.
+
+Validate on Elixir 1.19 / OTP 28 with PostgreSQL:
+
+```sh
+cd fu
+mix deps.get --check-locked
+mix precommit
+mix test test/fu/hobbies test/fu_web/live/hobbies_live_test.exs --seed 0
+mix phx.server
+```
+
+`.github/workflows/app.yml` runs the full application suite, including
+simultaneous seat-contention and duplicate-request tests, on PostgreSQL 17.
+Use its actual run result as evidence; adding a workflow does not establish
+that it passed. Protocol conformance retains its separate existing gate.
+
+**Readiness boundary:** a working, tested session core supports a controlled
+prototype claim. Higher TRLs require recorded validation in the intended
+setting and, ultimately, sustained operation. A real pilot must confirm venue
+access, use participants' own devices, exercise a withdrawal/cancellation,
+and record completed sessions, failures and recovery. Real attendance and
+organizer confirmation must supply that evidence.
+
 ## Run it
 
 ```sh
