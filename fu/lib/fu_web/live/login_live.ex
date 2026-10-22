@@ -14,8 +14,11 @@ defmodule FuWeb.LoginLive do
   def handle_event("send", %{"phone" => phone}, socket) do
     case Accounts.request_otp(phone) do
       {:ok, code} ->
-        # v1: there is no SMS gateway, so surface the code for the demo.
-        {:noreply, assign(socket, step: :code, phone: phone, error: nil, dev_code: code)}
+        dev_code = if Application.get_env(:fu, :show_otp_codes, false) == true, do: code
+        {:noreply, assign(socket, step: :code, phone: phone, error: nil, dev_code: dev_code)}
+
+      {:error, :delivery_failed} ->
+        {:noreply, assign(socket, error: "We couldn't send your code. Try again later.")}
 
       {:error, :rate_limited} ->
         {:noreply,

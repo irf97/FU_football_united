@@ -41,3 +41,51 @@ jobs:
         run: mix precommit
       - name: Build browser assets
         run: mix assets.deploy
+
+  pilot-release:
+    name: Production container and browser recovery
+    needs: app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fu_pilot_qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: fu
+    env:
+      FU_BROWSER_QA: "1"
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/fu_pilot_qa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: fu/qa/package-lock.json
+      - name: Install locked browser QA dependencies
+        run: npm ci --prefix qa
+      - name: Install Chromium
+        run: npx --prefix qa playwright install --with-deps chromium
+      - name: Build, migrate and exercise the production release
+        env:
+          FU_QA_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: qa/release.sh
+      - name: Keep browser traces and screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fu-pilot-browser-${{ github.run_id }}
+          path: fu/qa/test-results/
+          retention-days: 7

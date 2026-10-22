@@ -72,9 +72,11 @@ mix run priv/repo/seeds.exs           # 3 fields, 16 players, queues, a
 mix phx.server                        # http://localhost:4000
 ```
 
-Sign in with any seeded phone, e.g. **`+31610000001`** — there is no SMS
-gateway, the OTP is printed to the server log (a pre-launch blocker, by
-design). Windows/dev gotchas (one mix process at a time, port-4000 zombies,
+In development, sign in with a seeded phone, e.g. **`+31610000001`**. The
+log adapter and visible demo code are development conveniences. Production
+hides codes and fails login closed until a real SMS provider and transport are
+configured. The container, browser and recovery gate plus deployment steps are
+in [DEPLOY.md](DEPLOY.md). Windows/dev gotchas (one mix process at a time, port-4000 zombies,
 manual Tailwind rebuild): see CHANGELOG and the agent notes.
 
 **Mesh simulators / protocol (no DB, deterministic):**

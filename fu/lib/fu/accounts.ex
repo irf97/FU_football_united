@@ -16,33 +16,53 @@ defmodule Fu.Accounts do
   ## --- Phone OTP auth (spec §2.13 Surface 1) ---
 
   @doc """
-  Generates a 6-digit OTP for `phone`, stores it, and "sends" it via the SMS
-  adapter. Rate-limited to #{@max_requests_per_window} requests per phone per
-  #{div(@request_window_seconds, 60)} minutes — returns `{:error, :rate_limited}`
-  past the cap. Returns `{:ok, code}` (in v1 the code is logged, not texted).
+  Generates a cryptographically random six-digit OTP and delivers it through
+  the configured SMS adapter. Failed delivery consumes the code and still
+  counts against the five-request limit. Calls for one phone are serialized
+  in PostgreSQL so concurrent requests cannot bypass the limit.
+
+  The returned code is for server-side use; only development may display it.
   """
   def request_otp(phone) do
     phone = normalize_phone(phone)
 
-    if rate_limited?(phone) do
-      {:error, :rate_limited}
+    if valid_phone?(phone) do
+      with_phone_lock(phone, fn ->
+        if rate_limited?(phone) do
+          {:error, :rate_limited}
+        else
+          now = DateTime.utc_now() |> DateTime.truncate(:second)
+          code = generate_otp()
+
+          # A replacement code must never revive an older code after use.
+          from(o in OtpCode, where: o.phone == ^phone and is_nil(o.consumed_at))
+          |> Repo.update_all(set: [consumed_at: now])
+
+          %OtpCode{}
+          |> OtpCode.changeset(%{
+            phone: phone,
+            code: code,
+            expires_at: DateTime.add(now, @otp_ttl_seconds, :second)
+          })
+          |> Repo.insert()
+          |> case do
+            {:ok, otp} ->
+              case Fu.SMS.deliver(phone, "Your Football United code is #{code}") do
+                :ok ->
+                  {:ok, code}
+
+                _ ->
+                  burn(otp, now)
+                  {:error, :delivery_failed}
+              end
+
+            error ->
+              error
+          end
+        end
+      end)
     else
-      code = 100_000..999_999 |> Enum.random() |> Integer.to_string()
-
-      expires_at =
-        DateTime.utc_now() |> DateTime.add(@otp_ttl_seconds, :second) |> DateTime.truncate(:second)
-
-      %OtpCode{}
-      |> OtpCode.changeset(%{phone: phone, code: code, expires_at: expires_at})
-      |> Repo.insert()
-      |> case do
-        {:ok, _} ->
-          Fu.SMS.deliver(phone, "Your Football United code is #{code}")
-          {:ok, code}
-
-        err ->
-          err
-      end
+      {:error, :invalid_phone}
     end
   end
 
@@ -60,53 +80,84 @@ defmodule Fu.Accounts do
   end
 
   @doc """
-  Verifies an OTP and returns the (created-if-needed) player. Each wrong guess
-  against the live code increments its attempt counter; after
-  #{@max_verify_attempts} the code is burned (`{:error, :locked}`) so a 6-digit
-  secret can't be brute-forced. Replay is still blocked via `consumed_at`.
+  Verifies and consumes the newest live OTP atomically. Five wrong attempts
+  burn the code; concurrent requests cannot replay it or lose attempt counts.
   """
   def verify_otp(phone, code) do
     phone = normalize_phone(phone)
-    now = DateTime.utc_now()
 
-    active =
-      from(o in OtpCode,
-        where: o.phone == ^phone and is_nil(o.consumed_at) and o.expires_at > ^now,
-        order_by: [desc: o.id],
-        limit: 1
-      )
+    with_phone_lock(phone, fn ->
+      now = DateTime.utc_now()
 
-    case Repo.one(active) do
-      nil ->
-        {:error, :invalid_code}
+      active =
+        from(o in OtpCode,
+          where: o.phone == ^phone and is_nil(o.consumed_at) and o.expires_at > ^now,
+          order_by: [desc: o.id],
+          limit: 1,
+          lock: "FOR UPDATE"
+        )
 
-      %OtpCode{attempts: a} = otp when a >= @max_verify_attempts ->
-        burn(otp, now)
-        {:error, :locked}
+      case Repo.one(active) do
+        nil ->
+          {:error, :invalid_code}
 
-      %OtpCode{code: ^code} = otp ->
-        burn(otp, now)
-        {:ok, get_or_create_player(phone)}
+        %OtpCode{attempts: a} = otp when a >= @max_verify_attempts ->
+          burn(otp, now)
+          {:error, :locked}
 
-      otp ->
-        attempts = otp.attempts + 1
-        changes = %{attempts: attempts}
+        %OtpCode{code: ^code} = otp ->
+          burn(otp, now)
+          {:ok, get_or_create_player(phone)}
 
-        changes =
+        otp ->
+          attempts = otp.attempts + 1
+          changes = %{attempts: attempts}
+
+          changes =
+            if attempts >= @max_verify_attempts,
+              do: Map.put(changes, :consumed_at, DateTime.truncate(now, :second)),
+              else: changes
+
+          otp |> OtpCode.changeset(changes) |> Repo.update!()
+
           if attempts >= @max_verify_attempts,
-            do: Map.put(changes, :consumed_at, DateTime.truncate(now, :second)),
-            else: changes
-
-        otp |> OtpCode.changeset(changes) |> Repo.update()
-        if attempts >= @max_verify_attempts, do: {:error, :locked}, else: {:error, :invalid_code}
-    end
+            do: {:error, :locked},
+            else: {:error, :invalid_code}
+      end
+    end)
   end
 
   defp burn(%OtpCode{} = otp, now) do
     otp
     |> OtpCode.changeset(%{consumed_at: DateTime.truncate(now, :second)})
-    |> Repo.update()
+    |> Repo.update!()
   end
+
+  defp with_phone_lock(phone, fun) do
+    case Repo.transaction(fn ->
+           # Separate advisory-lock namespace; hash collisions only serialize
+           # unrelated numbers, they never grant access or lose updates.
+           Ecto.Adapters.SQL.query!(Repo, "SELECT pg_advisory_xact_lock(519, hashtext($1))", [
+             phone
+           ])
+
+           fun.()
+         end) do
+      {:ok, result} -> result
+      error -> error
+    end
+  end
+
+  defp generate_otp do
+    value = :crypto.strong_rand_bytes(4) |> :binary.decode_unsigned()
+
+    # Rejection sampling avoids modulo bias across the 900,000 possible codes.
+    if value < 4_294_800_000,
+      do: Integer.to_string(100_000 + rem(value, 900_000)),
+      else: generate_otp()
+  end
+
+  defp valid_phone?(phone), do: Regex.match?(~r/^\+[1-9][0-9]{6,14}$/, phone)
 
   defp get_or_create_player(phone) do
     case Repo.get_by(Player, phone: phone) do
@@ -171,9 +222,11 @@ defmodule Fu.Accounts do
   """
   def suspend_for(%Player{} = player, days) when is_integer(days) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-    base = if player.suspended_until && DateTime.compare(player.suspended_until, now) == :gt,
-             do: player.suspended_until,
-             else: now
+
+    base =
+      if player.suspended_until && DateTime.compare(player.suspended_until, now) == :gt,
+        do: player.suspended_until,
+        else: now
 
     until = DateTime.add(base, days * 86_400, :second)
 
@@ -188,7 +241,10 @@ defmodule Fu.Accounts do
   ## --- Availability windows (spec §2.6) ---
 
   def list_availability(%Player{id: pid}) do
-    from(w in AvailabilityWindow, where: w.player_id == ^pid, order_by: [asc: w.weekday, asc: w.date])
+    from(w in AvailabilityWindow,
+      where: w.player_id == ^pid,
+      order_by: [asc: w.weekday, asc: w.date]
+    )
     |> Repo.all()
   end
 

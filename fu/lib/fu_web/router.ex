@@ -17,6 +17,11 @@ defmodule FuWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/", FuWeb do
+    pipe_through :api
+    get "/healthz", HealthController, :show
+  end
+
   # Public: phone-OTP login (spec §2.13 Surface 1)
   scope "/", FuWeb do
     pipe_through [:browser, :redirect_if_authenticated]

@@ -31,6 +31,9 @@ if admin_password = System.get_env("FU_ADMIN_PASSWORD") do
 end
 
 if config_env() == :prod do
+  config :fu, :show_otp_codes, false
+  config :fu, Fu.SMS, adapter: Fu.SMS.HTTPAdapter
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """
@@ -60,7 +63,7 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host = System.fetch_env!("PHX_HOST")
 
   config :fu, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

@@ -1,5 +1,8 @@
 import Config
 
+# Demo convenience is opt-in here and forced off in production.
+config :fu, :show_otp_codes, true
+
 # Configure your database
 config :fu, Fu.Repo,
   username: "postgres",
