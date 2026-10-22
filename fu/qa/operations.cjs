@@ -25,15 +25,16 @@ async function interruptedTransaction(mission) {
   const started = performance.now();
   try {
     await blocker.query('BEGIN');
-    await blocker.query('SELECT id FROM hobby_sessions WHERE id=$1 FOR UPDATE', [id]);
+    // Block the event INSERT after join has already inserted its uncommitted membership.
+    await blocker.query('LOCK TABLE hobby_events IN SHARE MODE');
     blockedRPC = rpcAsync(`Fu.Hobbies.join(${id}, Fu.Accounts.get_player!(${player}))`).then(() => null, (error) => error);
     let waiting = false;
     for (let attempt = 0; attempt < 50; attempt++) {
-      const pending = await pool.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname='fu_pilot_qa' AND wait_event_type='Lock' AND query LIKE '%hobby_sessions%'");
+      const pending = await pool.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname='fu_pilot_qa' AND wait_event_type='Lock' AND query ILIKE '%insert%hobby_events%'");
       if (pending.rows[0].count > 0) { waiting = true; break; }
       await pause(100);
     }
-    assert.ok(waiting, 'The application mutation must actually be blocked before the crash');
+    assert.ok(waiting, 'The history INSERT must actually be blocked after the membership write');
     docker('kill', '--signal=KILL', appContainer);
     await blocker.query('ROLLBACK');
     assert.ok(await blockedRPC, 'The interrupted caller must fail');
@@ -50,7 +51,7 @@ async function interruptedTransaction(mission) {
     rpc(`{:ok, _} = Fu.Hobbies.join(${id}, Fu.Accounts.get_player!(${player})); {:ok, _} = Fu.Hobbies.join(${id}, Fu.Accounts.get_player!(${player}))`);
     assert.equal(await count('hobby_participants', 'player_id'), 1);
     assert.equal(await count('hobby_events', 'actor_id'), 1);
-    const result = { status: 'passed', observed_blocked_transaction: true, partial_records: 0,
+    const result = { status: 'passed', observed_blocked_event_insert: true, partial_records: 0,
       membership_after_retry: 1, events_after_retry: 1, recovery_ms, elapsed_ms: Math.round(performance.now() - started) };
     save('interruption.json', result);
     return result;

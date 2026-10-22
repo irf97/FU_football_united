@@ -39,7 +39,7 @@ unobserved results. Source revision and image ID identify what was exercised.
 | Integrity | Capacity four under 24 contenders; 12 duplicate joins make one membership/event; withdrawal/rejoin resets commitment; unauthorized host changes rejected; player profiles unchanged. |
 | Sustained reads | Eight authenticated HTTP readers plus eight domain readers, paced at 100 ms, for 60 seconds. Zero observed errors; HTTP p95 ≤ 1000 ms; context p95 ≤ 500 ms. Mutation p95 also ≤ 500 ms. |
 | Resource envelope | App container limited to one CPU and 512 MiB. This is a measured envelope, not an unlimited capacity promise. |
-| Interrupted transaction | Kill the app while a real join waits on a database lock; no partial membership/event; retry produces exactly one of each. Readiness returns within 30 seconds. |
+| Interrupted transaction | Kill the app after a membership write, while its history INSERT waits on a table lock; no partial membership/event; retry produces exactly one of each. Readiness returns within 30 seconds. |
 | Restore | Quiescent dump/restore matches all rows in five identity/OTP/hobby tables and all public sequence values. Boot the same image on the restored database, open completed history in an authenticated browser, then create a new record. |
 | Database outage | Health changes to 503, then returns to 200 within 30 seconds after restarting PostgreSQL. |
 | Configuration rollback | A candidate with an invalid database configuration returns 503; resume the known-good image/configuration within 30 seconds. Arbitrary future code/schema rollback is outside this test. |
