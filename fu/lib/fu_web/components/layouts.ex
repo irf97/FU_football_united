@@ -33,6 +33,14 @@ defmodule FuWeb.Layouts do
   def app(assigns) do
     ~H"""
     <div class="fu-shell">
+      <div
+        :if={Application.get_env(:fu, :environment) == :rehearsal}
+        id="simulation-banner"
+        role="status"
+        class="border-b border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary"
+      >
+        Simulation · synthetic participants and SMS. Venue access and attendance are unverified.
+      </div>
       <header class="flex items-center justify-between px-4 pt-6 pb-3">
         <span class="text-caption">
           {if @active == :hobbies, do: "FU · Hobbies", else: "Football United"}

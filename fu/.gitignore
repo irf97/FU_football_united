@@ -35,3 +35,12 @@ fu-*.tar
 npm-debug.log
 /assets/node_modules/
 
+
+# Local secrets and generated rehearsal evidence
+.env
+.env.*
+!.env.production.example
+/qa/node_modules/
+/qa/test-results/
+/qa/results/
+/qa/playwright-report/

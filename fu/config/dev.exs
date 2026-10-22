@@ -1,5 +1,7 @@
 import Config
 
+config :fu, :environment, :development
+
 # Demo convenience is opt-in here and forced off in production.
 config :fu, :show_otp_codes, true
 

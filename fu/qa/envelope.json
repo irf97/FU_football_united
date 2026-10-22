@@ -1,0 +1,28 @@
+{
+  "name": "FU shared hobby core operational rehearsal",
+  "evidence_type": "simulation",
+  "formal_trl9": false,
+  "synthetic_participants": 48,
+  "sessions_per_mode": 12,
+  "modes": ["open", "practice", "committed"],
+  "session_capacity": 4,
+  "seat_contenders": 24,
+  "duplicate_join_requests": 12,
+  "readers": 8,
+  "soak_seconds": 60,
+  "read_pacing_ms": 100,
+  "http_p95_limit_ms": 1000,
+  "context_p95_limit_ms": 500,
+  "recovery_limit_seconds": 30,
+  "committed_record_loss_limit": 0,
+  "app_cpus": 1,
+  "app_memory_limit_mib": 512,
+  "limitations": [
+    "Loopback HTTP and provider emulator; real SMS handsets and carrier routing are untested.",
+    "Synthetic venue access and self check-ins do not establish real participation.",
+    "Sixty seconds of sustained requests is a bounded rehearsal, not long-term availability evidence.",
+    "Restore is checked at a quiescent backup checkpoint; production backup RPO is not established.",
+    "Configuration rollback is exercised; arbitrary future schema and code upgrades require new qualification.",
+    "The mesh remains a reference kernel; no physical peer network is included."
+  ]
+}

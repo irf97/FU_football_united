@@ -43,24 +43,10 @@ jobs:
         run: mix assets.deploy
 
   pilot-release:
-    name: Production container and browser recovery
+    name: Operational rehearsal on the production image
     needs: app
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: fu_pilot_qa
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     defaults:
       run:
         working-directory: fu
@@ -78,14 +64,14 @@ jobs:
         run: npm ci --prefix qa
       - name: Install Chromium
         run: npx --prefix qa playwright install --with-deps chromium
-      - name: Build, migrate and exercise the production release
-        env:
-          FU_QA_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+      - name: Build, migrate and rehearse the production release
         run: qa/release.sh
-      - name: Keep browser traces and screenshots
+      - name: Keep measured rehearsal evidence and browser captures
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: fu-pilot-browser-${{ github.run_id }}
-          path: fu/qa/test-results/
+          path: |
+            fu/qa/test-results/
+            fu/qa/results/
           retention-days: 7

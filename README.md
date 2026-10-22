@@ -35,9 +35,9 @@ Duplicate joins/commitments/check-ins reuse existing state. PubSub refreshes
 connected views; reopening a page reads persisted state.
 
 Access confirmation records what the host checked with the venue operator.
-It does not reserve a venue. This extension does not provide a new SMS vendor
-or a deployed mesh network. The existing phone login configuration still
-needs a real delivery provider before a public pilot.
+It does not reserve a venue. An optional MessageBird provider and bounded Req
+transport now support real SMS configuration; a local emulator exercises the
+same HTTP path in rehearsal. No deployed mesh network is included.
 
 Validate on Elixir 1.19 / OTP 28 with PostgreSQL:
 
@@ -54,12 +54,19 @@ simultaneous seat-contention and duplicate-request tests, on PostgreSQL 17.
 Use its actual run result as evidence; adding a workflow does not establish
 that it passed. Protocol conformance retains its separate existing gate.
 
-**Readiness boundary:** a working, tested session core supports a controlled
-prototype claim. Higher TRLs require recorded validation in the intended
-setting and, ultimately, sustained operation. A real pilot must confirm venue
-access, use participants' own devices, exercise a withdrawal/cancellation,
-and record completed sessions, failures and recovery. Real attendance and
-organizer confirmation must supply that evidence.
+**Operational rehearsal:** [DEPLOY.md](DEPLOY.md) gives the executable gate,
+local exploration command and production handoff. The same release image runs
+48 synthetic mission participants through 36 sessions, desktop/mobile browser
+flows, capacity contention, interrupted transactions, sustained reads and
+restore/configuration recovery. The 60-second, one-CPU/512-MiB envelope and
+measured results appear in each CI artifact's HTML/JSON report. Treat a gate as
+passed only when its actual run succeeds. Rehearsal mode is visibly labeled;
+production rejects simulator endpoints and dummy credentials.
+
+**Readiness boundary:** simulated outcomes support the current core within
+that measured envelope. Real TRL 9 still requires actual venue permission,
+handset delivery, completed sessions with consenting people, operator recovery
+and sustained successful operation in the intended environment.
 
 ## Run it
 

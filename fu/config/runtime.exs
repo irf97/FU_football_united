@@ -32,7 +32,9 @@ end
 
 if config_env() == :prod do
   config :fu, :show_otp_codes, false
-  config :fu, Fu.SMS, adapter: Fu.SMS.HTTPAdapter
+  profile = Fu.RuntimeConfig.load(System.get_env())
+  config :fu, :environment, profile.environment
+  config :fu, Fu.SMS, profile.sms
 
   database_url =
     System.get_env("DATABASE_URL") ||

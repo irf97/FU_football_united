@@ -1,6 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { Pool } = require('pg');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const { sms, appContainer } = require('./runtime.cjs');
 
 // This suite controls a disposable release and reads its synthetic OTP mailbox.
 // Refuse to run against any other database or browser host.
@@ -9,9 +11,6 @@ if (process.env.FU_BROWSER_QA !== '1' ||
   throw new Error('Pilot QA requires FU_BROWSER_QA=1 and the disposable fu_pilot_qa database');
 }
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
-const rpc = (expression) => execFileSync('docker', [
-  'exec', 'fu-pilot-qa', '/app/bin/fu', 'rpc', expression,
-], { stdio: 'pipe', timeout: 20_000 });
 
 async function connected(page) {
   await expect(page.locator('[data-phx-main]')).toHaveClass(/phx-connected/);
@@ -24,12 +23,10 @@ async function login(page, phone) {
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await expect(page.locator('input[name=code]')).toBeVisible();
   await expect(page.getByText(/demo code:/)).toHaveCount(0);
-  const result = await pool.query(
-    'SELECT code FROM otp_codes WHERE phone = $1 AND consumed_at IS NULL ORDER BY id DESC LIMIT 1',
-    [phone],
-  );
-  expect(result.rows).toHaveLength(1);
-  await page.locator('input[name=code]').fill(result.rows[0].code);
+  const mailbox = await sms(`/mailbox?phone=${encodeURIComponent(phone)}`);
+  expect(mailbox.messages).toHaveLength(1);
+  const code = mailbox.messages[0].body.match(/\b[0-9]{6}\b/)[0];
+  await page.locator('input[name=code]').fill(code);
   await page.getByRole('button', { name: 'Verify', exact: true }).click();
   await expect(page).toHaveURL('http://localhost:4000/');
   await connected(page);
@@ -39,21 +36,22 @@ async function create(page, title, hobby, mode) {
   await page.goto('/hobbies/new');
   await connected(page);
   const form = page.locator('#hobby-session-form');
+  const startsAt = Date.now() + 15_000;
   for (const [field, value] of Object.entries({
     title, hobby, place: 'Synthetic QA room', capacity: '2', min_participants: '1',
-    starts_at: new Date(Date.now() + 600_000).toISOString(),
+    starts_at: new Date(startsAt).toISOString(),
     ends_at: new Date(Date.now() + 3_600_000).toISOString(),
   })) await form.locator(`[name="session[${field}]"]`).fill(value);
   await form.locator('[name="session[mode]"]').selectOption(mode);
   await page.locator('#create-session').click();
   await expect(page).toHaveURL(/\/hobbies\/\d+$/);
   await connected(page);
-  return Number(new URL(page.url()).pathname.split('/').pop());
+  return { id: Number(new URL(page.url()).pathname.split('/').pop()), startsAt };
 }
 
 test.afterAll(async () => pool.end());
 
-test('production login, shared session, recovery and cancellation', async ({ browser }, info) => {
+test('same release: SMS failures, shared session, reconnect and restart', async ({ browser }, info) => {
   const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = info.project.use;
   const options = { baseURL: "http://localhost:4000", viewport, userAgent, deviceScaleFactor, isMobile, hasTouch };
   const hostContext = await browser.newContext(options);
@@ -77,25 +75,32 @@ test('production login, shared session, recovery and cancellation', async ({ bro
   }
 
   try {
-    rpc('Application.put_env(:fu, Fu.SMS, adapter: Fu.SMS.HTTPAdapter)');
-    await host.goto('/hobbies');
-    await expect(host).toHaveURL(/\/login$/);
-    await connected(host);
-    await host.locator('input[name=phone]').fill('+31680000090');
-    await host.getByRole('button', { name: 'Send code', exact: true }).click();
-    await expect(host.getByText("We couldn't send your code. Try again later.")).toBeVisible();
-    await expect(host.locator('input[name=code]')).toHaveCount(0);
-    await expect(host.getByText(/demo code:/)).toHaveCount(0);
-
-    // Privileged QA setup only: use the existing log adapter as a synthetic
-    // mailbox. Real SMS delivery remains an external pilot acceptance check.
-    rpc('Application.put_env(:fu, Fu.SMS, adapter: Fu.SMS.LogAdapter)');
     const suffix = info.project.name === 'desktop' ? '1' : '2';
+    for (const [index, mode] of ['unavailable', 'malformed', 'unauthorized', 'throttled', 'timeout'].entries()) {
+      await sms('/control', { mode });
+      const before = await sms('/stats');
+      await host.goto('/hobbies');
+      await expect(host).toHaveURL(/\/login$/);
+      await connected(host);
+      await expect(host.locator('#simulation-banner')).toBeVisible();
+      const phone = `+316800009${suffix}${index}`;
+      await host.locator('input[name=phone]').fill(phone);
+      await host.getByRole('button', { name: 'Send code', exact: true }).click();
+      await expect(host.getByText("We couldn't send your code. Try again later.")).toBeVisible();
+      await expect(host.locator('input[name=code]')).toHaveCount(0);
+      await expect(host.getByText(/demo code:/)).toHaveCount(0);
+      const after = await sms('/stats');
+      expect(after.requests - before.requests).toBe(1); // No automatic POST retry.
+      const codes = await pool.query('SELECT consumed_at FROM otp_codes WHERE phone = $1', [phone]);
+      expect(codes.rows).toHaveLength(1);
+      expect(codes.rows[0].consumed_at).not.toBeNull();
+    }
+    await sms('/control', { mode: 'accepted' });
     await login(host, `+3168000010${suffix}`);
     await login(guest, `+3168000020${suffix}`);
     const hobby = suffix === '1' ? 'futsal' : 'guitar';
     const title = `QA ${info.project.name} ${hobby}`;
-    const id = await create(host, title, hobby, 'committed');
+    const { id, startsAt } = await create(host, title, hobby, 'committed');
     await expect(host.locator('#access-pending')).toBeVisible();
 
     await guest.goto('/hobbies');
@@ -125,8 +130,8 @@ test('production login, shared session, recovery and cancellation', async ({ bro
     await connected(guest);
     await expect(guest.locator('#access-confirmed')).toBeVisible();
 
-    // Move the fixture into its start window without adding a production API.
-    await pool.query("UPDATE hobby_sessions SET starts_at = NOW() - INTERVAL '1 minute' WHERE id = $1", [id]);
+    // Wait for real wall-clock time; the rehearsal never edits application time.
+    await expect.poll(() => Date.now(), { timeout: 20_000 }).toBeGreaterThanOrEqual(startsAt);
     await host.locator('#start-session').click();
     await expect(host.locator('#finish-session')).toBeVisible();
     await guest.locator('#attend-session').click();
@@ -135,7 +140,7 @@ test('production login, shared session, recovery and cancellation', async ({ bro
     await expect(guest.locator('#session-completed')).toBeVisible();
     await expect(host.locator('#session-completed')).toBeVisible();
 
-    execFileSync('docker', ['restart', 'fu-pilot-qa'], { stdio: 'pipe', timeout: 30_000 });
+    execFileSync('docker', ['restart', appContainer], { stdio: 'pipe', timeout: 30_000 });
     await expect.poll(async () => {
       try { return (await host.request.get('/healthz')).status(); }
       catch { return 0; }
@@ -152,7 +157,11 @@ test('production login, shared session, recovery and cancellation', async ({ bro
     await guest.screenshot({ path: screenshot, fullPage: true });
     await info.attach(`${info.project.name}-completed`, { path: screenshot, contentType: 'image/png' });
 
-    const cancelled = await create(host, `QA ${info.project.name} cancellation`, 'table tennis', 'practice');
+    fs.writeFileSync('/tmp/fu-rehearsal-browser-state.json', JSON.stringify({
+      state: await guestContext.storageState(), sessionId: id,
+    }), { mode: 0o600 });
+
+    const { id: cancelled } = await create(host, `QA ${info.project.name} cancellation`, 'table tennis', 'practice');
     await guest.goto(`/hobbies/${cancelled}`);
     await connected(guest);
     await guest.locator('#join-session').click();
@@ -163,8 +172,7 @@ test('production login, shared session, recovery and cancellation', async ({ bro
     await expect(guest.locator('#join-session')).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
-    // Restore the production failure mode even when a browser assertion fails.
-    rpc('Application.put_env(:fu, Fu.SMS, adapter: Fu.SMS.HTTPAdapter)');
+    await sms('/control', { mode: 'accepted' });
     await hostContext.close();
     await guestContext.close();
   }

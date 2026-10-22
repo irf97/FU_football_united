@@ -1,0 +1,66 @@
+# Local-only rehearsal. Production uses this same app image with live runtime config.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fu_pilot_qa
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - rehearsal-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fu_pilot_qa"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  sms:
+    build:
+      context: ./qa
+      dockerfile: Dockerfile.sms
+    environment:
+      FU_SMS_API_KEY: ${FU_SMS_API_KEY:-fu-sim-local-rehearsal-only}
+    ports:
+      - "127.0.0.1:9166:9166"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:9166/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  migrate:
+    image: fu-rehearsal-app
+    build: .
+    command: ["/app/bin/migrate"]
+    environment: &runtime
+      DATABASE_URL: postgres://postgres:postgres@db:5432/fu_pilot_qa
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Generate a unique local rehearsal secret first}
+      PHX_HOST: localhost
+      PORT: "4000"
+      ERL_FLAGS: "+S 2:2"
+      FU_MODE: rehearsal
+      FU_SMS_PROVIDER: messagebird
+      FU_SMS_API_KEY: ${FU_SMS_API_KEY:-fu-sim-local-rehearsal-only}
+      FU_SMS_ORIGINATOR: FU
+      FU_SMS_ENDPOINT: http://sms:9166/messages
+    depends_on:
+      db: {condition: service_healthy}
+      sms: {condition: service_healthy}
+  app:
+    image: fu-rehearsal-app
+    build: .
+    container_name: ${FU_QA_APP_CONTAINER:-fu-rehearsal-app}
+    environment: *runtime
+    ports:
+      - "127.0.0.1:4000:4000"
+    mem_limit: 512m
+    cpus: 1.0
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "/app/bin/fu", "rpc", "unless match?({:ok, _}, Ecto.Adapters.SQL.query(Fu.Repo, \"SELECT 1\", [])), do: System.halt(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+volumes:
+  rehearsal-db:
