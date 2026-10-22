@@ -114,7 +114,8 @@ test('production login, shared session, recovery and cancellation', async ({ bro
     // Close the real transport explicitly and reject retries during the outage.
     expect(guestSocket).toBeDefined();
     await guestSocket.close({ code: 1012, reason: 'Synthetic QA transport drop' });
-    await expect(guest.locator('[data-phx-main]')).toHaveClass(/phx-disconnected/);
+    await expect(guest.locator('[data-phx-main]')).not.toHaveClass(/phx-connected/);
+    await expect(guest.locator('[data-phx-main]')).toHaveClass(/phx-client-error/);
     await host.locator('[name="access[note]"]').fill('Synthetic operator confirmation');
     await host.locator('#confirm-access-form button').click();
     await expect(host.locator('#access-confirmed')).toBeVisible();
