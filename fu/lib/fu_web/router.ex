@@ -48,6 +48,7 @@ defmodule FuWeb.Router do
       live "/queue", MatchmakingLive, :index
       live "/lab", MeshLabLive, :index
       live "/browse", BrowseLive, :index
+      live "/explore", ExploreLive, :index
       live "/hobbies", HobbiesLive, :index
       live "/hobbies/new", HobbiesLive, :new
       live "/hobbies/:id", HobbiesLive, :show

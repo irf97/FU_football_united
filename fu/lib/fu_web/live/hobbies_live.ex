@@ -10,7 +10,8 @@ defmodule FuWeb.HobbiesLive do
         filter: "",
         session: nil,
         member: nil,
-        session_form: to_form(Hobbies.change_session()),
+        session_form:
+          to_form(Hobbies.change_session(Map.take(params, ["hobby", "category", "kind"]))),
         leave_form: to_form(%{"reason" => ""}, as: :leave),
         access_form: to_form(%{"note" => ""}, as: :access),
         cancel_form: to_form(%{"reason" => ""}, as: :cancel)
@@ -239,6 +240,20 @@ defmodule FuWeb.HobbiesLive do
               {"Committed · people rely on you", "committed"}
             ]}
           />
+          <div class="grid grid-cols-2 gap-3">
+            <.input
+              field={@session_form[:category]}
+              type="select"
+              label="Interest"
+              options={Fu.Hobbies.Discovery.categories()}
+            />
+            <.input
+              field={@session_form[:kind]}
+              type="select"
+              label="Format"
+              options={Fu.Hobbies.Discovery.kinds()}
+            />
+          </div>
           <.input field={@session_form[:place]} label="Where" required maxlength="200" />
           <p class="text-sm fu-ink-soft">
             Creating a session does not reserve a venue. Confirm access with its operator before starting.
@@ -424,7 +439,9 @@ defmodule FuWeb.HobbiesLive do
           <section class="fu-card p-5 space-y-3">
             <h3 class="text-h3">Participants</h3>
             <div id="hobby-participants" phx-update="stream" class="space-y-2">
-              <p id="no-hobby-participants" class="hidden only:block fu-ink-soft">No participants yet.</p>
+              <p id="no-hobby-participants" class="hidden only:block fu-ink-soft">
+                No participants yet.
+              </p>
               <div
                 :for={{dom_id, member} <- @streams.participants}
                 id={dom_id}

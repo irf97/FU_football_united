@@ -43,7 +43,9 @@ defmodule FuWeb.Layouts do
       </div>
       <header class="flex items-center justify-between px-4 pt-6 pb-3">
         <span class="text-caption">
-          {if @active == :hobbies, do: "FU · Hobbies", else: "Football United"}
+          {if @active in [:hobbies, :explore, :equipment, :assistant],
+            do: "FU · Together",
+            else: "Football United"}
         </span>
         <div class="flex items-center gap-3">
           <a
@@ -53,7 +55,11 @@ defmodule FuWeb.Layouts do
           >
             Admin
           </a>
-          <span :if={@current_player && @active != :hobbies} class="text-mono fu-ink-soft">
+          <span
+            :if={@current_player && @active not in [:hobbies, :explore, :equipment, :assistant]}
+            id="football-rank"
+            class="text-mono fu-ink-soft"
+          >
             rank {:erlang.float_to_binary(@current_player.rank, decimals: 0)}
           </span>
         </div>
@@ -66,6 +72,7 @@ defmodule FuWeb.Layouts do
       <nav :if={@current_player} class="fu-tabbar flex">
         <.tab href="/" icon="hero-home" label="Home" active={@active == :home} />
         <.tab href="/browse" icon="hero-magnifying-glass" label="Browse" active={@active == :browse} />
+        <.tab href="/explore" icon="hero-globe-alt" label="Explore" active={@active == :explore} />
         <.tab href="/hobbies" icon="hero-sparkles" label="Hobbies" active={@active == :hobbies} />
         <.tab href="/profile" icon="hero-user" label="Profile" active={@active == :profile} />
       </nav>

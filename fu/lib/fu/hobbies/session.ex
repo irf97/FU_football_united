@@ -5,6 +5,8 @@ defmodule Fu.Hobbies.Session do
   schema "hobby_sessions" do
     field :title, :string
     field :hobby, :string
+    field :category, :string, default: "other"
+    field :kind, :string, default: "session"
     field :mode, :string, default: "open"
     field :place, :string
     field :access_status, :string, default: "pending"
@@ -25,6 +27,8 @@ defmodule Fu.Hobbies.Session do
     |> cast(attrs, [
       :title,
       :hobby,
+      :category,
+      :kind,
       :mode,
       :place,
       :starts_at,
@@ -38,6 +42,8 @@ defmodule Fu.Hobbies.Session do
     |> validate_required([
       :title,
       :hobby,
+      :category,
+      :kind,
       :mode,
       :place,
       :starts_at,
@@ -49,12 +55,16 @@ defmodule Fu.Hobbies.Session do
     |> validate_length(:hobby, max: 60)
     |> validate_length(:place, max: 200)
     |> validate_inclusion(:mode, ["open", "practice", "committed"])
+    |> validate_inclusion(:category, Fu.Hobbies.Discovery.category_codes())
+    |> validate_inclusion(:kind, Fu.Hobbies.Discovery.kind_codes())
     |> validate_number(:capacity, greater_than: 0, less_than_or_equal_to: 1000)
     |> validate_number(:min_participants, greater_than: 0)
     |> validate_window()
     |> foreign_key_constraint(:host_id)
     |> check_constraint(:capacity, name: :hobby_sessions_capacity_bounds)
     |> check_constraint(:min_participants, name: :hobby_sessions_minimum_bounds)
+    |> check_constraint(:category, name: :hobby_category_valid)
+    |> check_constraint(:kind, name: :hobby_kind_valid)
   end
 
   defp validate_window(changeset) do

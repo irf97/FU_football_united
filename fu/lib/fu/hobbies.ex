@@ -42,6 +42,94 @@ defmodule Fu.Hobbies do
 
   def change_session(attrs \\ %{}), do: Session.creation_changeset(%Session{}, attrs)
 
+  @doc "Discover bounded pages of events; a person's own history is scoped by persisted membership."
+  def discover(params, %Player{} = player) do
+    filters = Fu.Hobbies.Discovery.normalize(params)
+    query = from(s in Session)
+
+    query =
+      if filters.scope == "mine" do
+        memberships =
+          from(p in Participant, where: p.player_id == ^player.id, select: p.session_id)
+
+        from(s in query,
+          where: s.host_id == ^player.id or s.id in subquery(memberships),
+          order_by: [desc: s.starts_at, desc: s.id]
+        )
+      else
+        from(s in query,
+          where: s.status in ["scheduled", "active"] and s.ends_at > ^now(),
+          order_by: [asc: s.starts_at, asc: s.id]
+        )
+      end
+
+    query =
+      Enum.reduce([:hobby, :category, :kind, :mode], query, fn key, query ->
+        case Map.fetch!(filters, key) do
+          "" -> query
+          value -> from(s in query, where: field(s, ^key) == ^value)
+        end
+      end)
+
+    query =
+      if filters.q == "" do
+        query
+      else
+        term = String.downcase(filters.q)
+
+        from(s in query,
+          where:
+            fragment("strpos(lower(?), ?) > 0", s.title, ^term) or
+              fragment("strpos(lower(?), ?) > 0", s.hobby, ^term) or
+              fragment("strpos(lower(?), ?) > 0", s.place, ^term)
+        )
+      end
+
+    query =
+      if filters.place == "" do
+        query
+      else
+        term = String.downcase(filters.place)
+        from(s in query, where: fragment("strpos(lower(?), ?) > 0", s.place, ^term))
+      end
+
+    query =
+      if filters.space do
+        counts =
+          from(p in Participant,
+            where: p.status in ^@present,
+            group_by: p.session_id,
+            select: %{session_id: p.session_id, occupied: count(p.id)}
+          )
+
+        from(s in query,
+          left_join: c in subquery(counts),
+          on: c.session_id == s.id,
+          where: coalesce(c.occupied, 0) < s.capacity
+        )
+      else
+        query
+      end
+
+    entries = query |> limit(25) |> offset(^((filters.page - 1) * 24)) |> Repo.all()
+
+    %{
+      entries: entries |> Enum.take(24) |> Repo.preload([:host, participants: :player]),
+      more?: length(entries) > 24
+    }
+  end
+
+  def hobby_catalog do
+    from(s in Session,
+      where: s.status in ["scheduled", "active"] and s.ends_at > ^now(),
+      group_by: s.hobby,
+      order_by: s.hobby,
+      limit: 80,
+      select: %{name: s.hobby, count: count(s.id)}
+    )
+    |> Repo.all()
+  end
+
   def list_sessions(filters \\ %{}) do
     query = from(s in Session, order_by: [asc: s.starts_at, asc: s.id])
 
