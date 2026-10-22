@@ -1,6 +1,15 @@
 defmodule Fu.Assistant.Rules do
   @moduledoc "Explainable organizer checks and a clock derived from a durable deadline."
 
+  @command_fields %{
+    "score" => ~w(side delta),
+    "correct" => ~w(score_a score_b reason),
+    "finalize" => ~w(reason),
+    "assign_referee" => ~w(referee_id)
+  }
+
+  def command_payload(action, attrs), do: Map.take(attrs, Map.get(@command_fields, action, []))
+
   def readiness(session, participants, assets, now) do
     eligible_states =
       if session.mode == "committed",

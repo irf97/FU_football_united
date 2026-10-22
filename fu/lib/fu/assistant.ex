@@ -11,8 +11,6 @@ defmodule Fu.Assistant do
   alias Fu.Hobbies.{Session, Participant}
   alias Fu.Assistant.{Board, Event, Rules}
 
-  @payload_keys ~w(side delta score_a score_b referee_id reason)
-
   def change_board(attrs \\ %{}), do: Board.changeset(%Board{}, attrs)
 
   def snapshot(id, %Player{} = viewer) do
@@ -59,11 +57,12 @@ defmodule Fu.Assistant do
         if member?(session, viewer),
           do:
             Repo.all(
-              from e in Event,
+              from(e in Event,
                 where: e.session_id == ^session.id,
                 order_by: [desc: e.revision],
                 limit: 100,
                 preload: [:actor]
+              )
             ),
           else: []
     end
@@ -111,7 +110,7 @@ defmodule Fu.Assistant do
         session = locked_session!(id)
 
         board =
-          Repo.one(from b in Board, where: b.session_id == ^session.id, lock: "FOR UPDATE") ||
+          Repo.one(from(b in Board, where: b.session_id == ^session.id, lock: "FOR UPDATE")) ||
             Repo.rollback(:not_configured)
 
         unless authorized?(session, board, actor), do: Repo.rollback(:forbidden)
@@ -120,7 +119,7 @@ defmodule Fu.Assistant do
         unless is_binary(request) and byte_size(request) in 1..80,
           do: Repo.rollback(:invalid_request)
 
-        payload = Map.take(attrs, @payload_keys)
+        payload = Rules.command_payload(action, attrs)
         digest = fingerprint(action, actor.id, payload)
         previous = Repo.get_by(Event, session_id: session.id, request_id: request)
 
@@ -251,10 +250,11 @@ defmodule Fu.Assistant do
   defp current_member?(session_id, player_id),
     do:
       Repo.exists?(
-        from p in Participant,
+        from(p in Participant,
           where:
             p.session_id == ^session_id and p.player_id == ^player_id and
               p.status in ["joined", "committed", "attended"]
+        )
       )
 
   defp record!(board, actor, action, request, digest, payload),
@@ -287,7 +287,7 @@ defmodule Fu.Assistant do
     unless is_integer(id) and id > 0 and id <= 9_223_372_036_854_775_807,
       do: Repo.rollback(:not_found)
 
-    Repo.one(from s in Session, where: s.id == ^id, lock: "FOR UPDATE") ||
+    Repo.one(from(s in Session, where: s.id == ^id, lock: "FOR UPDATE")) ||
       Repo.rollback(:not_found)
   end
 

@@ -3,6 +3,20 @@ defmodule Fu.AssistantRulesTest do
   alias Fu.Assistant.Rules
   @now ~U[2026-10-22 12:00:00Z]
 
+  test "each scorekeeper command discards unrelated fields before history or retry hashing" do
+    attrs = %{
+      "side" => "a",
+      "delta" => 1,
+      "reason" => %{"untrusted" => ["nested"]},
+      "owner_id" => 99
+    }
+
+    assert Rules.command_payload("start", attrs) == %{}
+    assert Rules.command_payload("pause", attrs) == %{}
+    assert Rules.command_payload("score", attrs) == %{"side" => "a", "delta" => 1}
+    assert Rules.command_payload("unknown", attrs) == %{}
+  end
+
   test "organizer explains commitments, venue access, timing and declared equipment condition" do
     session = %{
       status: "scheduled",
