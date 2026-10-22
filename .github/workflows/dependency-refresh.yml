@@ -1,0 +1,32 @@
+name: Resolve transport compatibility update
+
+on:
+  push:
+    branches: [codex/fu-hobbies-validation]
+    paths: [.github/workflows/dependency-refresh.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+    defaults:
+      run:
+        working-directory: fu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.19"
+      - run: mix deps.get --check-locked
+      - name: Resolve Finch with the Mint timeout compatibility fix
+        run: |
+          mix deps.update finch
+          printf 'FU_CANDIDATE_LOCK_BEGIN\n'
+          cat mix.lock
+          printf 'FU_CANDIDATE_LOCK_END\n'
+      - run: mix hex.audit
