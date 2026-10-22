@@ -43,6 +43,7 @@ defmodule Fu.Repo.Migrations.AddEquipmentInventory do
 
     create index(:equipment_observations, [:asset_id, :observed_at, :id])
     create unique_index(:equipment_observations, [:receiver_id, :message_id])
+    create index(:equipment_observations, [:receiver_id, :inserted_at])
 
     create constraint(:equipment_observations, :equipment_source_valid,
              check:

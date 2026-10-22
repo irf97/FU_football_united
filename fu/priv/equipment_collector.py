@@ -79,8 +79,10 @@ def post_report(endpoint, token, report, *, opener=None, pause=time.sleep):
                     raise ValueError("Invalid collector receipt")
                 return receipt
         except HTTPError as error:
-            if error.code not in (429, 500, 502, 503, 504) or attempt == 2:
-                raise ValueError(f"Collector delivery rejected (HTTP {error.code})") from None
+            status = error.code
+            error.close()
+            if status not in (429, 500, 502, 503, 504) or attempt == 2:
+                raise ValueError(f"Collector delivery rejected (HTTP {status})") from None
         except (URLError, TimeoutError, OSError):
             if attempt == 2:
                 raise ValueError("Collector delivery failed after three attempts") from None

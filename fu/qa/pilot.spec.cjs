@@ -24,8 +24,8 @@ async function login(page, phone) {
   await expect(page.locator('input[name=code]')).toBeVisible();
   await expect(page.getByText(/demo code:/)).toHaveCount(0);
   const mailbox = await sms(`/mailbox?phone=${encodeURIComponent(phone)}`);
-  expect(mailbox.messages).toHaveLength(1);
-  const code = mailbox.messages[0].body.match(/\b[0-9]{6}\b/)[0];
+  expect(mailbox.messages.length).toBeGreaterThan(0);
+  const code = mailbox.messages.at(-1).body.match(/\b[0-9]{6}\b/)[0];
   await page.locator('input[name=code]').fill(code);
   await page.getByRole('button', { name: 'Verify', exact: true }).click();
   await expect(page).toHaveURL('http://localhost:4000/');
@@ -287,10 +287,6 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     await connected(guest);
     await expect(guest.locator(`#explore-event-${id}`)).toContainText('completed');
 
-    fs.writeFileSync('/tmp/fu-rehearsal-browser-state.json', JSON.stringify({
-      state: await guestContext.storageState(), sessionId: id, assetId,
-    }), { mode: 0o600 });
-
     const { id: cancelled } = await create(host, `QA ${info.project.name} cancellation`, 'table tennis', 'practice');
     await guest.goto(`/hobbies/${cancelled}`);
     await connected(guest);
@@ -300,6 +296,17 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     await host.locator('#cancel-session-form button').click();
     await expect(guest.locator('#session-cancelled')).toContainText('Synthetic room closure');
     await expect(guest.locator('#join-session')).toHaveCount(0);
+    await guest.goto('/profile');
+    await connected(guest);
+    await guest.getByRole('link', { name: 'Sign out', exact: true }).click();
+    await expect(guest).toHaveURL(/\/login$/);
+    await login(guest, `+3168000020${suffix}`);
+    await guest.goto(`/explore?scope=mine&q=${encodeURIComponent(title)}`);
+    await connected(guest);
+    await expect(guest.locator(`#explore-event-${id}`)).toContainText('completed');
+    fs.writeFileSync('/tmp/fu-rehearsal-browser-state.json', JSON.stringify({
+      state: await guestContext.storageState(), sessionId: id, assetId,
+    }), { mode: 0o600 });
     expect(errors).toEqual([]);
   } finally {
     await sms('/control', { mode: 'accepted' });
