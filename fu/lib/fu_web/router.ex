@@ -20,6 +20,7 @@ defmodule FuWeb.Router do
   scope "/", FuWeb do
     pipe_through :api
     get "/healthz", HealthController, :show
+    post "/api/equipment/observations", EquipmentObservationController, :create
   end
 
   # Public: phone-OTP login (spec §2.13 Surface 1)
@@ -49,6 +50,7 @@ defmodule FuWeb.Router do
       live "/lab", MeshLabLive, :index
       live "/browse", BrowseLive, :index
       live "/explore", ExploreLive, :index
+      live "/equipment", EquipmentLive, :index
       live "/hobbies", HobbiesLive, :index
       live "/hobbies/new", HobbiesLive, :new
       live "/hobbies/:id", HobbiesLive, :show

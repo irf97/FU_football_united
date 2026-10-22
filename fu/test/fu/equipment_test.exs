@@ -140,4 +140,35 @@ defmodule Fu.EquipmentTest do
     assert DateTime.compare(asset.location.observed_at, older.observed_at) == :gt
     assert asset.location.freshness == "fresh"
   end
+
+  test "sharing is limited to current event members and stops exposing zones after closure" do
+    owner = player_fixture()
+    guest = player_fixture()
+    stranger = player_fixture()
+    session = event(owner)
+    {:ok, asset} = Equipment.create_asset(owner, %{name: "Ball", beacon_id: "private-tag"})
+    {:ok, _} = Equipment.report_location(asset.id, owner, "Private room")
+    {:ok, _} = Equipment.reserve(asset.id, session.id, owner)
+    assert Equipment.session_assets(session, stranger) == []
+    {:ok, _} = Hobbies.join(session.id, guest)
+    [shared] = Equipment.session_assets(session, guest)
+    assert shared.location.zone == "Private room"
+    refute Map.has_key?(shared, :beacon_id)
+    {:ok, _} = Hobbies.leave(session.id, guest)
+    assert Equipment.session_assets(session, guest) == []
+    {:ok, _} = Hobbies.cancel(session.id, owner, "Cancelled")
+
+    assert [%{location: %{freshness: "unknown", zone: nil}}] =
+             Equipment.session_assets(session, owner)
+  end
+
+  test "invalid identifiers recover without raising" do
+    owner = player_fixture()
+
+    for id <- ["nope", "999999999999999999999999", nil, -1] do
+      assert {:error, :not_found} = Equipment.report_location(id, owner, "Room")
+      assert {:error, :not_found} = Equipment.reserve(id, id, owner)
+      assert {:error, :not_found} = Equipment.revoke_receiver(id, owner)
+    end
+  end
 end

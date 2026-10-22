@@ -48,6 +48,9 @@ defmodule FuWeb.Layouts do
             else: "Football United"}
         </span>
         <div class="flex items-center gap-3">
+          <a :if={@current_player} href="/equipment" class="text-caption" aria-label="Your equipment">
+            Equipment
+          </a>
           <a
             :if={@current_player && @current_player.is_admin}
             href="/admin"

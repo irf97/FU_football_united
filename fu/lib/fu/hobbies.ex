@@ -17,6 +17,9 @@ defmodule Fu.Hobbies do
   def subscribe, do: Phoenix.PubSub.subscribe(Fu.PubSub, "hobbies")
   def subscribe(id), do: Phoenix.PubSub.subscribe(Fu.PubSub, "hobby_session:#{id}")
 
+  @doc false
+  def broadcast_change(id), do: broadcast(id)
+
   def create_session(%Player{} = host, attrs) do
     changeset = Session.creation_changeset(%Session{host_id: host.id}, attrs)
 
