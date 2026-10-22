@@ -37,6 +37,7 @@ jobs:
           otp-version: "28"
           elixir-version: "1.19"
       - run: mix deps.get --check-locked
-      - run: mix compile --warnings-as-errors
-      - name: Application, hobby lifecycle, LiveView and real PostgreSQL contention tests
-        run: mix test --seed 0
+      - name: Required compile, formatting and full application checks
+        run: mix precommit
+      - name: Build browser assets
+        run: mix assets.deploy

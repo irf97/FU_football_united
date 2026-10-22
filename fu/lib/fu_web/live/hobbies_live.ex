@@ -424,7 +424,7 @@ defmodule FuWeb.HobbiesLive do
           <section class="fu-card p-5 space-y-3">
             <h3 class="text-h3">Participants</h3>
             <div id="hobby-participants" phx-update="stream" class="space-y-2">
-              <p class="hidden only:block fu-ink-soft">No participants yet.</p>
+              <p id="no-hobby-participants" class="hidden only:block fu-ink-soft">No participants yet.</p>
               <div
                 :for={{dom_id, member} <- @streams.participants}
                 id={dom_id}
