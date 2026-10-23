@@ -2,6 +2,7 @@ defmodule FuWeb.ExploreLive do
   use FuWeb, :live_view
   alias Fu.Hobbies
   alias Fu.Hobbies.Discovery
+  alias Fu.Hobbies.Search
 
   @impl true
   def mount(_params, _session, socket) do
@@ -45,6 +46,7 @@ defmodule FuWeb.ExploreLive do
     |> assign(
       filters: filters,
       filter_form: to_form(Discovery.params(filters), as: :filter),
+      search_terms: Search.labels(filters.q),
       more?: result.more?,
       shown: length(result.entries)
     )
@@ -106,6 +108,9 @@ defmodule FuWeb.ExploreLive do
           placeholder="Guitar, a workshop, a game…"
           phx-debounce="300"
         />
+        <p id="explore-search-help" class="text-sm fu-ink-soft">
+          Try “I want to play ping pong” or search a hobby, activity or place.
+        </p>
         <div class="grid grid-cols-2 gap-3">
           <.input
             field={@filter_form[:category]}
@@ -149,6 +154,13 @@ defmodule FuWeb.ExploreLive do
           Clear hobby: {@filters.hobby}
         </.link>
       </.form>
+      <div :if={@filters.q != ""} id="explore-search-summary" class="space-y-2 text-sm" role="status">
+        <p>Searching for: <span class="text-primary">{Enum.join(@search_terms, " + ")}</span></p>
+        <p class="fu-ink-soft">Best text matches first. Your filters still apply.</p>
+        <.link patch={~p"/explore?#{params(@filters, %{q: "", page: 1})}"} id="explore-clear-search" class="text-primary">
+          Clear search
+        </.link>
+      </div>
       <div class="flex items-center justify-between">
         <h2 class="text-h2">
           {if @filters.scope == "mine", do: "Your activity", else: "On the horizon"}
@@ -175,6 +187,12 @@ defmodule FuWeb.ExploreLive do
           </div>
           <h3 class="text-h2"><.link navigate={~p"/hobbies/#{event.id}"}>{event.title}</.link></h3>
           <p>{event.hobby} · {event.place}</p>
+          <details :if={@filters.q != ""} id={"explore-why-#{event.id}"} class="text-sm">
+            <summary class="cursor-pointer text-primary">Why this match?</summary>
+            <ul class="mt-2 space-y-1 fu-ink-soft">
+              <li :for={reason <- Search.reasons(event, @filters.q)}>{reason}</li>
+            </ul>
+          </details>
           <time datetime={DateTime.to_iso8601(event.starts_at)} class="text-sm fu-ink-soft">
             {Calendar.strftime(event.starts_at, "%a %d %b · %H:%M UTC")}
           </time>

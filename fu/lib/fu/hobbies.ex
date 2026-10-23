@@ -74,19 +74,7 @@ defmodule Fu.Hobbies do
         end
       end)
 
-    query =
-      if filters.q == "" do
-        query
-      else
-        term = String.downcase(filters.q)
-
-        from(s in query,
-          where:
-            fragment("strpos(lower(?), ?) > 0", s.title, ^term) or
-              fragment("strpos(lower(?), ?) > 0", s.hobby, ^term) or
-              fragment("strpos(lower(?), ?) > 0", s.place, ^term)
-        )
-      end
+    query = Fu.Hobbies.Search.apply(query, filters.q)
 
     query =
       if filters.place == "" do
