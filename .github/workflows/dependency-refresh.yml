@@ -23,7 +23,9 @@ jobs:
           otp-version: "28"
           elixir-version: "1.19"
       - name: Resolve only the affected dependency
-        run: mix deps.update plug_crypto
+        run: |
+          mix deps.unlock plug_crypto
+          mix deps.get
       - name: Audit resolved dependencies
         run: mix hex.audit
       - name: Export the resolved public lockfile for review
