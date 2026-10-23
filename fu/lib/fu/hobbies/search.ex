@@ -62,7 +62,7 @@ defmodule Fu.Hobbies.Search do
         {where(query, ^match), rank}
       end)
 
-    if terms == [], do: query, else: prepend_order_by(query, [s], desc: ^rank)
+    if terms == [], do: query, else: prepend_order_by(query, ^[desc: rank])
   end
 
   def reasons(session, text) do
