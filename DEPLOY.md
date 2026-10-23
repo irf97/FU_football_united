@@ -120,18 +120,102 @@ python3 -m unittest fu/qa/equipment_collector_test.py
 ```
 
 `--dry-run` validates and prints without delivery. `--rehearsal` permits HTTP
-only on loopback. The bridge does not scan Bluetooth and has no durable offline
-queue: an upstream collector must retain undelivered input and reuse its message
-ID for replay. Stop on delivery failure and investigate before replaying.
+only on loopback. The bridge does not scan Bluetooth. Irfan selected **BLE tags
+and a fixed receiver** for the first physical test; the receiver's model and
+output interface still determine the scanner adapter. A Linux receiver, an
+embedded board and a commercial gateway need different integration code.
+
+### Recover fixed-receiver deliveries
+
+On a collector host with Python 3 and its standard-library SQLite module, use
+`--outbox` to commit each normalized observation before attempting delivery.
+Create a private local directory outside the checkout and keep one outbox per
+receiver credential and exact endpoint. On POSIX systems, the bridge creates
+the database with mode 0600 and rejects a shared, differently owned or symlinked
+file. Apply an equivalent private user ACL on other operating systems.
+
+```sh
+# FU_EQUIPMENT_TOKEN comes from the collector's private secret configuration.
+install -d -m 700 /var/lib/fu-equipment
+python3 fu/priv/equipment_collector.py \
+  --endpoint https://<your-host>/api/equipment/observations \
+  --outbox /var/lib/fu-equipment/receiver.equipment.sqlite3 < scanner.ndjson
+
+# After repairing connectivity, recover pending delivery without reading stdin.
+python3 fu/priv/equipment_collector.py \
+  --endpoint https://<your-host>/api/equipment/observations \
+  --outbox /var/lib/fu-equipment/receiver.equipment.sqlite3 --drain
+```
+
+Run these as the collector's dedicated user with write access to that private
+directory. The outbox stores only normalized reports, the endpoint and a
+credential fingerprint; it never stores the raw credential. It drains pending
+reports before reading new input, and deletes a report only after validating a
+receiver receipt. If acceptance happened but the receipt was lost, restart
+reuses the exact payload and ID, allowing FU to return the existing record.
+An abrupt process-exit check and a real HTTP lost-receipt test exercise this
+boundary; neither is a hardware power-loss qualification.
+
+The queue holds at most 1,000 pending reports. Full queues, expired reports,
+rejected credentials and conflicting IDs stop delivery without deleting queued
+evidence. Reports remain subject to the ten-minute server acceptance window;
+recovery never rewrites their observation times. A stale head report therefore
+needs operator review before collection resumes. Stop the service, retain the
+closed outbox privately for diagnosis, and start a new file for fresh readings
+after resolving the cause. Never edit old times to force acceptance. Credential
+rotation or endpoint changes require a new outbox; old pending reports cannot
+be rebound to another receiver or owner.
+
+Use one bridge process per file on a local persistent filesystem. This is a
+stop-and-recover delivery queue, not an always-running scanner or an unlimited
+offline buffer. Without `--outbox`, delivery remains transient. The upstream
+scanner must retain unacknowledged input and stable IDs: readings lost before
+the local commit, or while the bridge is stopped, are outside this guarantee.
+An append-only input file needs its own acknowledged cursor; blindly rereading
+the whole file with generated IDs creates new observations. Protect captured
+tag IDs as location data and remove retained queues under the chosen retention
+policy. `--dry-run` cannot use a delivery outbox.
+
+### First physical test: one fixed receiver zone
+
+Use owned equipment and an isolated test receiver credential. Configure the
+receiver's actual fixed zone in FU; every accepted report uses that zone.
+With one receiver, qualify **heard at this receiver** and freshness. The app
+does not determine coordinates or prove an item left the zone. Continued
+reception through a boundary can produce a fresh but physically wrong zone.
+
+Before the field run, record tag and receiver models/firmware, scanner adapter
+revision, tag-to-item mapping, placement, advertising interval, collector/app
+versions, clock offset and network. The adapter must emit only registered
+test tags, a stable ID per observation, the real observation time and optional
+RSSI. Do not forward every advertisement: bound total output below 120 new
+reports per minute, leaving headroom for concurrent traffic and recovery. Pick
+the report interval from tag count and the freshness target, then record it.
+
+| Check | Exercise | Evidence / acceptance boundary |
+| --- | --- | --- |
+| Identity | Introduce each tag separately, then all selected tags. | Each physical item matches only its registered ID; record unknown, missing or colliding IDs. |
+| Coverage | Repeat at intended near/far positions, orientations and occupied conditions. | Record ground-truth placement and first detection/API/UI times. Report misses and delay percentiles with trial counts. Agree acceptable delay/miss rate before judging the run. |
+| Boundary | Repeat just outside the intended zone and behind adjacent walls. | Count fresh reports for physically outside items. If unacceptable, revise the zone/placement or integration and repeat; RSSI is diagnostic, not distance proof. |
+| Departure / battery | Move a tag out of reception, then disable a test tag battery. | The last observation becomes stale after its two-minute freshness window, shown on the next 30-second UI refresh or page reload; no invented exit or battery state. Record actual elapsed time. |
+| Recovery | Interrupt the app connection after a queued report; restart the bridge with the same outbox within ten minutes. | Same ID/time survives; FU records one observation. Repeat beyond ten minutes: delivery stops and the pending report remains for review. Preserve upstream input while stopped. |
+| Authority | Try a wrong/unregistered tag, then revoke the test receiver. | Unknown owned tag is rejected; revoked receiver cannot deliver new reports or retries. Keep credentials out of logs/evidence. |
+| Load / clock | Exercise the selected simultaneous tag count and bounded report rate; test an invalid clock in isolation. | Record counts/rate and clock offset; invalid/future/expired input never becomes a fresh location. Recover using a corrected clock and new real readings. |
+
+For each trial, retain `trial_id`, UTC ground-truth time, item alias, expected
+zone/inside-or-outside state, observation ID/time, API receipt time, displayed
+zone/freshness, interruption/recovery time and pass/fail notes. Retain aliases
+rather than unrelated nearby devices. A summary must distinguish intended
+trials, detected trials, missed trials and outside-zone detections. Leave
+physical qualification open until those measurements exist and the operator
+accepts the tested zone, tag count, intervals and failure behavior.
 
 Choose a collector capable of background scanning on its intended OS. Browser
 Bluetooth requires secure context and user interaction and is not assumed to
 provide universal passive/background scanning. See the primary
 [Chrome Bluetooth documentation](https://developer.chrome.com/docs/capabilities/bluetooth)
 and [Android background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background).
-Qualify real tags and zone placement with measured detection delay, missed and
-wrong-zone reports, dead batteries, collector disconnects, clock skew, multiple
-tags and recovery. The current HTTP simulations supply none of that RF evidence.
+The current HTTP simulations supply none of the RF evidence required above.
 
 ## Transfer the same image to real conditions
 

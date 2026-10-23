@@ -44,7 +44,10 @@ and last-reported zones separate. Scoped, revocable receiver credentials accept
 timestamped collector reports; retries are deduplicated, old reports become
 stale and radio signal strength is never displayed as a distance estimate.
 The included JSON-line collector bridge needs an external tag scanner/gateway;
-physical scanning and RF performance are not yet qualified.
+its optional private SQLite outbox preserves pending IDs and timestamps across
+restart, including an uncertain HTTP receipt. The first physical-test route is
+BLE tags with a fixed receiver; its interface and RF performance are not yet
+qualified. Setup and field checks are in [DEPLOY.md](DEPLOY.md).
 
 An event's **assistant** explains venue, people, time and gear readiness.
 Hosts can optionally configure a shared timer and scoreboard and appoint a
