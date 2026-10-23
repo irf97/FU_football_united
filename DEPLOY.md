@@ -35,7 +35,7 @@ curl --fail --silent \
 
 Choose a main hobby and experience in Profile. Football United remains one
 theme within Spontaan. Explore, join an event, inspect the equipment and open
-its assistant. Commons events start in roughly two hours, so ordinary event
+its assistant. Commons events become startable after one minute, so ordinary event
 timing still applies. Re-running the seed preserves existing records and
 people's edits; it does not rewind time or silently reset sessions. A fresh
 isolated database provides a fresh timeline. The old football `seeds.exs` is

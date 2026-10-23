@@ -26,7 +26,7 @@ defmodule Fu.Simulation do
         Repo.query!("SELECT pg_advisory_xact_lock(hashtext('spontaan-commons-v1'))")
         people = Enum.with_index(@people, 1) |> Enum.map(fn {name, i} -> person!(name, i) end)
         [host | guests] = people
-        at = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(7200)
+        at = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(60)
 
         sessions =
           Enum.with_index(@setting, 1)
@@ -41,8 +41,8 @@ defmodule Fu.Simulation do
                     kind: "session",
                     mode: mode,
                     place: place,
-                    starts_at: DateTime.add(at, i * 900),
-                    ends_at: DateTime.add(at, i * 900 + 3600),
+                    starts_at: at,
+                    ends_at: DateTime.add(at, 3600),
                     capacity: 12,
                     min_participants: 2
                   })
