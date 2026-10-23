@@ -1,0 +1,33 @@
+name: Resolve the Plug.Crypto security patch
+
+on:
+  push:
+    branches: [codex/fu-hobbies-validation]
+    paths: [.github/workflows/dependency-refresh.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fu
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.19"
+      - name: Resolve only the affected dependency
+        run: mix deps.update plug_crypto
+      - name: Audit resolved dependencies
+        run: mix hex.audit
+      - name: Export the resolved public lockfile for review
+        run: |
+          echo FU_RESOLVED_LOCK_BEGIN
+          cat mix.lock
+          echo FU_RESOLVED_LOCK_END
