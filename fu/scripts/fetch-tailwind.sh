@@ -19,7 +19,7 @@ curl --fail --silent --show-error --location --proto '=https' --proto-redir '=ht
   --output "$temporary" \
   "https://github.com/tailwindlabs/tailwindcss/releases/download/v$version/tailwindcss-$target"
 chmod 755 "$temporary"
-case "$("$temporary" --help)" in
+case "$(NO_COLOR=1 "$temporary" --help)" in
   *"tailwindcss v$version"*) ;;
   *) echo 'The downloaded Tailwind version does not match the build.' >&2; exit 1 ;;
 esac
