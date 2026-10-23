@@ -87,7 +87,14 @@ defmodule Fu.Hobbies.ExploreTest do
   test "each term must match the same activity and explicit filters remain hard constraints" do
     host = player_fixture()
     rally = event(host, %{title: "One more rally", hobby: "table tennis", category: "sport"})
-    event(host, %{title: "One more rally", hobby: "table tennis", place: "River room"})
+
+    event(host, %{
+      title: "One more rally",
+      hobby: "table tennis",
+      category: "sport",
+      place: "River room"
+    })
+
     event(host, %{title: "River walk", hobby: "walking", category: "outdoors"})
 
     assert %{entries: [%{id: id}]} =
