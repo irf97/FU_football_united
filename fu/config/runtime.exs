@@ -1,5 +1,10 @@
 import Config
 
+if System.get_env("FU_LOCAL_MOBILE") == "1" and
+     (config_env() != :dev or System.get_env("FU_LOCAL_MOBILE_BUILD") != "1") do
+  raise "Local mobile requires the separate development build; production never exposes local login codes"
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration
@@ -18,6 +23,25 @@ import Config
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
   config :fu, FuWeb.Endpoint, server: true
+end
+
+if config_env() == :dev and System.get_env("FU_LOCAL_MOBILE") == "1" do
+  local = Fu.LocalMobileConfig.load!(System.get_env())
+  config :fu, :environment, :rehearsal
+  config :fu, :local_mobile, true
+  config :fu, :show_otp_codes, true
+  config :fu, :admin_password, nil
+  config :fu, Fu.SMS, adapter: Fu.SMS.LogAdapter
+  config :fu, Fu.Repo, url: local.database_url, show_sensitive_data_on_connection_error: false
+
+  config :fu, FuWeb.Endpoint,
+    http: [ip: {0, 0, 0, 0}, port: 4000],
+    url: [host: local.host, port: local.port, scheme: "http"],
+    check_origin: local.origins,
+    secret_key_base: local.secret_key_base,
+    code_reloader: false,
+    debug_errors: false,
+    watchers: []
 end
 
 config :fu, FuWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]

@@ -57,6 +57,11 @@ if docker run --rm --network none "${prod_env[@]}" -e FU_SMS_ENDPOINT=http://sms
   exit 1
 fi
 node -e 'if(!require("node:fs").readFileSync("qa/results/rejected-profile.log","utf8").includes("production does not accept a simulator endpoint")) process.exit(1)'
+if docker run --rm --network none "${prod_env[@]}" -e FU_LOCAL_MOBILE=1 "$image_id" /app/bin/fu eval ':ok' > qa/results/rejected-local-mode.log 2>&1; then
+  echo "Production accepted local mobile mode" >&2
+  exit 1
+fi
+node -e 'if(!require("node:fs").readFileSync("qa/results/rejected-local-mode.log","utf8").includes("Local mobile requires the separate development build")) process.exit(1)'
 node -e 'const q=require("./qa/runtime.cjs"); q.save("boundary.json",{status:"passed",same_release_image:true,production_simulator_rejected:true,unconfigured_sms:"fail_closed",demo_codes:false,admin_fallback:false}); q.save("manifest.json",{source_revision:require("node:child_process").execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),image_id:JSON.parse(q.docker("inspect",q.appContainer))[0].Image,started_at:new Date().toISOString(),node:process.version})'
 
 npm --prefix qa test

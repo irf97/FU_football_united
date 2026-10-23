@@ -4,6 +4,10 @@ Scope: the Phoenix shared hobby core. The frozen mesh reference is unchanged;
 this image contains no physical peer network or radios. No live app, SMS
 account or persistent database has been provisioned by these changes.
 
+For a Windows computer and a phone on the same private network, use
+**Start_Spontaan.cmd** and the [local mobile guide](LOCAL_MOBILE.md). That separate
+local build displays its sign-in code on the phone and saves changes locally.
+
 ## Open Spontaan Commons
 
 Commons is a fictional, ready-populated setting, with no geographic launch

@@ -46,6 +46,41 @@ jobs:
       - name: Build browser assets
         run: mix assets.deploy
 
+  local-mobile:
+    name: Local mobile app
+    needs: app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: fu
+    env:
+      FU_LOCAL_BROWSER_QA: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci --prefix qa
+      - run: npx --prefix qa playwright install --with-deps chromium
+      - name: Run the actual PowerShell launcher
+        shell: pwsh
+        run: ./local-mobile.ps1 -HostIP 127.0.0.1 -Port 4030 -NoOpen
+      - name: Exercise local sign-in and persistent desktop/mobile sessions
+        run: npx --prefix qa playwright test --config qa/local-mobile.config.cjs
+      - name: Keep local mobile evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: spontaan-local-mobile-${{ github.run_id }}
+          path: |
+            fu/qa/local-mobile-results/
+            fu/qa/results/local-mobile-browser.json
+          retention-days: 7
+      - name: Stop the disposable local CI workspace
+        if: always()
+        run: docker compose --project-name spontaan-local-mobile --env-file .env.local-mobile -f compose.local-mobile.yml down --volumes
+
   pilot-release:
     name: Production-image simulation
     needs: app

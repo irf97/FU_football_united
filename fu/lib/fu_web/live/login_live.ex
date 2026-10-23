@@ -13,6 +13,7 @@ defmodule FuWeb.LoginLive do
        phone: "",
        error: nil,
        dev_code: nil,
+       local_login: Application.get_env(:fu, :local_mobile, false) == true,
        return_to: ReturnPath.safe(session["player_return_to"])
      )}
   end
@@ -95,7 +96,9 @@ defmodule FuWeb.LoginLive do
           <%= cond do %>
             <% @step == :phone -> %>
             <h2 class="fu-serif text-lg">Sign in</h2>
-            <p class="fu-ink-soft text-sm">No passwords. We text you a code.</p>
+            <p class="fu-ink-soft text-sm">
+              {if @local_login, do: "Use a Commons identity. Your local code appears on this screen.", else: "No passwords. We text you a code."}
+            </p>
             <.form for={%{}} id="login-phone-form" phx-submit="send" class="space-y-3">
               <.input
                 id="login-phone"
@@ -132,9 +135,9 @@ defmodule FuWeb.LoginLive do
             </.form>
           <% true -> %>
             <h2 class="fu-serif text-lg">Enter code</h2>
-            <p class="fu-ink-soft text-sm">Sent to {@phone}.</p>
-            <div :if={@dev_code} class="text-xs font-mono text-secondary">
-              demo code: {@dev_code}
+            <p class="fu-ink-soft text-sm">{if @local_login, do: "Local sign-in for", else: "Sent to"} {@phone}.</p>
+            <div :if={@dev_code} id="login-local-code" class="text-sm font-mono text-secondary">
+              {if @local_login, do: "Local code:", else: "demo code:"} {@dev_code}
             </div>
             <.form for={%{}} id="login-code-form" phx-submit="verify" class="space-y-3">
               <.input

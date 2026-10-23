@@ -1,5 +1,12 @@
 # Spontaan
 
+## Open on your phone
+
+On Windows with Docker Desktop running, double-click **Start_Spontaan.cmd**.
+Open the printed address on your phone over the same private Wi-Fi/network.
+The local build displays its sign-in code on the phone and retains changes in
+PostgreSQL. See [LOCAL_MOBILE.md](LOCAL_MOBILE.md) for the short start/stop guide.
+
 Two things live in this repo:
 
 1. **Spontaan** — shared hobby events, equipment and an event assistant

@@ -43,4 +43,5 @@ npm-debug.log
 /qa/node_modules/
 /qa/test-results/
 /qa/results/
+/qa/local-mobile-results/
 /qa/playwright-report/
