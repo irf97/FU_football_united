@@ -78,6 +78,24 @@ require the dummy simulation token; all three exposed ports bind to loopback.
 `docker compose -p fu-rehearsal -f compose.rehearsal.yml down` stops this stack
 and preserves its local volume. Keep the exported secret while reusing it.
 
+## Hobby login and invitation return
+
+The default phone-login destination is `/explore`, including anonymous entry
+through the old root bookmark. The Football tab retains the signed-in football
+home. A protected GET remembers
+its exact allowed FU page and query before redirecting to login; the login
+tab captures that destination and signs it into the five-minute session
+handoff. A later tab or edited handoff query cannot replace the signed
+destination. Successful login renews the cookie and clears the pending path.
+Failed delivery or invalid handoff leaves it available for retry.
+
+External URLs, auth endpoints, fragments, control characters, unknown routes
+and oversized values fall back to Explore. Older integer-only handoff tokens
+remain accepted within their existing five-minute verification window and
+use the same destination allowlist. Redirecting to an event or its assistant
+does not confer membership, ownership or referee authority. First-time hobby
+participants can join directly; football profile setup is not a prerequisite.
+
 ## Connect equipment collectors
 
 Create an item in `/equipment` and set its exact collector tag identifier.
@@ -120,12 +138,41 @@ python3 -m unittest fu/qa/equipment_collector_test.py
 ```
 
 `--dry-run` validates and prints without delivery. `--rehearsal` permits HTTP
-only on loopback. The bridge does not scan Bluetooth. Irfan selected **BLE tags
-and a fixed receiver** for the first physical test; the receiver's model and
-output interface still determine the scanner adapter. A Linux receiver, an
-embedded board and a commercial gateway need different integration code.
+only on loopback. The bridge does not scan Bluetooth. **BLE tags with a fixed
+receiver or an Android collector are acceptable candidates.** Irfan wants the
+optimal physical setup discussed with an engineer before selecting hardware or
+committing to a scanner adapter. No specific receiver model is assumed.
 
-### Recover fixed-receiver deliveries
+### Collector decision for the engineer
+
+The common boundary is the authenticated observation contract above. Android
+would need a native scanner and its own durable delivery queue implementing
+that contract; the Python gateway bridge is a reference implementation, not
+an Android app. Choose one initial route from actual equipment and measured
+requirements instead of building both adapters speculatively.
+
+| Decision | Evidence the engineer needs |
+| --- | --- |
+| Required outcome | Fixed-zone last-heard reports, attended inventory sweeps, or a separately specified positioning system; agree acceptable delay, misses and outside-zone detections. |
+| Tags | Actual model, advertising payload/protocol, stable item identifier, interval, simultaneous tag count and battery behavior; prove that the selected scanner exposes the required fields. |
+| Receiver role | Fixed power/placement and network versus an attended or background Android collector. The current credential is bound to one server-configured zone: a stationary phone can fill that role, but a moving phone must not keep reporting every tag into its old zone. Moving-zone authority needs an explicit design change. |
+| Android lifecycle | Target phone/OS/SDK, scan filters, runtime permission denial/revocation, screen-off/background/process-death behavior and energy use. Exercise these on the intended device; emulator and browser results are insufficient. |
+| Delivery and ownership | Clock synchronization, HTTPS connectivity, bounded output below the server rate budget, persistent queue, receiver credential protection/rotation and a named person who maintains the collector. |
+| Installation and cost | Available equipment, venue permission, mounting/power/network work, maintenance effort and a spending ceiling. Compare total operating effort after measuring the intended zone. |
+
+Android's primary [background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background)
+describes process and wake-up options; its [Bluetooth permission guidance](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
+depends on the target SDK and whether scan results derive physical location.
+The `neverForLocation` assertion can also filter some beacons; do not use it as
+a shortcut without checking the actual data use and tag compatibility.
+
+The review should produce one selected receiver/tag combination, a placement
+and zone-authority plan, a scanner payload example, named ownership and a field
+test with agreed acceptance targets. Record rejected alternatives and the
+constraint that ruled them out. Hardware selection and RF qualification stay
+open until this review and the physical measurements are completed.
+
+### Recover gateway deliveries
 
 On a collector host with Python 3 and its standard-library SQLite module, use
 `--outbox` to commit each normalized observation before attempting delivery.
@@ -176,7 +223,7 @@ the whole file with generated IDs creates new observations. Protect captured
 tag IDs as location data and remove retained queues under the chosen retention
 policy. `--dry-run` cannot use a delivery outbox.
 
-### First physical test: one fixed receiver zone
+### First physical test: one assigned receiver zone
 
 Use owned equipment and an isolated test receiver credential. Configure the
 receiver's actual fixed zone in FU; every accepted report uses that zone.

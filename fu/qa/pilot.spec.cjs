@@ -16,9 +16,12 @@ async function connected(page) {
   await expect(page.locator('[data-phx-main]')).toHaveClass(/phx-connected/);
 }
 
-async function login(page, phone) {
-  await page.goto('/login');
+async function login(page, phone, { entry = '/login', destination = '/explore', screenshot } = {}) {
+  await page.goto(entry);
+  await expect(page).toHaveURL('http://localhost:4000/login');
   await connected(page);
+  await expect(page.locator('#login-introduction')).toBeVisible();
+  if (screenshot) await page.screenshot({ path: screenshot, fullPage: true, animations: 'disabled' });
   await page.locator('input[name=phone]').fill(phone);
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await expect(page.locator('input[name=code]')).toBeVisible();
@@ -28,7 +31,7 @@ async function login(page, phone) {
   const code = mailbox.messages.at(-1).body.match(/\b[0-9]{6}\b/)[0];
   await page.locator('input[name=code]').fill(code);
   await page.getByRole('button', { name: 'Verify', exact: true }).click();
-  await expect(page).toHaveURL('http://localhost:4000/');
+  await expect(page).toHaveURL(`http://localhost:4000${destination}`);
   await connected(page);
 }
 
@@ -98,12 +101,19 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
       expect(codes.rows[0].consumed_at).not.toBeNull();
     }
     await sms('/control', { mode: 'accepted' });
-    await login(host, `+3168000010${suffix}`);
-    await login(guest, `+3168000020${suffix}`);
+    // Failed delivery must retain the requested page across the later successful login.
+    await login(host, `+3168000010${suffix}`, {
+      destination: '/hobbies', screenshot: info.outputPath(`${info.project.name}-login.png`),
+    });
     const hobby = suffix === '1' ? 'futsal' : 'guitar';
     const title = `QA ${info.project.name} ${hobby}`;
     const { id, startsAt } = await create(host, title, hobby, 'committed');
     await expect(host.locator('#access-pending')).toBeVisible();
+
+    const invitation = `/hobbies/${id}?from=invitation`;
+    await login(guest, `+3168000020${suffix}`, { entry: invitation, destination: invitation });
+    await expect(guest.locator('#join-session')).toBeVisible();
+    await expect(guest.locator('#football-rank')).toHaveCount(0);
 
     await guest.goto('/explore');
     await connected(guest);

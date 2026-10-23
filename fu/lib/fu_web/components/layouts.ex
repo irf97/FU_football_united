@@ -73,7 +73,7 @@ defmodule FuWeb.Layouts do
       </main>
 
       <nav :if={@current_player} class="fu-tabbar flex">
-        <.tab href="/" icon="hero-home" label="Home" active={@active == :home} />
+        <.tab href="/" icon="hero-home" label="Football" active={@active == :home} />
         <.tab href="/browse" icon="hero-magnifying-glass" label="Browse" active={@active == :browse} />
         <.tab href="/explore" icon="hero-globe-alt" label="Explore" active={@active == :explore} />
         <.tab href="/hobbies" icon="hero-sparkles" label="Hobbies" active={@active == :hobbies} />

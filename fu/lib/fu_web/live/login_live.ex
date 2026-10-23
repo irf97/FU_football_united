@@ -3,11 +3,18 @@ defmodule FuWeb.LoginLive do
   use FuWeb, :live_view
 
   alias Fu.{Accounts, Admin}
-  alias FuWeb.PlayerAuth
+  alias FuWeb.{PlayerAuth, ReturnPath}
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok, assign(socket, step: :phone, phone: "", error: nil, dev_code: nil)}
+  def mount(_params, session, socket) do
+    {:ok,
+     assign(socket,
+       step: :phone,
+       phone: "",
+       error: nil,
+       dev_code: nil,
+       return_to: ReturnPath.safe(session["player_return_to"])
+     )}
   end
 
   @impl true
@@ -32,7 +39,7 @@ defmodule FuWeb.LoginLive do
   def handle_event("verify", %{"code" => code}, socket) do
     case Accounts.verify_otp(socket.assigns.phone, String.trim(code)) do
       {:ok, player} ->
-        token = PlayerAuth.login_token(player.id)
+        token = PlayerAuth.login_token(player.id, socket.assigns.return_to)
         {:noreply, redirect(socket, to: ~p"/session/#{token}")}
 
       {:error, :locked} ->
@@ -61,7 +68,7 @@ defmodule FuWeb.LoginLive do
             {:noreply, assign(socket, error: "No players yet — run the seed first.")}
 
           admin ->
-            token = PlayerAuth.login_token(admin.id)
+            token = PlayerAuth.login_token(admin.id, "/admin")
             {:noreply, redirect(socket, to: ~p"/session/#{token}?#{[to: "/admin"]}")}
         end
 
@@ -76,13 +83,12 @@ defmodule FuWeb.LoginLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} active={:explore}>
       <div class="pt-20 space-y-10">
-        <div class="text-center space-y-4">
-          <div class="text-caption fu-ink-soft">Football United</div>
-          <h1 class="text-h1">
-            where i am,<br />I am<span class="text-primary">...!</span>
-          </h1>
+        <div id="login-introduction" class="text-center space-y-4">
+          <p class="text-caption fu-ink-soft">Hobbies · events · people</p>
+          <h1 class="text-h1">Find your next thing.</h1>
+          <p class="fu-ink-soft">Sign in to explore or continue to the event you opened.</p>
         </div>
 
         <div class="fu-card p-6 space-y-4">
@@ -90,8 +96,10 @@ defmodule FuWeb.LoginLive do
             <% @step == :phone -> %>
             <h2 class="fu-serif text-lg">Sign in</h2>
             <p class="fu-ink-soft text-sm">No passwords. We text you a code.</p>
-            <.form for={%{}} phx-submit="send" class="space-y-3">
-              <input
+            <.form for={%{}} id="login-phone-form" phx-submit="send" class="space-y-3">
+              <.input
+                id="login-phone"
+                label="Phone number"
                 type="tel"
                 name="phone"
                 value={@phone}
@@ -105,8 +113,10 @@ defmodule FuWeb.LoginLive do
           <% @step == :admin -> %>
             <h2 class="fu-serif text-lg">Admin access</h2>
             <p class="fu-ink-soft text-sm">Enter the management password.</p>
-            <.form for={%{}} phx-submit="admin-login" class="space-y-3">
-              <input
+            <.form for={%{}} id="login-admin-form" phx-submit="admin-login" class="space-y-3">
+              <.input
+                id="login-password"
+                label="Management password"
                 type="password"
                 name="password"
                 placeholder="password"
@@ -125,11 +135,15 @@ defmodule FuWeb.LoginLive do
             <div :if={@dev_code} class="text-xs font-mono text-secondary">
               demo code: {@dev_code}
             </div>
-            <.form for={%{}} phx-submit="verify" class="space-y-3">
-              <input
+            <.form for={%{}} id="login-code-form" phx-submit="verify" class="space-y-3">
+              <.input
+                id="login-code"
+                label="Verification code"
                 type="text"
                 name="code"
                 inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
                 placeholder="6-digit code"
                 class="input input-bordered w-full bg-base-200 tracking-[0.5em] text-center"
                 required

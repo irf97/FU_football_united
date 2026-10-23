@@ -4,7 +4,6 @@ defmodule FuWeb.ReturnPathTest do
 
   test "known read-only destinations retain their query strings" do
     for path <- [
-          "/",
           "/explore?category=music&q=guitar%20night",
           "/hobbies",
           "/hobbies/new?hobby=birdwatching",
@@ -23,6 +22,11 @@ defmodule FuWeb.ReturnPathTest do
         ] do
       assert ReturnPath.safe(path) == path
     end
+  end
+
+  test "anonymous site entry starts in shared discovery" do
+    assert ReturnPath.safe("/") == "/explore"
+    assert ReturnPath.safe("/?from=bookmark") == "/explore"
   end
 
   test "invalid, external, nested-auth and oversized destinations fall back to Explore" do

@@ -39,15 +39,23 @@ place and available space. Hobby names remain open-ended; categories organize
 discovery rather than restrict activities. **My events** includes persisted
 participation history and cancelled/completed events.
 
+New hobby participants sign in with their phone code and land in Explore,
+without football profile setup. Opening an event or filtered discovery link
+while signed out preserves that exact page through login. Each login handoff
+binds its destination to the signed token, so a second tab cannot replace it;
+only known FU pages are accepted and event access checks still apply. The
+Football tab keeps the existing football home available explicitly.
+
 `/equipment` keeps owner-scoped inventory, condition, interval reservations
 and last-reported zones separate. Scoped, revocable receiver credentials accept
 timestamped collector reports; retries are deduplicated, old reports become
 stale and radio signal strength is never displayed as a distance estimate.
 The included JSON-line collector bridge needs an external tag scanner/gateway;
 its optional private SQLite outbox preserves pending IDs and timestamps across
-restart, including an uncertain HTTP receipt. The first physical-test route is
-BLE tags with a fixed receiver; its interface and RF performance are not yet
-qualified. Setup and field checks are in [DEPLOY.md](DEPLOY.md).
+restart, including an uncertain HTTP receipt. Fixed receivers and native Android
+collectors are candidates for the first physical test; an engineer will help
+select the setup. The Android scanner and RF performance are not yet qualified.
+The review brief, delivery contract and field checks are in [DEPLOY.md](DEPLOY.md).
 
 An event's **assistant** explains venue, people, time and gear readiness.
 Hosts can optionally configure a shared timer and scoreboard and appoint a
