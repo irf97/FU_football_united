@@ -175,6 +175,7 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     await host.screenshot({ path: info.outputPath(`${info.project.name}-equipment.png`), fullPage: true, animations: 'disabled' });
     if ((await host.locator('#receiver-settings').getAttribute('open')) === null) await host.locator('#receiver-settings summary').click();
     await host.getByRole('button', { name: 'Revoke credential', exact: true }).click();
+    await expect(host.locator('#receiver-settings')).toContainText(`QA receiver ${suffix} · QA court · revoked`);
     expect((await ingest({ ...report, message_id: `qa-${suffix}-revoked` })).status).toBe(401);
 
     await host.goto(`/hobbies/${id}/assistant`);
