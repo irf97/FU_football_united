@@ -44,7 +44,9 @@ jobs:
       - name: Required compile, formatting and full application checks
         run: mix precommit
       - name: Build browser assets
-        run: mix assets.deploy
+        run: |
+          sh scripts/fetch-tailwind.sh
+          mix assets.deploy
 
   local-mobile:
     name: Local mobile app
@@ -67,7 +69,8 @@ jobs:
         shell: pwsh
         run: ./local-mobile.ps1 -HostIP 127.0.0.1 -Port 4030 -NoOpen
       - name: Exercise local sign-in and persistent desktop/mobile sessions
-        run: npx --prefix qa playwright test --config qa/local-mobile.config.cjs
+        working-directory: fu/qa
+        run: npx playwright test --config local-mobile.config.cjs
       - name: Keep local mobile evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

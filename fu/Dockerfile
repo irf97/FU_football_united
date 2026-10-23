@@ -1,14 +1,15 @@
 # Verified hexpm Elixir/OTP and Debian image tags; keep their ABI aligned.
 FROM hexpm/elixir:1.19.6-erlang-28.5.0.8-debian-bookworm-20261020-slim@sha256:112e516e642218af182ee3d2e84ba6a02d92056fa8e6f0772ab6013d9e5a6cf4 AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV MIX_ENV=prod
 RUN mix local.hex --force && mix local.rebar --force
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only prod --check-locked
 COPY config/config.exs config/prod.exs config/
-RUN mix deps.compile && mix assets.setup
+COPY scripts/fetch-tailwind.sh scripts/
+RUN mix deps.compile && sh scripts/fetch-tailwind.sh && mix assets.setup
 COPY priv priv
 COPY lib lib
 RUN mix compile --warnings-as-errors

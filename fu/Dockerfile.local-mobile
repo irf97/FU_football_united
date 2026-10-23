@@ -7,7 +7,8 @@ RUN mix local.hex --force && mix local.rebar --force
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only dev --check-locked
 COPY config/config.exs config/dev.exs config/
-RUN mix deps.compile && mix assets.setup
+COPY scripts/fetch-tailwind.sh scripts/
+RUN mix deps.compile && sh scripts/fetch-tailwind.sh && mix assets.setup
 COPY lib lib
 COPY priv priv
 COPY assets assets
