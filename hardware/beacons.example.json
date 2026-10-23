@@ -1,0 +1,6 @@
+{
+  "report_interval_seconds": 30,
+  "beacons": [
+    {"uuid": "25ac0df5-62a7-4a0b-93f4-1e6738d04de1", "major": 1, "minor": 2, "beacon_id": "commons-gear-1"}
+  ]
+}

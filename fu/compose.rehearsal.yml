@@ -41,7 +41,7 @@ services:
       FU_MODE: rehearsal
       FU_SMS_PROVIDER: messagebird
       FU_SMS_API_KEY: ${FU_SMS_API_KEY:-fu-sim-local-rehearsal-only}
-      FU_SMS_ORIGINATOR: FU
+      FU_SMS_ORIGINATOR: Spontaan
       FU_SMS_ENDPOINT: http://sms:9166/messages
     depends_on:
       db: {condition: service_healthy}

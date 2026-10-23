@@ -78,10 +78,11 @@ defmodule FuWeb.Layouts do
       </main>
 
       <nav :if={@current_player} class="fu-tabbar flex">
-        <.tab href="/" icon="hero-home" label="Football" active={@active == :home} />
-        <.tab href="/browse" icon="hero-magnifying-glass" label="Browse" active={@active == :browse} />
         <.tab href="/explore" icon="hero-globe-alt" label="Explore" active={@active == :explore} />
+        <.tab :if={@experience.key == "football" || @active in [:home, :browse, :lobby, :match, :postmatch]} href="/" icon="hero-home" label="Football" active={@active == :home} />
+        <.tab :if={@experience.key == "football" || @active in [:home, :browse, :lobby, :match, :postmatch]} href="/browse" icon="hero-magnifying-glass" label="Browse" active={@active == :browse} />
         <.tab href="/hobbies" icon="hero-sparkles" label="Hobbies" active={@active == :hobbies} />
+        <.tab :if={@experience.key != "football" && @active not in [:home, :browse, :lobby, :match, :postmatch]} href="/equipment" icon="hero-cube" label="Equipment" active={@active == :equipment} />
         <.tab href="/profile" icon="hero-user" label="Profile" active={@active == :profile} />
       </nav>
     </div>

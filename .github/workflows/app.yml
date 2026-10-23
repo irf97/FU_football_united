@@ -1,4 +1,4 @@
-name: FU application validation
+name: Spontaan application validation
 
 on:
   push:
@@ -40,14 +40,14 @@ jobs:
       - name: Audit locked dependencies
         run: mix hex.audit
       - name: Collector contract tests
-        run: python3 -m unittest qa/equipment_collector_test.py
+        run: python3 -m unittest qa/equipment_collector_test.py qa/ble_scanner_test.py
       - name: Required compile, formatting and full application checks
         run: mix precommit
       - name: Build browser assets
         run: mix assets.deploy
 
   pilot-release:
-    name: Operational rehearsal on the production image
+    name: Production-image simulation
     needs: app
     runs-on: ubuntu-latest
     timeout-minutes: 20

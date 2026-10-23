@@ -1,0 +1,2 @@
+# Optional fixed Linux receiver only; the replay path uses Python's standard library.
+bleak==3.0.2

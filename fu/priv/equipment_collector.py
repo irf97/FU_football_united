@@ -1,4 +1,4 @@
-"""Bridge JSON-line observations from a tag scanner/gateway to FU. Python stdlib only.
+"""Bridge JSON-line observations from a tag scanner/gateway to Spontaan. Python stdlib only.
 
 This program does not perform radio scanning. Supply scanner observations on stdin.
 Set FU_EQUIPMENT_TOKEN privately and pass the HTTPS observations endpoint. A scanner

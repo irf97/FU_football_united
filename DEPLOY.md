@@ -1,8 +1,51 @@
-# FU rehearsal and production handoff
+# Spontaan · simulation and installation
 
 Scope: the Phoenix shared hobby core. The frozen mesh reference is unchanged;
 this image contains no physical peer network or radios. No live app, SMS
 account or persistent database has been provisioned by these changes.
+
+## Open Spontaan Commons
+
+Commons is a fictional, ready-populated setting, with no geographic launch
+assumption. It contains twelve members, six hobby events, equipment kits,
+reservations, participant commitments and scoreboards. Use the regular app
+screens to explore it. Installation replaces fictional equipment reports with
+the selected receiver's reports through the same interface.
+
+With Docker Compose available and local ports 4000, 5432 and 9166 free:
+
+```sh
+cd fu
+export SECRET_KEY_BASE="$(openssl rand -base64 64 | tr -d '\n')"
+docker compose -p spontaan-commons -f compose.rehearsal.yml up --build --detach app
+docker compose -p spontaan-commons -f compose.rehearsal.yml exec app \
+  /app/bin/fu rpc 'IO.inspect(Fu.Simulation.seed!())'
+```
+
+Open `http://localhost:4000`. Ari (`+31680000601`) hosts Commons and owns the
+equipment; Noor (`+31680000602`) is an assigned referee. These are synthetic
+account identifiers. Request a code in the app, then read it from the local
+SMS mailbox using the simulation credential (no real SMS is sent):
+
+```sh
+curl --fail --silent \
+  -H 'Authorization: AccessKey fu-sim-local-rehearsal-only' \
+  'http://localhost:9166/mailbox?phone=%2B31680000601'
+```
+
+Choose a main hobby and experience in Profile. Football United remains one
+theme within Spontaan. Explore, join an event, inspect the equipment and open
+its assistant. Commons events start in roughly two hours, so ordinary event
+timing still applies. Re-running the seed preserves existing records and
+people's edits; it does not rewind time or silently reset sessions. A fresh
+isolated database provides a fresh timeline. The old football `seeds.exs` is
+not used by this setting.
+
+For a real receiver installation, follow the
+[hardware manual](hardware/README.md), with the board/item CAD, mapping example
+and service template. The selected Linux scanner and Android alternative feed
+the same report contract. Keep the engineer's hardware choice separate from
+software use and iteration.
 
 ## Run the operational rehearsal
 
@@ -223,7 +266,7 @@ the whole file with generated IDs creates new observations. Protect captured
 tag IDs as location data and remove retained queues under the chosen retention
 policy. `--dry-run` cannot use a delivery outbox.
 
-### First physical test: one assigned receiver zone
+### Install one assigned receiver zone
 
 Use owned equipment and an isolated test receiver credential. Configure the
 receiver's actual fixed zone in FU; every accepted report uses that zone.

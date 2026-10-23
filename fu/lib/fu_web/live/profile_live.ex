@@ -99,6 +99,7 @@ defmodule FuWeb.ProfileLive do
 
       <details id="football-profile" class="space-y-4">
         <summary class="fu-card p-4 cursor-pointer text-meta">Football United · player card, positions and match history</summary>
+        <.link navigate={~p"/"} class="text-primary text-sm">Open Football United ↗</.link>
 
       <!-- Identity summary (player-card echo) -->
       <div class="fu-card p-5 flex items-center gap-4">

@@ -1,0 +1,27 @@
+[Unit]
+Description=Spontaan fixed equipment receiver
+After=network-online.target bluetooth.service
+Wants=network-online.target
+Requires=bluetooth.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=spontaan-receiver
+Group=spontaan-receiver
+WorkingDirectory=/opt/spontaan
+EnvironmentFile=/etc/spontaan/receiver.env
+# Replace APP_HOST with the installation's actual HTTPS hostname.
+ExecStart=/opt/spontaan/venv/bin/python /opt/spontaan/fu/priv/ble_scanner.py --config /etc/spontaan/beacons.json --endpoint https://APP_HOST/api/equipment/observations --outbox /var/lib/spontaan-receiver/outbox.sqlite3
+StateDirectory=spontaan-receiver
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+# Failure leaves pending data intact and stops; operator reviews before restart.
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

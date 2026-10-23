@@ -1,9 +1,10 @@
-# Football United
+# Spontaan
 
 Two things live in this repo:
 
-1. **The app** — an amateur-football matchmaking product (Elixir / Phoenix
-   LiveView / PostgreSQL). Built, tested, runnable.
+1. **Spontaan** — shared hobby events, equipment and an event assistant
+   (Elixir / Phoenix LiveView / PostgreSQL). Football United remains its
+   football experience, with its existing matchmaking and player cards.
 2. **The network** — a server-less, proximity-trust P2P protocol the project
    pivoted to. Validated in simulation to 10k users and frozen into a
    versioned, machine-checkable contract. **Not** a running product yet.
@@ -14,9 +15,38 @@ Two things live in this repo:
 > Full chronological history of how this got here: **[CHANGELOG.md](CHANGELOG.md)**.
 > Protocol version lineage: **[fu/conformance/PROTOCOL_CHANGELOG.md](fu/conformance/PROTOCOL_CHANGELOG.md)**.
 
-**Status (2026-05-19):** 156 tests / 0 failures · 17/17 audited app features
-WIRED · mesh protocol conformance **v6** · branch
-`feat/audit-test-deploy-polish`.
+The current product identity is **Spontaan**. The `Fu` modules, database names,
+API credential prefixes and `FU_*` configuration stay compatible. Historical
+football/mesh documents retain their original names and scope.
+
+## Your hobby, your atmosphere
+
+Set a main sport or hobby and choose an experience in **Profile → Make it
+yours**. Preferences persist on the account. “Match my hobby” chooses a mood;
+an unlisted hobby uses Spontaan, and every activity remains available.
+
+| Experience | Atmosphere |
+| --- | --- |
+| Spontaan | Warm peach, shared discovery, follow an interest |
+| Football United | Original lime identity, pitch motif, football language |
+| Courtside | Amber, rallies and pickup games |
+| After Hours | Lavender, music and shared rhythm |
+| Open Air | Soft green, walks and outdoor activity |
+| Maker Space | Cyan, a dotted workbench and making together |
+
+## Spontaan Commons
+
+Commons is the complete fictional setting: twelve members, six hobby events,
+six tagged equipment kits, reservations, participation and optional scoreboards.
+It uses the normal application contexts and saved records. No city, university,
+venue or first physical cohort is selected. It is additive and repeatable;
+production refuses to create it. Launch instructions are in [DEPLOY.md](DEPLOY.md).
+
+Hardware connects through the same equipment interface. The
+[installation manual and editable receiver/item designs](hardware/README.md)
+include a Linux BLE adapter, advertisement replay, private queue, service
+template, board layout and printable carriers. The engineer selects the actual
+hardware and installation details.
 
 ---
 
