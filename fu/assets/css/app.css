@@ -1,6 +1,6 @@
-/* Football United — brand design system (frontend plan v1.0)
+/* Spontaan — shared brand, personal hobby experiences.
    Dark canvas · Instrument Serif × Schibsted Grotesk × JetBrains Mono
-   One reserved accent: lime #C5FF3D for moments that land. */
+   Shared type and canvas; each hobby experience supplies its own accent. */
 
 @import "tailwindcss" source(none);
 @source "../css";
@@ -281,6 +281,39 @@ html, body {
 
 /* Mobile app shell */
 .fu-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; }
+
+/* Experiences change presentation; the user's colour mode remains independent. */
+.fu-shell {
+  --sp-accent: #FFBA8C;
+  --sp-accent-light: #9B3F19;
+  --fu-accent: var(--sp-accent);
+  --color-primary: var(--fu-accent);
+  --color-primary-content: var(--fu-bg);
+  --color-accent: var(--fu-accent);
+  --color-accent-content: var(--fu-bg);
+}
+.fu-shell[data-experience="football"] { --sp-accent: #C5FF3D; --sp-accent-light: #426900; }
+.fu-shell[data-experience="court"] { --sp-accent: #FFBD69; --sp-accent-light: #925000; }
+.fu-shell[data-experience="music"] { --sp-accent: #D4B4FF; --sp-accent-light: #7040A5; }
+.fu-shell[data-experience="outdoors"] { --sp-accent: #A5DDAE; --sp-accent-light: #2F6A39; }
+.fu-shell[data-experience="making"] { --sp-accent: #82D9E8; --sp-accent-light: #116879; }
+[data-theme="light"] .fu-shell { --fu-accent: var(--sp-accent-light); }
+.spontaan-wordmark { font-family: var(--font-serif); font-size: 34px; letter-spacing: -1.5px; line-height: 1; }
+.spontaan-wordmark span { color: var(--fu-accent); font-family: var(--font-sans); font-size: 25px; vertical-align: top; margin-left: 3px; }
+.spontaan-experience-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 16px 18px; }
+.spontaan-experience-strip > span { color: var(--fu-accent); }
+.spontaan-hero { min-height: 155px; padding: 26px 20px; border: 1px solid var(--fu-line-strong); border-radius: 20px; background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--fu-accent) 13%, transparent), transparent 75%); }
+.spontaan-hero .text-caption { color: var(--fu-accent); margin-bottom: 18px; }
+.spontaan-hero .text-h1 { max-width: 240px; font-size: 40px; }
+[data-experience="football"] .spontaan-hero { background-image: linear-gradient(90deg, transparent 49.5%, color-mix(in srgb, var(--fu-accent) 12%, transparent) 49.5%, color-mix(in srgb, var(--fu-accent) 12%, transparent) 50.5%, transparent 50.5%), radial-gradient(ellipse at right, color-mix(in srgb, var(--fu-accent) 14%, transparent), transparent 80%); }
+[data-experience="music"] .spontaan-hero { background-image: repeating-linear-gradient(0deg, transparent, transparent 26px, color-mix(in srgb, var(--fu-accent) 6%, transparent) 27px, transparent 28px); }
+[data-experience="making"] .spontaan-hero { background-image: radial-gradient(color-mix(in srgb, var(--fu-accent) 16%, transparent) 1px, transparent 1px); background-size: 18px 18px; }
+.spontaan-hobby-link { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--fu-line-strong); border-radius: 999px; padding: 10px 14px; color: var(--fu-accent); font-size: 13px; }
+
+@media (max-width: 360px) {
+  .spontaan-hero { padding: 20px 14px; }
+  .spontaan-hero .text-h1 { font-size: 32px; }
+}
 
 .fu-card {
   background: var(--fu-bg-elevated);

@@ -1,0 +1,47 @@
+# Independent local workspace. No production host, provider or external database.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SPONTAAN_DB_PASSWORD:?Use local-mobile.ps1 to generate local settings}
+      POSTGRES_DB: spontaan_simulation
+    volumes:
+      - local-mobile-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d spontaan_simulation"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  init:
+    image: spontaan-local-mobile-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.local-mobile
+    command: ["init"]
+    environment: &local
+      FU_LOCAL_MOBILE: "1"
+      FU_LOCAL_HOST: ${SPONTAAN_LOCAL_IP:?Use local-mobile.ps1 to select a private address}
+      FU_LOCAL_PUBLIC_PORT: ${SPONTAAN_LOCAL_PORT:-4000}
+      SECRET_KEY_BASE: ${SPONTAAN_COOKIE_SECRET:?Use local-mobile.ps1 to generate local settings}
+      DATABASE_URL: postgres://postgres:${SPONTAAN_DB_PASSWORD}@db:5432/spontaan_simulation
+    depends_on:
+      db: {condition: service_healthy}
+  app:
+    image: spontaan-local-mobile-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.local-mobile
+    environment: *local
+    ports:
+      - "${SPONTAAN_LOCAL_IP}:${SPONTAAN_LOCAL_PORT:-4000}:4000"
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:4000/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+volumes:
+  local-mobile-db:

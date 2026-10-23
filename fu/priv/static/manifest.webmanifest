@@ -1,8 +1,8 @@
 {
-  "name": "Football United",
-  "short_name": "FU",
-  "description": "Queue for a match you didn't know existed.",
-  "start_url": "/",
+  "name": "Spontaan",
+  "short_name": "Spontaan",
+  "description": "Find your people. Follow an interest. Make something happen.",
+  "start_url": "/explore",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,7 +10,7 @@
   "theme_color": "#0A0908",
   "icons": [
     {
-      "src": "/images/fu-icon.svg",
+      "src": "/images/spontaan-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

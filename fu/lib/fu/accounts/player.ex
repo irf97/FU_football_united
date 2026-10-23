@@ -5,35 +5,37 @@ defmodule Fu.Accounts.Player do
   @positions Fu.Positions.positions()
 
   schema "players" do
-    field :phone, :string
-    field :display_name, :string
-    field :nickname, :string
-    field :nation, :string
-    field :birthdate, :date
-    field :avatar_url, :string
-    field :jersey_number, :integer, default: 10
-    field :home_lat, :float
-    field :home_lng, :float
-    field :home_label, :string
-    field :rank, :float, default: 50.0
-    field :playstyle, :string
-    field :primary_position, :string, default: "MID"
-    field :secondary_position, :string
+    field(:phone, :string)
+    field(:display_name, :string)
+    field(:main_hobby, :string)
+    field(:experience_theme, :string, default: "auto")
+    field(:nickname, :string)
+    field(:nation, :string)
+    field(:birthdate, :date)
+    field(:avatar_url, :string)
+    field(:jersey_number, :integer, default: 10)
+    field(:home_lat, :float)
+    field(:home_lng, :float)
+    field(:home_label, :string)
+    field(:rank, :float, default: 50.0)
+    field(:playstyle, :string)
+    field(:primary_position, :string, default: "MID")
+    field(:secondary_position, :string)
     # Default sub-position per main — display/preference only (GK: no variant).
-    field :def_sub, :string
-    field :mid_sub, :string
-    field :fwd_sub, :string
-    field :fill_mode, :boolean, default: false
-    field :queue_region_km, :integer, default: 25
-    field :avatar_legend, :string, default: "Pelé"
-    field :avatar_kit, :string, default: "Custom"
-    field :avatar_color, :string, default: "#67e8f9"
-    field :is_admin, :boolean, default: false
-    field :suspended_until, :utc_datetime
-    field :last_played_at, :utc_datetime
-    field :skip_streak, :integer, default: 0
+    field(:def_sub, :string)
+    field(:mid_sub, :string)
+    field(:fwd_sub, :string)
+    field(:fill_mode, :boolean, default: false)
+    field(:queue_region_km, :integer, default: 25)
+    field(:avatar_legend, :string, default: "Pelé")
+    field(:avatar_kit, :string, default: "Custom")
+    field(:avatar_color, :string, default: "#67e8f9")
+    field(:is_admin, :boolean, default: false)
+    field(:suspended_until, :utc_datetime)
+    field(:last_played_at, :utc_datetime)
+    field(:skip_streak, :integer, default: 0)
 
-    has_many :availability_windows, Fu.Accounts.AvailabilityWindow
+    has_many(:availability_windows, Fu.Accounts.AvailabilityWindow)
     timestamps(type: :utc_datetime)
   end
 
@@ -45,6 +47,16 @@ defmodule Fu.Accounts.Player do
     |> put_default_name()
     |> validate_format(:phone, ~r/^\+?[0-9]{7,15}$/, message: "invalid phone")
     |> unique_constraint(:phone)
+  end
+
+  def experience_changeset(player, attrs) do
+    player
+    |> cast(attrs, [:main_hobby, :experience_theme])
+    |> update_change(:main_hobby, &(String.trim(&1) |> String.downcase()))
+    |> validate_length(:main_hobby, max: 60)
+    |> validate_required([:experience_theme])
+    |> validate_inclusion(:experience_theme, ["auto" | Fu.Experiences.keys()])
+    |> check_constraint(:experience_theme, name: :player_experience_valid)
   end
 
   @doc "Profile edits: identity + position prefs (spec §2.6)."

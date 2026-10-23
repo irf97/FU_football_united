@@ -4,7 +4,7 @@ defmodule Fu.SMS do
 
   The default adapter (`Fu.SMS.LogAdapter`) logs instead of sending. A
   real provider is dropped in via config **without touching call sites**
-  and **without this app taking an HTTP dependency**:
+  through the existing boundary:
 
       config :fu, Fu.SMS,
         adapter:   Fu.SMS.HTTPAdapter,
@@ -15,9 +15,9 @@ defmodule Fu.SMS do
   Architecture (ports & adapters): the **vendor** is a small, IO-free
   `Fu.SMS.Provider` strategy; the **HTTP client** is a `Fu.SMS.Transport`
   chosen at release; `Fu.SMS.HTTPAdapter` is the generic engine that
-  composes them. No vendor or HTTP client is shipped here on purpose —
-  adding one is a localized, well-typed change with zero call-site or
-  test churn.
+  composes them. An optional MessageBird strategy and bounded Req transport
+  now support the same request path against a local emulator or live account.
+  Production configuration selects the provider explicitly.
 
   `deliver/2` is resilient: an adapter that raises is converted to
   `{:error, _}` and never reaches the OTP caller.
@@ -60,8 +60,7 @@ end
 defmodule Fu.SMS.Transport do
   @moduledoc """
   The injected HTTP seam. Implemented by whatever HTTP client is chosen
-  at release (Finch / Req / …). Kept abstract so this app carries no HTTP
-  dependency and providers stay unit-testable against a stub.
+  at release (Req by default). Providers stay unit-testable against a stub.
   """
   @callback request(req :: map()) ::
               {:ok, %{status: non_neg_integer(), body: binary()}} | {:error, term()}

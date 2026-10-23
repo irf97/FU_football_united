@@ -1,206 +1,398 @@
-> **Point-in-time document.** Current status & full project history: see README.md and CHANGELOG.md at the repo root. _(2026-05-19 — Football United app + P2P mesh protocol v5; 156 tests, 0 failures.)_
+# Spontaan · simulation and installation
 
-# Football United · Pre-deployment checklist
-_For putting this in front of a real Enschede footballer. Stack-specific.
-Phoenix LiveView monolith · PubSub realtime · 2 named GenServers ·
-Postgres-only · `Fu.SMS` stub · Windows dev · no Docker._
+Scope: the Phoenix shared hobby core. The frozen mesh reference is unchanged;
+this image contains no physical peer network or radios. No live app, SMS
+account or persistent database has been provisioned by these changes.
 
-## ⚠️ Read first — the #1 blocker is product, not infra
+For a Windows computer and a phone on the same private network, use
+**Start_Spontaan.cmd** and the [local mobile guide](LOCAL_MOBILE.md). That separate
+local build displays its sign-in code on the phone and saves changes locally.
 
-`AUDIT.md` integration break #1: **there is no in-app way to finish a
-match.** `Matches.record_score/record_goal/complete_match` and
-`Ranking.finalize_match` are called only from `priv/repo/seeds.exs`. A real
-footballer's match would **never produce a rank change, and post-match
-voting can never open** (`voting_open?` needs `complete_match`'s
-`votes_close_at`). No amount of hosting fixes this. **Do not soft-launch
-the rank/voting loop until a score-entry surface exists** (operator- or
-captain-driven action calling `Matches.record_score` → `complete_match` →
-`Ranking.finalize_match`; `Ranking.record_no_show` is also dead). This is a
-~1-day wiring task, not a rebuild — but it gates "first user" for the
-*ranked* product. The non-ranked loop (browse → join → lobby → captain →
-chat) **is** shippable today (Balance loop fixed in Phase 2, `5bb1411`).
+## Open Spontaan Commons
 
-## 3.1 Hosting — **Fly.io** (decided)
+Commons is a fictional, ready-populated setting, with no geographic launch
+assumption. It contains twelve members, six hobby events, equipment kits,
+reservations, participant commitments and scoreboards. Use the regular app
+screens to explore it. Installation replaces fictional equipment reports with
+the selected receiver's reports through the same interface.
 
-Solo founder, one city, no ops bandwidth → Fly.io.
+With Docker Compose available and local ports 4000, 5432 and 9166 free:
 
-- **Why not Gigalixir:** hot-upgrades are a power feature you won't use;
-  Fly's free allowance + managed Postgres covers ~first 50 users at ~€0.
-- **Why not bare VPS:** you'd own Postgres backups, TLS renewal, systemd,
-  monitoring — operational burden with zero upside at this scale.
-- **Fly specifics that matter here:**
-  - One `fly.toml` app, **`min_machines_running = 1`** (LiveView holds
-    stateful WS connections + the two GenServers must stay alive; do NOT
-    scale-to-zero). Single region `ams` (Amsterdam — closest to Enschede).
-  - **Single machine for v1.** `Fu.Queues.Resolver` and
-    `Fu.Ranking.DecayWorker` are plain named GenServers with **no
-    distributed coordination**. Multiple machines ⇒ the workers run on
-    every node ⇒ duplicate resolution/decay. Stay single-node until you
-    add a leader-election lib (out of scope). Note in `fly.toml`.
-  - Fly Postgres (managed) in `ams`, smallest size.
-
-## 3.2 Real SMS — **MessageBird** (NL), behind a behaviour
-
-**Refactor finding (from AUDIT):** `Fu.SMS` is a *plain module, not a
-behaviour* — swapping providers needs the extract below. Apply this as the
-first deploy task (it is a refactor, not a feature — same observable
-behaviour, log stub still default in dev/test):
-
-```elixir
-# lib/fu/sms.ex
-defmodule Fu.SMS do
-  @callback deliver(String.t(), String.t()) :: :ok | {:error, term()}
-  def deliver(phone, body), do: impl().deliver(phone, body)
-  defp impl, do: Application.get_env(:fu, :sms_adapter, Fu.SMS.Log)
-end
-
-defmodule Fu.SMS.Log do
-  @behaviour Fu.SMS
-  require Logger
-  @impl true
-  def deliver(phone, body), do: (Logger.info("[SMS→#{phone}] #{body}"); :ok)
-end
-
-# lib/fu/sms/message_bird.ex
-defmodule Fu.SMS.MessageBird do
-  @behaviour Fu.SMS
-  require Logger
-  @endpoint "https://rest.messagebird.com/messages"
-
-  @impl true
-  def deliver(phone, body) do
-    key = Application.fetch_env!(:fu, :messagebird_key)
-    req = Finch.build(:post, @endpoint,
-      [{"Authorization", "AccessKey #{key}"},
-       {"Content-Type", "application/x-www-form-urlencoded"}],
-      URI.encode_query(%{originator: "FootballU", recipients: phone, body: body}))
-    case Finch.request(req, Fu.Finch) do
-      {:ok, %{status: s}} when s in 200..299 -> :ok
-      {:ok, %{status: s, body: b}} -> Logger.error("SMS #{s}: #{b}"); {:error, :sms_failed}
-      {:error, e} -> Logger.error("SMS transport: #{inspect(e)}"); {:error, :sms_failed}
-    end
-  end
-end
+```sh
+cd fu
+export SECRET_KEY_BASE="$(openssl rand -base64 64 | tr -d '\n')"
+docker compose -p spontaan-commons -f compose.rehearsal.yml up --build --detach app
+docker compose -p spontaan-commons -f compose.rehearsal.yml exec app \
+  /app/bin/fu rpc 'IO.inspect(Fu.Simulation.seed!())'
 ```
 
-- Add `{:finch, "~> 0.18"}`; add `{Finch, name: Fu.Finch}` to
-  `Fu.Application` children.
-- `config/runtime.exs` (prod): `config :fu, sms_adapter: Fu.SMS.MessageBird,
-  messagebird_key: System.fetch_env!("MESSAGEBIRD_KEY")`.
-- **Why MessageBird over Twilio/Vonage:** Dutch company, best NL carrier
-  routing/deliverability, EUR billing, GDPR-resident — matters for an
-  Enschede launch.
-- **SMS-layer rate limit is mandatory (AUDIT deploy blocker):**
-  `Accounts.request_otp` is unbounded. Add before going public — minimal:
-  a per-phone + per-IP token bucket (e.g. `Hammer` lib, or a Postgres
-  count of `otp_codes` for that phone in the last 10 min, reject > 3).
-  Also cap `verify_otp` attempts (5/code then invalidate). Without this,
-  one script = your entire MessageBird balance.
+Open `http://localhost:4000`. Ari (`+31680000601`) hosts Commons and owns the
+equipment; Noor (`+31680000602`) is an assigned referee. These are synthetic
+account identifiers. Request a code in the app, then read it from the local
+SMS mailbox using the simulation credential (no real SMS is sent):
 
-## 3.3 Runtime configuration
+```sh
+curl --fail --silent \
+  -H 'Authorization: AccessKey fu-sim-local-rehearsal-only' \
+  'http://localhost:9166/mailbox?phone=%2B31680000601'
+```
 
-- `config/runtime.exs` is already present (Phoenix 1.8 default). Verify it
-  reads `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT` from env
-  (Phoenix scaffolds this; confirm the `:fu, FuWeb.Endpoint` `url: [host:]`
-  + `server: true`). Add `MESSAGEBIRD_KEY` and the admin password
-  (currently a literal in `login_live.ex` — move to
-  `System.fetch_env!("ADMIN_PASSWORD")`).
-- **`mix release` on Windows will NOT produce a Linux artifact.** Releases
-  are not cross-platform. Do **not** build locally. Use **Fly's remote
-  builder**: `fly deploy` with a `Dockerfile` (Fly's `mix phx.gen.release
-  --docker` generates the standard Elixir release Dockerfile). Prod does
-  not "run Docker" in any way you manage — Fly's builder uses it to
-  produce the release image; the running app is just the BEAM. This is the
-  documented Windows workaround: **never `mix release` on this machine.**
-- Secrets: `fly secrets set SECRET_KEY_BASE=… DATABASE_URL=…
-  MESSAGEBIRD_KEY=… ADMIN_PASSWORD=…`. Nothing in git (`.gitignore`
-  already excludes envs; `mix phx.gen.secret` for `SECRET_KEY_BASE`).
+Choose a main hobby and experience in Profile. Football United remains one
+theme within Spontaan. Explore, join an event, inspect the equipment and open
+its assistant. Commons events become startable after one minute, so ordinary event
+timing still applies. Re-running the seed preserves existing records and
+people's edits; it does not rewind time or silently reset sessions. A fresh
+isolated database provides a fresh timeline. The old football `seeds.exs` is
+not used by this setting.
 
-## 3.4 Database operations
+For a real receiver installation, follow the
+[hardware manual](hardware/README.md), with the board/item CAD, mapping example
+and service template. The selected Linux scanner and Android alternative feed
+the same report contract. Keep the engineer's hardware choice separate from
+software use and iteration.
 
-- **Backups:** Fly Postgres takes daily snapshots automatically. Set
-  retention to 7 days. Restore drill (do once before launch):
-  `fly pg list` → `fly volumes snapshots list` →
-  `fly pg restore <snapshot>` into a throwaway app, verify, document the
-  exact commands in an ops note.
-- **Pool size:** prod `POOL_SIZE` default 10 is right for ~100 users on
-  one machine; do not raise without measuring (Postgres conn limits).
-  Test stays `Ecto.Adapters.SQL.Sandbox`.
-- **Migrations:** run from the release, not the dev box. Use the standard
-  `Fu.Release.migrate/0` (`mix phx.gen.release` creates `lib/fu/release.ex`)
-  and a Fly `release_command = "/app/bin/migrate"`. Migrate runs once per
-  deploy before the new machine serves traffic.
-- **The two GenServers on deploy/restart:**
-  - `Fu.Queues.Resolver` — **idempotent** (AUDIT feat 7): `due_for_resolution`
-    filters `state == "open"`, so a restart re-scanning is safe; worst case
-    a queue's resolution is delayed by ≤1 tick (60s). Fine.
-  - `Fu.Ranking.DecayWorker` — **not double-firing** but **first tick is
-    +24h after boot** (no run on start). Frequent deploys ⇒ decay could be
-    perpetually deferred. Acceptable at launch (decay is a 3-month-idle
-    slow drift); note it and, post-launch, persist a `last_decay_at` and
-    compute the next interval from it. Not a blocker.
+## Run the operational rehearsal
 
-## 3.5 Observability — **AppSignal + UptimeRobot + LiveDashboard** (decided)
+With Docker Compose, Node 24 and free local ports 4000, 5432 and 9166:
 
-One paid tool, one free, one built-in. No à-la-carte stack to wire.
+```sh
+cd fu
+npm ci --prefix qa
+npx --prefix qa playwright install --with-deps chromium
+FU_BROWSER_QA=1 \
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/fu_pilot_qa \
+qa/release.sh
+```
 
-- **AppSignal** (`{:appsignal_phoenix, "~> 2.0"}`) — APM + error tracking +
-  host metrics + Phoenix/Ecto/LiveView instrumentation in one agent, one
-  bill (~€19/mo solo tier). Set `APPSIGNAL_PUSH_API_KEY` secret, add
-  `Appsignal.Phoenix` to the endpoint. Covers Step 3.5's Logger/Telemetry/
-  error-tracking asks together — that's why it beats Sentry+Prometheus+….
-- **UptimeRobot** (free) — 5-min ping on a `GET /healthz`. **Action:** add
-  a tiny health route (plug returning 200 + a one-line DB `SELECT 1`) — it
-  is the *only* code addition Phase 3 needs and it is infra, not a feature;
-  add during deploy, not now.
-- **LiveDashboard** — already mounted at `/dev/dashboard` (`router.ex`).
-  **Action:** before prod, move it behind the same admin gate as `/admin`
-  (currently `:dev_routes` only — confirm it is NOT exposed in prod, or
-  wrap with `Plug.BasicAuth` using `ADMIN_PASSWORD`).
-- Logger: set `config :logger, level: :info` in prod (not `:debug` — the
-  app currently logs `[debug]` SQL; noisy + leaks data).
+This builds the production image and runs it with PostgreSQL 17 and a local
+SMS provider emulator. It generates a fresh cookie secret and owns the
+`fu-acceptance-qa` Compose project. The database is disposable: the script
+removes its own containers and volume when it ends. It refuses to reuse an
+existing acceptance project or another database. Run it on an isolated QA host.
 
-## 3.6 Domain, TLS, PWA
+The same command runs in `.github/workflows/app.yml`, after `mix precommit`.
+Use the actual run result as evidence. The uploaded artifact contains
+`results/rehearsal-report.html`, its JSON, raw latency measurements and browser
+captures. A missing or failed gate makes the report fail; it never fills in
+unobserved results. Source revision and image ID identify what was exercised.
 
-- Domain: point an apex + `www` (or `app.<domain>`) at Fly via
-  `fly certs add footballunited.app`; Fly issues/renews Let's Encrypt
-  automatically — no Caddy/nginx.
-- TLS: automatic on Fly. Set `force_ssl` in the endpoint for prod.
-- PWA: `/manifest.webmanifest` + `/images/fu-icon.svg` + apple-touch-icon
-  are present and were verified `200` (commit `ce681f4`/`6e4dc47` era).
-  Verify once more post-deploy that they serve over the real domain (the
-  manifest `start_url`/`scope` are relative `/` so they travel fine).
-- Native app-store listing: **out of scope for v1** — PWA install
-  (Add to Home Screen) is the v1 distribution. Future track only.
+| Executable gate | Pass condition / boundary |
+| --- | --- |
+| Runtime separation | Same image; production rejects a simulator endpoint; unconfigured SMS fails closed; no demo codes or admin fallback. |
+| Provider failures | Actual HTTP transport handles 503, malformed success, 401, 429 and timeout; one POST per request; undelivered codes consumed. |
+| Desktop and mobile | Login, create, Explore filters and personal history, commit, access confirmation, start, self check-in, finish and cancellation. Create/reserve gear, ingest a synthetic zone report, revoke the collector and use the assigned referee's timer and scorekeeper. |
+| Reconnect and restart | Real WebSocket interruption catches up on missed updates; completed history persists. Restart with a running scorekeeper and verify its unchanged deadline, scores and correction history. |
+| Mission cycles | 48 synthetic participants; 12 sessions in each of open, practice and committed modes; 27 complete and 9 cancel. Four additional browser identities run two more completed and two cancelled sessions. |
+| Integrity | Capacity four under 24 contenders; 12 duplicate joins make one membership/event; withdrawal/rejoin resets commitment; unauthorized host changes rejected; player profiles unchanged. |
+| Equipment integrity | Separate database connections race eight overlapping reservations; one wins. Owner scoping, duplicate reports, altered retries, revoked tokens, stale/out-of-order reports and event-limited location sharing are tested. |
+| Referee integrity | Eight independent connections race one score revision; one wins. Retrying the winning request records one change. Host-only configuration/assignment, current membership, reasoned corrections and final-result boundaries are tested. |
+| Sustained reads | Eight authenticated HTTP readers plus eight domain readers, paced at 100 ms, for 60 seconds. Zero observed errors; HTTP p95 ≤ 1000 ms; context p95 ≤ 500 ms. Mutation p95 also ≤ 500 ms. |
+| Resource envelope | App container limited to one CPU and 512 MiB. This is a measured envelope, not an unlimited capacity promise. |
+| Interrupted transaction | Kill the app after a membership write, while its history INSERT waits on a table lock; no partial membership/event; retry produces exactly one of each. Readiness returns within 30 seconds. |
+| Restore | Quiescent dump/restore matches all rows in eleven identity/OTP/hobby/equipment/assistant tables and all public sequence values. Boot the same image on the restored database, open event and scorekeeper history, verify closed events hide current equipment zones, then create a new record. |
+| Database outage | Health changes to 503, then returns to 200 within 30 seconds after restarting PostgreSQL. |
+| Configuration rollback | A candidate with an invalid database configuration returns 503; resume the known-good image/configuration within 30 seconds. Arbitrary future code/schema rollback is outside this test. |
 
-## 3.7 First-user vs first-hundred
+Wall-clock session starts are observed normally; QA does not rewrite session
+timestamps or select an alternate clock. Bulk mission setup invokes actual
+application contexts through privileged release RPC, guarded by rehearsal mode
+and the exact disposable database. These scripts are not compiled into the
+production app and add no public fixture or mailbox routes to it.
 
-### First user — MUST (in order)
-1. **Wire match completion** (AUDIT break #1) — operator/captain action →
-   `Matches.record_score`→`complete_match`→`Ranking.finalize_match`.
-   *Without this the ranked product is non-functional.* (Product task,
-   precedes infra.)
-2. SMS behaviour refactor + `Fu.SMS.MessageBird` + **OTP rate limiting**
-   (§3.2) — verified end-to-end with a real Dutch number.
-3. App on Fly at the real domain over TLS, single machine `ams`,
-   `min_machines_running = 1`.
-4. Fly Postgres with snapshots on; restore drill done once.
-5. AppSignal capturing crashes; `/healthz` + UptimeRobot live.
-6. LiveDashboard prod-gated; admin password from env, not source.
-7. Logger at `:info`.
+## Explore the local app
 
-### First hundred — CAN WAIT (track, don't block)
-- Friend-group queue join + friend-request *send* UI (AUDIT breaks #2/#3).
-- Live-match surface + captain pause (AUDIT feature 12 MISSING).
-- Load test the LiveView/PubSub fan-out; Postgres slow-query log + index
-  audit (the `browse/2` filter query especially).
-- Edge rate limiting (Fly handles basic; tune later).
-- `support@footballunited.app` + a written process for user reports.
-- Multi-node story (leader-elect the two GenServers) before scaling > 1
-  machine.
+For a rehearsal that stays running:
 
-## Gate
-This file exists at repo root. Phase 4 does not depend on executing any of
-the above — only on it being documented. The single most important line in
-it is §3.7 item 1: **infra is ready long before the product is, because the
-match→rank loop has no in-app trigger.**
+```sh
+cd fu
+export SECRET_KEY_BASE=$(openssl rand -base64 64)
+docker compose -p fu-rehearsal -f compose.rehearsal.yml up --build --detach app
+```
+
+Open http://localhost:4000. Request a code for a synthetic number such as
+`+31680000001`, then read its private local mailbox:
+
+```sh
+curl --silent \
+  -H 'Authorization: AccessKey fu-sim-local-rehearsal-only' \
+  'http://localhost:9166/mailbox?phone=%2B31680000001'
+```
+
+Use the six-digit code in the returned message. The app visibly labels
+simulation, hides OTPs on screen and emits `x-fu-environment: rehearsal`.
+The emulator performs no outbound delivery. Its mailbox and failure controls
+require the dummy simulation token; all three exposed ports bind to loopback.
+`docker compose -p fu-rehearsal -f compose.rehearsal.yml down` stops this stack
+and preserves its local volume. Keep the exported secret while reusing it.
+
+## Hobby login and invitation return
+
+The default phone-login destination is `/explore`, including anonymous entry
+through the old root bookmark. The Football tab retains the signed-in football
+home. A protected GET remembers
+its exact allowed FU page and query before redirecting to login; the login
+tab captures that destination and signs it into the five-minute session
+handoff. A later tab or edited handoff query cannot replace the signed
+destination. Successful login renews the cookie and clears the pending path.
+Failed delivery or invalid handoff leaves it available for retry.
+
+External URLs, auth endpoints, fragments, control characters, unknown routes
+and oversized values fall back to Explore. Older integer-only handoff tokens
+remain accepted within their existing five-minute verification window and
+use the same destination allowlist. Redirecting to an event or its assistant
+does not confer membership, ownership or referee authority. First-time hobby
+participants can join directly; football profile setup is not a prerequisite.
+
+## Connect equipment collectors
+
+Create an item in `/equipment` and set its exact collector tag identifier.
+Create a named receiver with a fixed zone and copy its one-time credential
+into the collector's secret configuration. The raw credential is not retained
+by FU. Revoking it immediately blocks new reports and retries.
+
+Collectors POST JSON to `/api/equipment/observations` using
+`Authorization: Bearer <receiver credential>`. The credential only reports
+tags belonging to its owner. It cannot change ownership, condition or event
+reservations. The server chooses the receiver's configured zone and labels
+the source `receiver_report`; client zone/source/owner fields have no authority.
+
+| Field | Contract |
+| --- | --- |
+| `beacon_id` | Exact owner-scoped tag identifier, 1–120 bytes. |
+| `message_id` | Stable per observation, 1–120 bytes. Same payload/key retries reuse the record; altered retries return 409. |
+| `observed_at` | UTC ISO-8601 timestamp, at most ten minutes old or five seconds ahead. Synchronize the collector clock. |
+| `rssi` | Optional integer −127 to 20; diagnostic signal strength, never a distance. |
+
+Responses: 200 accepted/deduplicated, 401 missing/revoked credential, 404
+unknown owned tag, 409 conflicting retry, 422 invalid observation, 429 receiver
+budget (120 new observations per minute). Reports older than two minutes are
+displayed as stale. A zone report does not prove physical presence or readiness.
+Inventory is private; reserving an item deliberately shares its name, condition
+and current reported zone with the host and current participants until the
+event closes or its time window ends. The UI shows at most 100 inventory items.
+
+`fu/priv/equipment_collector.py` is a Python standard-library JSON-line bridge
+for an external scanner/gateway. It validates observations, requires HTTPS,
+disables redirects and retries transient failures three times with the exact
+same message/payload. Supply `FU_EQUIPMENT_TOKEN` through the collector's secret
+environment; do not place it in command arguments or commit it. Feed scanner
+JSON objects containing the fields above on stdin:
+
+```sh
+python3 fu/priv/equipment_collector.py \
+  --endpoint https://<your-host>/api/equipment/observations < scanner.ndjson
+python3 -m unittest fu/qa/equipment_collector_test.py
+```
+
+`--dry-run` validates and prints without delivery. `--rehearsal` permits HTTP
+only on loopback. The bridge does not scan Bluetooth. **BLE tags with a fixed
+receiver or an Android collector are acceptable candidates.** Irfan wants the
+optimal physical setup discussed with an engineer before selecting hardware or
+committing to a scanner adapter. No specific receiver model is assumed.
+
+### Collector decision for the engineer
+
+The common boundary is the authenticated observation contract above. Android
+would need a native scanner and its own durable delivery queue implementing
+that contract; the Python gateway bridge is a reference implementation, not
+an Android app. Choose one initial route from actual equipment and measured
+requirements instead of building both adapters speculatively.
+
+| Decision | Evidence the engineer needs |
+| --- | --- |
+| Required outcome | Fixed-zone last-heard reports, attended inventory sweeps, or a separately specified positioning system; agree acceptable delay, misses and outside-zone detections. |
+| Tags | Actual model, advertising payload/protocol, stable item identifier, interval, simultaneous tag count and battery behavior; prove that the selected scanner exposes the required fields. |
+| Receiver role | Fixed power/placement and network versus an attended or background Android collector. The current credential is bound to one server-configured zone: a stationary phone can fill that role, but a moving phone must not keep reporting every tag into its old zone. Moving-zone authority needs an explicit design change. |
+| Android lifecycle | Target phone/OS/SDK, scan filters, runtime permission denial/revocation, screen-off/background/process-death behavior and energy use. Exercise these on the intended device; emulator and browser results are insufficient. |
+| Delivery and ownership | Clock synchronization, HTTPS connectivity, bounded output below the server rate budget, persistent queue, receiver credential protection/rotation and a named person who maintains the collector. |
+| Installation and cost | Available equipment, venue permission, mounting/power/network work, maintenance effort and a spending ceiling. Compare total operating effort after measuring the intended zone. |
+
+Android's primary [background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background)
+describes process and wake-up options; its [Bluetooth permission guidance](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
+depends on the target SDK and whether scan results derive physical location.
+The `neverForLocation` assertion can also filter some beacons; do not use it as
+a shortcut without checking the actual data use and tag compatibility.
+
+The review should produce one selected receiver/tag combination, a placement
+and zone-authority plan, a scanner payload example, named ownership and a field
+test with agreed acceptance targets. Record rejected alternatives and the
+constraint that ruled them out. Hardware selection and RF qualification stay
+open until this review and the physical measurements are completed.
+
+### Recover gateway deliveries
+
+On a collector host with Python 3 and its standard-library SQLite module, use
+`--outbox` to commit each normalized observation before attempting delivery.
+Create a private local directory outside the checkout and keep one outbox per
+receiver credential and exact endpoint. On POSIX systems, the bridge creates
+the database with mode 0600 and rejects a shared, differently owned or symlinked
+file. Apply an equivalent private user ACL on other operating systems.
+
+```sh
+# FU_EQUIPMENT_TOKEN comes from the collector's private secret configuration.
+install -d -m 700 /var/lib/fu-equipment
+python3 fu/priv/equipment_collector.py \
+  --endpoint https://<your-host>/api/equipment/observations \
+  --outbox /var/lib/fu-equipment/receiver.equipment.sqlite3 < scanner.ndjson
+
+# After repairing connectivity, recover pending delivery without reading stdin.
+python3 fu/priv/equipment_collector.py \
+  --endpoint https://<your-host>/api/equipment/observations \
+  --outbox /var/lib/fu-equipment/receiver.equipment.sqlite3 --drain
+```
+
+Run these as the collector's dedicated user with write access to that private
+directory. The outbox stores only normalized reports, the endpoint and a
+credential fingerprint; it never stores the raw credential. It drains pending
+reports before reading new input, and deletes a report only after validating a
+receiver receipt. If acceptance happened but the receipt was lost, restart
+reuses the exact payload and ID, allowing FU to return the existing record.
+An abrupt process-exit check and a real HTTP lost-receipt test exercise this
+boundary; neither is a hardware power-loss qualification.
+
+The queue holds at most 1,000 pending reports. Full queues, expired reports,
+rejected credentials and conflicting IDs stop delivery without deleting queued
+evidence. Reports remain subject to the ten-minute server acceptance window;
+recovery never rewrites their observation times. A stale head report therefore
+needs operator review before collection resumes. Stop the service, retain the
+closed outbox privately for diagnosis, and start a new file for fresh readings
+after resolving the cause. Never edit old times to force acceptance. Credential
+rotation or endpoint changes require a new outbox; old pending reports cannot
+be rebound to another receiver or owner.
+
+Use one bridge process per file on a local persistent filesystem. This is a
+stop-and-recover delivery queue, not an always-running scanner or an unlimited
+offline buffer. Without `--outbox`, delivery remains transient. The upstream
+scanner must retain unacknowledged input and stable IDs: readings lost before
+the local commit, or while the bridge is stopped, are outside this guarantee.
+An append-only input file needs its own acknowledged cursor; blindly rereading
+the whole file with generated IDs creates new observations. Protect captured
+tag IDs as location data and remove retained queues under the chosen retention
+policy. `--dry-run` cannot use a delivery outbox.
+
+### Install one assigned receiver zone
+
+Use owned equipment and an isolated test receiver credential. Configure the
+receiver's actual fixed zone in FU; every accepted report uses that zone.
+With one receiver, qualify **heard at this receiver** and freshness. The app
+does not determine coordinates or prove an item left the zone. Continued
+reception through a boundary can produce a fresh but physically wrong zone.
+
+Before the field run, record tag and receiver models/firmware, scanner adapter
+revision, tag-to-item mapping, placement, advertising interval, collector/app
+versions, clock offset and network. The adapter must emit only registered
+test tags, a stable ID per observation, the real observation time and optional
+RSSI. Do not forward every advertisement: bound total output below 120 new
+reports per minute, leaving headroom for concurrent traffic and recovery. Pick
+the report interval from tag count and the freshness target, then record it.
+
+| Check | Exercise | Evidence / acceptance boundary |
+| --- | --- | --- |
+| Identity | Introduce each tag separately, then all selected tags. | Each physical item matches only its registered ID; record unknown, missing or colliding IDs. |
+| Coverage | Repeat at intended near/far positions, orientations and occupied conditions. | Record ground-truth placement and first detection/API/UI times. Report misses and delay percentiles with trial counts. Agree acceptable delay/miss rate before judging the run. |
+| Boundary | Repeat just outside the intended zone and behind adjacent walls. | Count fresh reports for physically outside items. If unacceptable, revise the zone/placement or integration and repeat; RSSI is diagnostic, not distance proof. |
+| Departure / battery | Move a tag out of reception, then disable a test tag battery. | The last observation becomes stale after its two-minute freshness window, shown on the next 30-second UI refresh or page reload; no invented exit or battery state. Record actual elapsed time. |
+| Recovery | Interrupt the app connection after a queued report; restart the bridge with the same outbox within ten minutes. | Same ID/time survives; FU records one observation. Repeat beyond ten minutes: delivery stops and the pending report remains for review. Preserve upstream input while stopped. |
+| Authority | Try a wrong/unregistered tag, then revoke the test receiver. | Unknown owned tag is rejected; revoked receiver cannot deliver new reports or retries. Keep credentials out of logs/evidence. |
+| Load / clock | Exercise the selected simultaneous tag count and bounded report rate; test an invalid clock in isolation. | Record counts/rate and clock offset; invalid/future/expired input never becomes a fresh location. Recover using a corrected clock and new real readings. |
+
+For each trial, retain `trial_id`, UTC ground-truth time, item alias, expected
+zone/inside-or-outside state, observation ID/time, API receipt time, displayed
+zone/freshness, interruption/recovery time and pass/fail notes. Retain aliases
+rather than unrelated nearby devices. A summary must distinguish intended
+trials, detected trials, missed trials and outside-zone detections. Leave
+physical qualification open until those measurements exist and the operator
+accepts the tested zone, tag count, intervals and failure behavior.
+
+Choose a collector capable of background scanning on its intended OS. Browser
+Bluetooth requires secure context and user interaction and is not assumed to
+provide universal passive/background scanning. See the primary
+[Chrome Bluetooth documentation](https://developer.chrome.com/docs/capabilities/bluetooth)
+and [Android background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background).
+The current HTTP simulations supply none of the RF evidence required above.
+
+## Transfer the same image to real conditions
+
+| Boundary | Rehearsal | Real deployment |
+| --- | --- | --- |
+| App | Production release image, `FU_MODE=rehearsal` | Same qualified image, `FU_MODE=production` |
+| Database | Local disposable PostgreSQL 17 | Dedicated persistent PostgreSQL with host-specific backup/restore policy |
+| SMS | Local emulator; `fu-sim-` dummy key; `FU_SMS_ENDPOINT=http://sms:9166/messages` | Optional MessageBird account; live key; omit `FU_SMS_ENDPOINT` (fixed HTTPS provider URL) |
+| Host | `localhost`, loopback ports | Actual TLS hostname and host port |
+| Cookie secret | Fresh random rehearsal secret | Separate persistent production secret from the host's secret manager |
+| Participants / place | Synthetic identities and host declarations | Consenting people, their phones and actual venue permission |
+| Evidence | Automated bounded scenarios | Actual delivery, participation, incidents, restore and sustained operation |
+
+Do not transfer synthetic records, dummy credentials, mailbox containers or
+QA RPC scripts to production. Material changes to code, schema, topology or
+provider require qualification again. A local protocol emulator verifies the
+client contract; it cannot establish a carrier's behavior or handset receipt.
+
+`fu/.env.production.example` lists the values to supply through host secrets:
+
+| Variable | Requirement |
+| --- | --- |
+| `FU_MODE` | `production` (also the default). |
+| `DATABASE_URL` | Required dedicated persistent database; configure network/TLS for the chosen host. |
+| `SECRET_KEY_BASE` | Required; generate separately, keep outside git and command history. |
+| `PHX_HOST` | Required actual hostname, without scheme/path. |
+| `PORT` | Fly supplies `8080`. |
+| `POOL_SIZE` | Defaults to 10; measure before increasing. |
+| `ECTO_IPV6` | Fly config enables IPv6 on its private database network. |
+| `FU_SMS_PROVIDER` | `messagebird` for the included integration, or `disabled` to keep delivery closed. |
+| `FU_SMS_API_KEY`, `FU_SMS_ORIGINATOR` | Required for MessageBird; never use a `fu-sim-` key in production. |
+| `FU_ADMIN_PASSWORD` | Optional; absence disables admin login. |
+
+The optional MessageBird provider uses `Fu.SMS.HTTPAdapter` and a bounded Req
+transport, with redirects and automatic POST retries disabled. A provider
+acceptance receipt is required; acceptance does not mean handset delivery.
+Other providers can implement the existing Provider/Transport boundary.
+The five-per-phone OTP request budget, five-attempt budget and consumption are
+serialized in PostgreSQL. Before public registration, configure edge request
+budgets and a provider spending cap to bound requests across many numbers.
+
+## Fly.io handoff
+
+Use a connected Fly account and an app name you own. From `fu/`, create/select
+that app, provision persistent PostgreSQL and set the runtime secrets above.
+`fu/fly.toml` intentionally receives its app name through `--app`:
+
+```sh
+fly config validate --app <your-app>
+fly deploy --app <your-app> --ha=false
+fly scale count 1 --app <your-app>
+fly checks list --app <your-app>
+node qa/live-preflight.cjs https://<your-host>/
+```
+
+Live preflight only reads HTTPS readiness, production labeling, the login
+screen, authentication redirect and absence of the development dashboard.
+It sends no OTP and creates no data. It cannot establish real operation.
+
+Use a **single machine**: named Resolver and DecayWorker processes have no
+distributed leader election. The config keeps it awake and uses rolling
+replacement, with a brief interruption. The release command migrates before
+serving. TLS terminates at Fly; forwarded HTTPS is honored and `/healthz`
+remains available to the internal checker. Do not run demo seeds in production.
+The rehearsal verifies the image; `fly deploy` rebuilds it from source. If an
+identical image is required, publish the qualified image to your registry and
+select its immutable digest in your host's deployment process.
+
+## Real operational evidence still required
+
+1. Confirm handset receipt and single-use login with the selected live account
+   and intended devices. Check real delivery failures without exposing codes.
+2. Obtain actual venue permission. In-app access confirmation remains a host
+   declaration, not an automatic booking or operator verification.
+3. Run sessions with consenting participants on their own phones. Exercise
+   withdrawal, cancellation, reconnect and completion; record actual attendance
+   separately from self check-ins and have the organizer confirm the outcome.
+4. Assign an operator, monitoring/incident process and data retention controls.
+   Test a restore on a separate database in the intended environment. The
+   quiescent CI checkpoint does not establish a production backup RPO.
+5. Observe repeated operation for an agreed period and retain the real outcomes,
+   failures and recovery evidence. A 60-second local run cannot supply this.
+
+The deliverable is an executable operational rehearsal with a configuration
+handoff. Simulation passes do not confer real TRL 9 or prove every future
+hobby-specific workflow.

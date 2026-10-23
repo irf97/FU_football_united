@@ -1,0 +1,15 @@
+.git
+_build
+deps
+cover
+doc
+test
+qa
+.local-mix.exs
+.env
+.env.*
+**/*.secret.exs
+erl_crash.dump
+priv/static/assets
+priv/static/cache_manifest.json
+assets/node_modules

@@ -1,5 +1,10 @@
 import Config
 
+config :fu, :environment, :development
+
+# Demo convenience is opt-in here and forced off in production.
+config :fu, :show_otp_codes, true
+
 # Configure your database
 config :fu, Fu.Repo,
   username: "postgres",
@@ -92,3 +97,12 @@ config :phoenix_live_view,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# The packaged local mobile build has prebuilt assets and no development console,
+# source reloader, default admin password or file watchers. It remains a dev build.
+if System.get_env("FU_LOCAL_MOBILE_BUILD") == "1" do
+  config :fu, :admin_password, nil
+  config :fu, dev_routes: false
+  config :fu, FuWeb.Endpoint, code_reloader: false, debug_errors: false, watchers: []
+  config :phoenix_live_view, debug_heex_annotations: false, debug_attributes: false
+end

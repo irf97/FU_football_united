@@ -1,24 +1,32 @@
 defmodule FuWeb.SessionController do
   use FuWeb, :controller
 
-  alias FuWeb.PlayerAuth
+  alias FuWeb.{PlayerAuth, ReturnPath}
 
   @doc "LiveView login hands off here with a signed token to set the session cookie."
   def create(conn, %{"token" => token} = params) do
     case PlayerAuth.verify_token(token) do
-      {:ok, player_id} ->
-        to = if params["to"] == "/admin", do: "/admin", else: "/"
+      {:ok, %{player_id: player_id, return_to: to}}
+      when is_integer(player_id) and player_id > 0 ->
+        establish_session(conn, player_id, to)
 
-        conn
-        |> PlayerAuth.log_in(player_id)
-        |> put_flash(:info, "Welcome to Football United.")
-        |> redirect(to: to)
+      # Accept the previous short-lived token shape during a release transition.
+      {:ok, player_id} when is_integer(player_id) and player_id > 0 ->
+        to = params["to"] || get_session(conn, :player_return_to)
+        establish_session(conn, player_id, to)
 
-      {:error, _} ->
+      _ ->
         conn
         |> put_flash(:error, "Login link expired. Try again.")
         |> redirect(to: "/login")
     end
+  end
+
+  defp establish_session(conn, player_id, to) do
+    conn
+    |> PlayerAuth.log_in(player_id)
+    |> put_flash(:info, "Welcome to Spontaan.")
+    |> redirect(to: ReturnPath.safe(to))
   end
 
   def delete(conn, _params) do

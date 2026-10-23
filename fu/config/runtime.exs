@@ -1,5 +1,10 @@
 import Config
 
+if System.get_env("FU_LOCAL_MOBILE") == "1" and
+     (config_env() != :dev or System.get_env("FU_LOCAL_MOBILE_BUILD") != "1") do
+  raise "Local mobile requires the separate development build; production never exposes local login codes"
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration
@@ -20,6 +25,25 @@ if System.get_env("PHX_SERVER") do
   config :fu, FuWeb.Endpoint, server: true
 end
 
+if config_env() == :dev and System.get_env("FU_LOCAL_MOBILE") == "1" do
+  local = Fu.LocalMobileConfig.load!(System.get_env())
+  config :fu, :environment, :rehearsal
+  config :fu, :local_mobile, true
+  config :fu, :show_otp_codes, true
+  config :fu, :admin_password, nil
+  config :fu, Fu.SMS, adapter: Fu.SMS.LogAdapter
+  config :fu, Fu.Repo, url: local.database_url, show_sensitive_data_on_connection_error: false
+
+  config :fu, FuWeb.Endpoint,
+    http: [ip: {0, 0, 0, 0}, port: 4000],
+    url: [host: local.host, port: local.port, scheme: "http"],
+    check_origin: local.origins,
+    secret_key_base: local.secret_key_base,
+    code_reloader: false,
+    debug_errors: false,
+    watchers: []
+end
+
 config :fu, FuWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 # Admin console credential — out of source, fail-closed. Set across all
@@ -31,6 +55,11 @@ if admin_password = System.get_env("FU_ADMIN_PASSWORD") do
 end
 
 if config_env() == :prod do
+  config :fu, :show_otp_codes, false
+  profile = Fu.RuntimeConfig.load(System.get_env())
+  config :fu, :environment, profile.environment
+  config :fu, Fu.SMS, profile.sms
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """
@@ -60,7 +89,7 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host = System.fetch_env!("PHX_HOST")
 
   config :fu, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

@@ -72,9 +72,6 @@ defmodule FuWeb.BrowseLive do
     end
   end
 
-  defp ban_label(:day), do: "1-day"
-  defp ban_label(:week), do: "1-week"
-  defp fmt_until(dt), do: Calendar.strftime(dt, "%a %d %b %H:%M")
 
   @impl true
   def handle_event("toggle", %{"key" => key}, socket) do
@@ -101,6 +98,11 @@ defmodule FuWeb.BrowseLive do
 
     {:noreply, socket |> assign(fmt: sel, filters: filters) |> reload()}
   end
+
+  defp ban_label(:day), do: "1-day"
+  defp ban_label(:week), do: "1-week"
+  defp fmt_until(dt), do: Calendar.strftime(dt, "%a %d %b %H:%M")
+
 
   @impl true
   def handle_info({:queue_changed, _id}, socket), do: {:noreply, reload(socket)}

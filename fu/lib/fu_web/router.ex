@@ -17,6 +17,12 @@ defmodule FuWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/", FuWeb do
+    pipe_through :api
+    get "/healthz", HealthController, :show
+    post "/api/equipment/observations", EquipmentObservationController, :create
+  end
+
   # Public: phone-OTP login (spec §2.13 Surface 1)
   scope "/", FuWeb do
     pipe_through [:browser, :redirect_if_authenticated]
@@ -43,6 +49,12 @@ defmodule FuWeb.Router do
       live "/queue", MatchmakingLive, :index
       live "/lab", MeshLabLive, :index
       live "/browse", BrowseLive, :index
+      live "/explore", ExploreLive, :index
+      live "/equipment", EquipmentLive, :index
+      live "/hobbies", HobbiesLive, :index
+      live "/hobbies/new", HobbiesLive, :new
+      live "/hobbies/:id/assistant", AssistantLive, :index
+      live "/hobbies/:id", HobbiesLive, :show
       live "/queue/:queue_id/chat", QueueChatLive, :index
       live "/lobby/:queue_id", LobbyLive, :index
       live "/match/:queue_id", MatchLive, :index

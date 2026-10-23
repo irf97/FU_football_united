@@ -1,0 +1,35 @@
+# Supply your existing or newly created app name with --app.
+# Single machine only: Resolver and DecayWorker have no leader election.
+primary_region = "ams"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/migrate"
+  strategy = "rolling"
+
+[env]
+  PORT = "8080"
+  ECTO_IPV6 = "true"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "10s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"

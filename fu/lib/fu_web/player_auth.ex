@@ -5,12 +5,20 @@ defmodule FuWeb.PlayerAuth do
   import Phoenix.Controller
 
   alias Fu.Accounts
+  alias FuWeb.ReturnPath
 
   @salt "fu player auth"
 
   @doc "Mints a short-lived token used to hand a LiveView login off to the session controller."
   def login_token(player_id),
     do: Phoenix.Token.sign(FuWeb.Endpoint, @salt, player_id)
+
+  def login_token(player_id, return_to),
+    do:
+      Phoenix.Token.sign(FuWeb.Endpoint, @salt, %{
+        player_id: player_id,
+        return_to: ReturnPath.safe(return_to)
+      })
 
   def verify_token(token),
     do: Phoenix.Token.verify(FuWeb.Endpoint, @salt, token, max_age: 300)
@@ -48,6 +56,7 @@ defmodule FuWeb.PlayerAuth do
       conn
     else
       conn
+      |> remember_destination()
       |> put_flash(:error, "Sign in to continue.")
       |> redirect(to: "/login")
       |> halt()
@@ -56,11 +65,16 @@ defmodule FuWeb.PlayerAuth do
 
   def redirect_if_authenticated(conn, _opts) do
     if conn.assigns[:current_player] do
-      conn |> redirect(to: "/") |> halt()
+      conn |> redirect(to: "/explore") |> halt()
     else
       conn
     end
   end
+
+  defp remember_destination(%{method: "GET"} = conn),
+    do: put_session(conn, :player_return_to, ReturnPath.safe(current_path(conn)))
+
+  defp remember_destination(conn), do: conn
 
   ## LiveView on_mount
 
