@@ -282,6 +282,8 @@ defmodule FuWeb.AssistantLive do
               </div>
               <details
                 :if={@snapshot.session.status in ["active", "completed"]}
+                id="score-correction"
+                phx-mounted={JS.ignore_attributes("open")}
                 class="border-t border-base-300 pt-3"
               >
                 <summary class="font-semibold cursor-pointer">Correct a recorded score</summary>
@@ -353,7 +355,12 @@ defmodule FuWeb.AssistantLive do
                 </button>
               </.form>
             </div>
-            <details :if={@snapshot.host?} class="border-t border-base-300 pt-3">
+            <details
+              :if={@snapshot.host?}
+              id="referee-assignment"
+              phx-mounted={JS.ignore_attributes("open")}
+              class="border-t border-base-300 pt-3"
+            >
               <summary class="font-semibold cursor-pointer">Assign a referee</summary>
               <.form
                 for={to_form(%{}, as: :command)}
@@ -378,6 +385,8 @@ defmodule FuWeb.AssistantLive do
         <% else %>
           <details
             :if={@snapshot.host? && @snapshot.session.status in ["scheduled", "active"]}
+            id="scorekeeper-setup"
+            phx-mounted={JS.ignore_attributes("open")}
             class="fu-card p-5"
           >
             <summary class="text-h2 cursor-pointer">Add a timer and scorekeeper</summary>

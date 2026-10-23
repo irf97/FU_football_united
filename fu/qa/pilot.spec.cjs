@@ -233,9 +233,15 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
     await expect(host.locator('#score-a')).toHaveText('1');
     await guest.locator('#add-score-b').click();
     await expect(host.locator('#score-b')).toHaveText('1');
+    await expect(guest.locator('#score-b')).toHaveText('1');
     await guest.getByText('Correct a recorded score', { exact: true }).click();
     const correction = guest.locator('#correct-score-form');
     await correction.locator('[name="command[score_a]"]').fill('2');
+    // A real update from the other screen must retain the open panel and local draft.
+    await host.locator('#add-score-b').click();
+    await expect(guest.locator('#score-b')).toHaveText('2');
+    await expect(guest.locator('#score-correction')).toHaveAttribute('open', '');
+    await expect(correction.locator('[name="command[score_a]"]')).toHaveValue('2');
     await correction.locator('[name="command[score_b]"]').fill('1');
     await correction.locator('[name="command[reason]"]').fill('QA correction reviewed by both sides');
     await correction.locator('button').click();
