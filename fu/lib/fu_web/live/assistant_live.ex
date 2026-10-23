@@ -13,7 +13,7 @@ defmodule FuWeb.AssistantLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Event assistant · FU",
+       page_title: "Event assistant",
        session_id: id,
        snapshot: nil,
        board_form: to_form(Assistant.change_board()),
@@ -391,7 +391,7 @@ defmodule FuWeb.AssistantLive do
           >
             <summary class="text-h2 cursor-pointer">Add a timer and scorekeeper</summary>
             <p class="text-sm fu-ink-soft mt-3">
-              Optional for games or timed practice. People make the calls; FU records the timer, score and corrections.
+              Optional for games or timed practice. Keep the timer, score and agreed corrections together.
             </p>
             <.form
               for={@board_form}

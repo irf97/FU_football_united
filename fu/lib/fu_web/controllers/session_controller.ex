@@ -25,7 +25,7 @@ defmodule FuWeb.SessionController do
   defp establish_session(conn, player_id, to) do
     conn
     |> PlayerAuth.log_in(player_id)
-    |> put_flash(:info, "Welcome to FU.")
+    |> put_flash(:info, "Welcome to Spontaan.")
     |> redirect(to: ReturnPath.safe(to))
   end
 

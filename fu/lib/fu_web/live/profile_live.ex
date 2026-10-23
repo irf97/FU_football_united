@@ -23,11 +23,23 @@ defmodule FuWeb.ProfileLive do
     |> assign(:legends, Avatars.legends())
     |> assign(:kits, Avatars.kits())
     |> assign(:form, to_form(Accounts.change_profile(p)))
+    |> assign(:experience_form, to_form(Accounts.change_experience(p), as: :experience))
+    |> assign(:experience_options, Fu.Experiences.options())
     |> assign(:windows, Accounts.list_availability(p))
     |> assign(:history, Ranking.history(p.id))
   end
 
   @impl true
+  def handle_event("save-experience", %{"experience" => attrs}, socket) do
+    case Accounts.update_experience(socket.assigns.player, attrs) do
+      {:ok, player} ->
+        {:noreply, socket |> assign(current_player: player) |> load() |> put_flash(:info, "Your Spontaan, saved.")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :experience_form, to_form(changeset, as: :experience))}
+    end
+  end
+
   def handle_event("preview", %{"player" => attrs}, socket) do
     p = socket.assigns.player
 
@@ -73,6 +85,20 @@ defmodule FuWeb.ProfileLive do
     ~H"""
     <Layouts.app flash={@flash} current_player={@player} active={:profile}>
       <h1 class="text-h1">Profile</h1>
+
+      <.form for={@experience_form} id="experience-form" phx-submit="save-experience" class="fu-card p-5 space-y-4">
+        <div>
+          <p class="text-caption fu-ink-soft">Your corner of Spontaan</p>
+          <h2 class="text-h2">Make it yours.</h2>
+        </div>
+        <.input field={@experience_form[:main_hobby]} label="Your main sport or hobby" placeholder="Futsal, guitar, woodworking…" maxlength="60" />
+        <.input field={@experience_form[:experience_theme]} type="select" label="Your experience" options={@experience_options} />
+        <p class="text-sm fu-ink-soft">Set the mood. Every hobby stays open to you.</p>
+        <button type="submit" class="btn btn-primary w-full">Save experience</button>
+      </.form>
+
+      <details id="football-profile" class="space-y-4">
+        <summary class="fu-card p-4 cursor-pointer text-meta">Football United · player card, positions and match history</summary>
 
       <!-- Identity summary (player-card echo) -->
       <div class="fu-card p-5 flex items-center gap-4">
@@ -297,6 +323,8 @@ defmodule FuWeb.ProfileLive do
           </span>
         </div>
       </div>
+
+      </details>
 
       <!-- Theme -->
       <div class="fu-card p-5 space-y-3">

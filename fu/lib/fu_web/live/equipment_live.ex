@@ -13,7 +13,7 @@ defmodule FuWeb.EquipmentLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Equipment · FU",
+       page_title: "Equipment",
        asset_form: to_form(Equipment.change_asset()),
        receiver_form: to_form(Equipment.change_receiver()),
        receiver_token: nil
@@ -271,7 +271,7 @@ defmodule FuWeb.EquipmentLive do
       <details id="receiver-settings" open={@receiver_token != nil} class="fu-card p-5 space-y-3">
         <summary class="text-h2 cursor-pointer">Connect a zone receiver</summary>
         <p class="mt-3 text-sm fu-ink-soft">
-          A collector sends timestamped tag observations to FU. Configure its physical zone here. Connecting a receiver requires a compatible collector; this page does not scan in the background.
+          Give your receiver a home zone. Tagged equipment appears here with its last reported place and time.
         </p>
         <.form for={@receiver_form} id="receiver-form" phx-submit="create-receiver" class="space-y-3">
           <.input field={@receiver_form[:name]} label="Receiver name" required maxlength="120" />

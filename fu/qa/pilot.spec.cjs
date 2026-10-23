@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { Pool } = require('pg');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
-const { sms, appContainer } = require('./runtime.cjs');
+const { sms, appContainer, rpc } = require('./runtime.cjs');
 
 // This suite controls a disposable release and reads its synthetic OTP mailbox.
 // Refuse to run against any other database or browser host.
@@ -81,6 +81,15 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
 
   try {
     const suffix = info.project.name === 'desktop' ? '1' : '2';
+    if (suffix === '1') {
+      const seed = () => rpc('IO.puts("SPONTAAN_SETTING:" <> Jason.encode!(Fu.Simulation.seed!()))')
+        .split('\n').find((line) => line.startsWith('SPONTAAN_SETTING:'));
+      const initial = seed();
+      expect(seed()).toBe(initial);
+      const setting = JSON.parse(initial.slice('SPONTAAN_SETTING:'.length));
+      expect(setting.sessions).toHaveLength(6);
+      expect(setting.players).toHaveLength(12);
+    }
     for (const [index, mode] of ['unavailable', 'malformed', 'unauthorized', 'throttled', 'timeout'].entries()) {
       await sms('/control', { mode });
       const before = await sms('/stats');
@@ -106,6 +115,29 @@ test('same release: SMS, Explore, equipment, referee, reconnect and restart', as
       destination: '/hobbies', screenshot: info.outputPath(`${info.project.name}-login.png`),
     });
     const hobby = suffix === '1' ? 'futsal' : 'guitar';
+    await host.goto('/profile');
+    await connected(host);
+    const experience = host.locator('#experience-form');
+    const colours = new Set();
+    for (const theme of ['spontaan', 'football', 'court', 'music', 'outdoors', 'making']) {
+      await experience.locator('[name="experience[main_hobby]"]').fill(hobby);
+      await experience.locator('[name="experience[experience_theme]"]').selectOption(theme);
+      await experience.getByRole('button', { name: 'Save experience', exact: true }).click();
+      await expect(host.locator('#spontaan-shell')).toHaveAttribute('data-experience', theme);
+      colours.add(await host.locator('#spontaan-shell').evaluate((el) => getComputedStyle(el).getPropertyValue('--fu-accent').trim()));
+    }
+    expect(colours.size).toBe(6);
+    await experience.locator('[name="experience[experience_theme]"]').selectOption('auto');
+    await experience.getByRole('button', { name: 'Save experience', exact: true }).click();
+    const selectedTheme = suffix === '1' ? 'football' : 'music';
+    await expect(host.locator('#spontaan-shell')).toHaveAttribute('data-experience', selectedTheme);
+    await host.goto('/explore');
+    await connected(host);
+    await expect(host.locator('#spontaan-shell')).toHaveAttribute('data-experience', selectedTheme);
+    await expect(host.locator('#spontaan-brand')).toContainText('spontaan');
+    await expect(host.locator('#explore-events')).toContainText('Commons six-a-side');
+    await expect(host.locator('#main-hobby-link')).toHaveAttribute('href', `/explore?hobby=${hobby}`);
+    await host.screenshot({ path: info.outputPath(`${info.project.name}-spontaan-${selectedTheme}.png`), fullPage: true, animations: 'disabled' });
     const title = `QA ${info.project.name} ${hobby}`;
     const { id, startsAt } = await create(host, title, hobby, 'committed');
     await expect(host.locator('#access-pending')).toBeVisible();

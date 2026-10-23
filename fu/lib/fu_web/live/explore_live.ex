@@ -10,7 +10,8 @@ defmodule FuWeb.ExploreLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Explore · FU",
+       page_title: "Explore",
+       experience: Fu.Experiences.for_player(socket.assigns.current_player),
        filters: Discovery.normalize(%{}),
        more?: false,
        shown: 0,
@@ -57,10 +58,10 @@ defmodule FuWeb.ExploreLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_player={@current_player} active={:explore}>
-      <div class="flex items-start justify-between gap-4">
+      <div class="spontaan-hero flex items-start justify-between gap-4">
         <div>
-          <p class="text-caption">Follow an interest</p>
-          <h1 class="text-h1">Find your next thing.</h1>
+          <p class="text-caption">{@experience.label}</p>
+          <h1 class="text-h1">{@experience.headline}</h1>
         </div>
         <.link
           navigate={~p"/hobbies/new"}
@@ -70,7 +71,10 @@ defmodule FuWeb.ExploreLive do
           Create
         </.link>
       </div>
-      <p class="fu-ink-soft">A game, a workshop, a music night. Find people and a place to do it.</p>
+      <p class="fu-ink-soft">{@experience.invitation}</p>
+      <.link :if={@current_player.main_hobby not in [nil, ""]} id="main-hobby-link" patch={~p"/explore?#{%{hobby: @current_player.main_hobby}}"} class="spontaan-hobby-link">
+        <.icon name="hero-sparkles" class="size-4" /> Your {@current_player.main_hobby} corner <span aria-hidden="true">↗</span>
+      </.link>
       <div class="flex gap-2" aria-label="Event scope">
         <.link
           patch={~p"/explore?#{params(@filters, %{scope: "all", page: 1})}"}

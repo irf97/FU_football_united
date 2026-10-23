@@ -47,7 +47,7 @@ defmodule Fu.Accounts do
           |> Repo.insert()
           |> case do
             {:ok, otp} ->
-              case Fu.SMS.deliver(phone, "Your Football United code is #{code}") do
+              case Fu.SMS.deliver(phone, "Your Spontaan code is #{code}") do
                 :ok ->
                   {:ok, code}
 
@@ -203,6 +203,11 @@ defmodule Fu.Accounts do
   end
 
   def age(_), do: nil
+
+  def update_experience(%Player{} = player, attrs),
+    do: player |> Player.experience_changeset(attrs) |> Repo.update()
+
+  def change_experience(%Player{} = player), do: Player.experience_changeset(player, %{})
 
   def update_profile(%Player{} = player, attrs) do
     player |> Player.profile_changeset(attrs) |> Repo.update()

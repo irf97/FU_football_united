@@ -6,10 +6,16 @@ defmodule Fu.ExperienceTest do
     player = player_fixture()
 
     assert {:ok, saved} =
-             apply(Accounts, :update_experience, [player, %{
-               "main_hobby" => "  Guitar  ", "experience_theme" => "auto",
-               "is_admin" => "true", "rank" => "999", "primary_position" => "GK"
-             }])
+             apply(Accounts, :update_experience, [
+               player,
+               %{
+                 "main_hobby" => "  Guitar  ",
+                 "experience_theme" => "auto",
+                 "is_admin" => "true",
+                 "rank" => "999",
+                 "primary_position" => "GK"
+               }
+             ])
 
     assert Map.get(saved, :main_hobby) == "guitar"
     assert Map.get(saved, :experience_theme) == "auto"
@@ -31,9 +37,18 @@ defmodule Fu.ExperienceTest do
 
   test "unknown themes and oversized hobbies are rejected" do
     player = player_fixture()
-    assert {:error, cs} = apply(Accounts, :update_experience, [player, %{experience_theme: "injected"}])
+
+    assert {:error, cs} =
+             apply(Accounts, :update_experience, [player, %{experience_theme: "injected"}])
+
     assert errors_on(cs)[:experience_theme]
-    assert {:error, cs} = apply(Accounts, :update_experience, [player, %{main_hobby: String.duplicate("x", 61)}])
+
+    assert {:error, cs} =
+             apply(Accounts, :update_experience, [
+               player,
+               %{main_hobby: String.duplicate("x", 61)}
+             ])
+
     assert errors_on(cs)[:main_hobby]
   end
 end

@@ -32,7 +32,9 @@ defmodule FuWeb.SpontaanExperienceTest do
     refute has_element?(reconnected, "#football-rank")
   end
 
-  test "Football United remains a selectable experience without changing hobby access", %{conn: conn} do
+  test "Football United remains a selectable experience without changing hobby access", %{
+    conn: conn
+  } do
     player = player_fixture()
     {:ok, view, _} = live(log_in_player(conn, player), "/profile")
 

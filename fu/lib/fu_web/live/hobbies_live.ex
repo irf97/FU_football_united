@@ -6,7 +6,7 @@ defmodule FuWeb.HobbiesLive do
   def mount(params, _session, socket) do
     socket =
       assign(socket,
-        page_title: "FU Hobbies",
+        page_title: "Hobbies",
         filter: "",
         session: nil,
         member: nil,
@@ -169,7 +169,7 @@ defmodule FuWeb.HobbiesLive do
     <Layouts.app flash={@flash} current_player={@current_player} active={:hobbies}>
       <div class="flex items-center justify-between gap-3">
         <div>
-          <p class="text-caption">FU · time to do something</p>
+          <p class="text-caption">Spontaan · time to do something</p>
           <h1 class="text-h1">Hobbies, together.</h1>
         </div>
         <.link :if={@live_action == :index} navigate={~p"/hobbies/new"} class="btn btn-primary">

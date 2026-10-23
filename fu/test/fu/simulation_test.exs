@@ -4,6 +4,7 @@ defmodule Fu.SimulationTest do
 
   setup do
     original = Application.fetch_env(:fu, :environment)
+
     on_exit(fn ->
       case original do
         {:ok, value} -> Application.put_env(:fu, :environment, value)
